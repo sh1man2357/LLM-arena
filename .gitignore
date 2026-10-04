@@ -1,0 +1,11 @@
+.venv/
+.tools/
+__pycache__/
+*.py[cod]
+artifacts/work/
+artifacts/acceptance/*/replays/
+artifacts/acceptance/*/build/*.wasm
+artifacts/acceptance/*/checks/*.jsonl
+*.tmp
+.env
+configs/private/
