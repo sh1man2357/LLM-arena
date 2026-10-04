@@ -73,6 +73,8 @@ Seed 清单以 secrets 随机生成并落盘，比赛依赖文件中的固定种
 
 ## 检查与版本记录
 
+已完成的工程验收证据见 [交接说明](./artifacts/acceptance/v0.1-release/handoff.md) 和 [逐项审计](./artifacts/acceptance/v0.1-release/audit.md)：39 项检查、300 局有效比赛、全部世界回放与 Bot 重跑，以及独立目录的另一个 300 局批次均通过。完整原始证据归档为 evidence.zip，恢复方式和 SHA-256 见交接说明。
+
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -v
 git log --oneline
@@ -80,4 +82,4 @@ git log --oneline
 
 检查包含规则、地图向量、真实 C++ 编译、STL/构造/堆状态、ABI、fuel trap 恢复、内存上限、watchdog、调度恢复和结果防篡改。运行时和链接决策见 [实现决策](./docs/07-decisions.md)。
 
-原始批量 Replay 与编译器不进入源码 Git；交接记录保存验收清单和摘要，并通过相同命令重建。文本回放已提供，图形界面和模型提供方集成属于后续交付范围。
+编译器和虚拟环境不进入 Git；原始批量 Replay 不以散文件提交，完整证据通过带 SHA-256 的 ZIP 归档保存，清单和摘要单独提交。文本回放已提供，图形界面和模型提供方集成属于后续交付范围。

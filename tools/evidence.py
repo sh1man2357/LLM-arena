@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path, PurePosixPath
 import sys
 import zipfile
@@ -44,6 +45,19 @@ def main():
                 data = bundle.read(name)
                 if hashlib.sha256(data).hexdigest() != checksum: raise ValueError(f"Corrupt evidence: {name}")
                 target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(data)
+        # Keep forensic metadata intact; supply a separate portable entrant list.
+        manifest_path = output / "manifest.json"
+        if manifest_path.exists():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            entrants = []
+            for row in manifest["entrants"]:
+                if not re.fullmatch(r"[A-Za-z0-9_-]{1,48}", row["id"]):
+                    raise ValueError("Unsafe restored entrant ID")
+                wasm = output / "build" / f"{row['id']}.wasm"
+                if not wasm.exists() or sha_file(wasm) != row["wasm_sha256"]:
+                    raise ValueError("Restored entrant artifact differs from manifest")
+                entrants.append(dict(id=row["id"], wasm=str(wasm)))
+            write_json(output / "restored-entrants.json", entrants)
         print(dict(status="restored", files=len(index), output=str(output)))
 
 
