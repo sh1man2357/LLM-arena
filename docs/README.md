@@ -2,11 +2,11 @@
 
 LLM Arena 让不同模型在统一开发条件下编写 Bot，冻结提交代码，再让 Bot 在未知、可复现的炸弹人竞技场中比赛。模型只参与开发，不参与正式比赛。
 
-v0.1 规则、地图、SDK 和运行参数已经实现并完成工程验收，当前冻结清单见根目录 DELIVERY.md 与 artifacts/acceptance/v0.1-release/manifest.json。模型开发协议、多人赛制和长期 Rating 是后续范围；重要规则调整应建立新版本。
+v0.1 规则、地图、SDK 和运行参数已经实现并完成工程验收，当前冻结清单见根目录 DELIVERY.md 与 artifacts/acceptance/v0.1-release/manifest.json。模型开发采用 60 分钟限时交卷协议；真实模型评测、多人赛制和长期 Rating 是后续范围。重要规则调整应建立新版本。
 
 ## 阅读顺序
 
-向模型分发的统一任务书见根目录 [MODEL_TASK.md](../MODEL_TASK.md)。其中的预算和反馈协议须由主办方在分发前填写并冻结。
+向模型分发的统一任务书见根目录 [MODEL_TASK.md](../MODEL_TASK.md)。可直接分发：收到任务后 60 分钟内交卷，允许提前提交，默认在当前对话交源码。
 
 | 文档 | 用途 |
 | --- | --- |

@@ -4,7 +4,7 @@
 
 交付范围和进度见 [DELIVERY.md](./DELIVERY.md)，精确规则从 [docs/README.md](./docs/README.md) 阅读。当前工程不提供长期 Rating 或多人正式赛制。
 
-向不同模型分发开发任务使用 [MODEL_TASK.md](./MODEL_TASK.md)：包含完整规则、SDK 接口和源码提交要求。分发前先统一填写其中的开发预算、工具权限和修改机会，再冻结任务书。
+向不同模型分发开发任务使用 [MODEL_TASK.md](./MODEL_TASK.md)：包含完整规则、SDK 接口和源码提交要求。统一 60 分钟内交卷，可提前提交；没有待填配置，默认在当前对话提交 `bot.cpp` 源码。
 
 ## 环境准备
 
