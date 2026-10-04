@@ -4,6 +4,8 @@
 
 交付范围和进度见 [DELIVERY.md](./DELIVERY.md)，精确规则从 [docs/README.md](./docs/README.md) 阅读。当前工程不提供长期 Rating 或多人正式赛制。
 
+向不同模型分发开发任务使用 [MODEL_TASK.md](./MODEL_TASK.md)：包含完整规则、SDK 接口和源码提交要求。分发前先统一填写其中的开发预算、工具权限和修改机会，再冻结任务书。
+
 ## 环境准备
 
 首个支持和验收平台是 Windows x64、PowerShell、Python 3.12。需要 Git 才能使用源码版本记录；运行程序本身不需要 Git。依赖锁定 Wasmtime 49.0.0 和 WASI SDK 33.0 / Clang 22.1.0，安装包校验 SHA-256。
