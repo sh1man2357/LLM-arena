@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api, useResource } from './api';
 import { Board } from './Board';
-import { actionNames, BackLink, Badge, ErrorPanel, Icon, identityColor, labels, nameLabel, State } from './ui';
+import { actionNames, BackLink, Badge, ErrorPanel, Icon, identityColor, labels, useNameLabel, State } from './ui';
 import type { Match, Replay, Row } from './types';
 import { useRevision } from './App';
 
 export function Viewer() {
+  const nameLabel = useNameLabel();
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
   const revision = useRevision();
@@ -25,9 +26,10 @@ export function Viewer() {
   const [hint, setHint] = useState('');
   const [liveError, setLiveError] = useState('');
   const stage = useRef<HTMLDivElement>(null);
+  const wasLive = useRef(false);
   const latest = useRef<Replay | undefined>(undefined);
   latest.current = data;
-  useEffect(() => { setData(undefined); setPlaying(false); setFollow(!params.has('frame')); setSeq(0); }, [id]);
+  useEffect(() => { wasLive.current = false; setData(undefined); setPlaying(false); setFollow(!params.has('frame')); setSeq(0); }, [id]);
   useEffect(() => {
     if (initial.data) {
       setData(initial.data);
@@ -75,7 +77,10 @@ export function Viewer() {
     }), 250 / speed);
     return () => clearInterval(timer);
   }, [playing, speed, data]);
-  useEffect(() => { if (follow && match.data?.status === 'running' && data) setSeq(data.frames.length - 1); }, [data, follow, match.data?.status]);
+  useEffect(() => {
+    if (match.data?.status === 'running') wasLive.current = true;
+    if (follow && data && (match.data?.status === 'running' || (wasLive.current && ['completed', 'failed'].includes(match.data?.status || '')))) setSeq(Math.max(0, data.frames.length - 1));
+  }, [data, follow, match.data?.status]);
   const max = Math.max(0, (data?.frames.length || 1) - 1);
   function seek(index: number) {
     setPlaying(false); setFollow(false);
@@ -156,7 +161,7 @@ export function Viewer() {
         {match.data.status === 'running' && <button className="text-button" onClick={() => { setFollow(true); setSeq(max); }}>{follow ? '正在跟随最新' : '回到最新'}</button>}
         <button className="text-button" onClick={image}><Icon name="image" />PNG</button>
       </div>
-      {done && <div className={`result-banner ${data.result?.valid ? '' : 'failure'}`}><div><p className="eyebrow">对局结果</p><h2>{outcome}</h2><p>{labels[data.result!.reason]} · {data.result!.ticks} 次结算{winner ? '' : ' · 并列不额外破同分'}</p></div><button onClick={() => seek(0)}><Icon name="refresh" />重新查看</button></div>}
+      {done && <div className={`result-banner ${data.result?.valid ? '' : 'failure'}`}><div><p className="eyebrow">对局结果</p><h2>{outcome}</h2><p>{labels[data.result!.reason]} · {data.result!.ticks} 次结算{data.result?.valid && !winner ? ' · 并列不额外破同分' : ''}</p></div><button onClick={() => seek(0)}><Icon name="refresh" />重新查看</button></div>}
     </section>
     {details && <aside className="inspector"><div className="inspector-tabs"><button className={mode === 'player' ? 'active' : ''} onClick={() => setMode('player')}>玩家</button><button className={mode === 'cell' ? 'active' : ''} onClick={() => setMode('cell')}>格子</button></div>
       <section className="inspector-card"><p className="eyebrow">{mode === 'player' ? '当前玩家状态' : '选中格子'}</p>

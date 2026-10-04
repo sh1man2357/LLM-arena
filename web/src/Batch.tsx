@@ -2,10 +2,11 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useResource } from './api';
 import { useRevision } from './App';
 import { MatchRows, type Page } from './Hall';
-import { Badge, ErrorPanel, Icon, identityColor, labels, nameLabel, PageTitle, State } from './ui';
+import { Badge, ErrorPanel, Icon, identityColor, labels, useNameLabel, PageTitle, State } from './ui';
 import type { Match, Row, Tournament } from './types';
 
 export function Batch() {
+  const nameLabel = useNameLabel();
   const { id } = useParams(); const revision = useRevision(); const [params, setParams] = useSearchParams();
   const batch = useResource<Tournament>(`/api/v1/tournaments/${id}`, revision);
   const pair = params.get('pair')?.split(','); const caseIndex = params.get('case');

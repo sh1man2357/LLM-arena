@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 const paths: Record<string, ReactNode> = {
@@ -32,6 +32,7 @@ export const labels: Record<string, string> = {
   completed: '已结束', complete: '完整批次', running: '进行中', queued: '排队中', failed: '运行失败', stopped: '已停止调度',
   stop_requested: '等待当前局结束', interrupted: '已中断', succeeded: '已完成', incomplete: '未完成', qualified: '资格通过', historical: '历史提交',
   submitted: '已交卷', open: '开发中', late: '逾期', missing: '未交卷', sealed: '封存', disclosed: '已披露',
+  compiling: '编译与检查中', qualification_failed: '资格失败',
   last_survivor: '最后存活者', all_eliminated: '全部淘汰', tick_limit: '时间上限', initialization_end: '初始化结束', infrastructure_failure: '基础设施失败',
   fuel: 'fuel 耗尽', invalid_action: '非法动作', trap: '运行崩溃', move: '移动', place: '放置炸弹', explode: '爆炸', destroy: '软墙销毁', death: '淘汰', fault: '动作故障',
 };
@@ -58,4 +59,9 @@ export function identityColor(id: string) {
 export function nameLabel(id: string) {
   const names: Record<string, string> = { heuristic: 'Heuristic', safe: 'Safe', random: 'Random' };
   return names[id] || id;
+}
+export const IdentityNames = createContext<Record<string, string>>({});
+export function useNameLabel() {
+  const names = useContext(IdentityNames);
+  return (id: string) => names[id] || nameLabel(id);
 }

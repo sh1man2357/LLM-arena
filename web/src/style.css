@@ -179,3 +179,49 @@ dl { margin: 0; }dl > div { display: flex; gap: 14px; justify-content: space-bet
   .identity-panel { gap: 20px; }.identity-panel > div { width: 100%; }.identity-panel span { font-size: 12px; }.identity-panel .hash-text { font-size: 10px; }.manage-grid .panel { padding: 22px; }.file-input-label { margin-left: 0; margin-top: 12px; }.manage-grid button,.manage-grid .button { font-size: 12px; }.protocol-time { font-size: 60px; }
 }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+.workflow-message { padding: 15px 18px; border: 1px solid #416E64; background: #172A28; color: var(--mint); border-radius: 8px; margin-bottom: 24px; font-size: 13px; overflow-wrap: anywhere; }
+.workflow-message.error { border-color: #80524F; background: #40292A; color: var(--red); }
+.workflow-grid { align-items: start; grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); }
+.workflow-column { display: grid; gap: 24px; min-width: 0; }
+.step-number { color: var(--mint); font-size: 12px; margin-right: 10px; }
+.workflow-form { display: grid; gap: 16px; margin-top: 20px; }
+.workflow-form label:not(.check-label), .field-label, .source-label { display: grid; gap: 8px; font-size: 12px; color: var(--muted); }
+.workflow-form input, .field-label select { width: 100%; min-width: 0; }
+.form-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.record-details { margin-top: 12px; color: var(--muted); font-size: 12px; }
+.record-details summary { cursor: pointer; padding: 12px 0; min-height: 44px; }
+.record-details > label { display: grid; gap: 8px; margin-top: 12px; }
+.record-details > p { line-height: 1.7; }
+.check-label { display: flex !important; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; font-size: 12px; }
+.check-label input { width: 18px; min-width: 18px; margin: 0; }
+.check-label span { overflow-wrap: anywhere; }
+.check-label small { display: block; margin-top: 4px; }
+.source-workspace { padding-top: 24px; margin-top: 24px; border-top: 1px solid var(--border); }
+.session-clock { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 20px 0 12px; }
+.session-clock strong { display: block; font-size: 32px; color: var(--text); margin-top: 7px; }
+.session-clock span.muted { font-size: 11px; }
+.source-editor { width: 100%; min-height: 230px; font-size: 12px; line-height: 1.7; resize: vertical; tab-size: 2; white-space: pre; }
+.source-label { margin-top: 20px; }.source-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 12px 0 18px; }
+.source-actions .file-input-label { margin: 0; }.source-workspace > .primary { margin-top: 18px; }
+.frozen-note { display: flex; gap: 10px; align-items: center; color: var(--mint); margin-top: 20px; }
+.submission-row { padding: 22px 0; border-top: 1px solid var(--border); }
+.submission-row:first-child { border-top: 0; }.submission-row > .hash-text { margin: 10px 0; }
+.record-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.record-heading > div { min-width: 0; }.record-heading strong { overflow-wrap: anywhere; }
+.record-heading small { display: block; font-size: 11px; margin-top: 5px; }
+.record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.record-actions .button, .record-actions button { font-size: 12px; min-height: 44px; }
+.compile-log { max-height: 280px; padding: 16px; background: #101920; border: 1px solid var(--border); border-radius: 6px; font-size: 11px; line-height: 1.6; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.entrant-picker { display: grid; gap: 6px; margin: 18px 0; max-height: 260px; overflow: auto; padding: 3px; }
+.entrant-picker .check-label { padding: 12px; background: #16212A; border-radius: 6px; }
+.danger-text { color: var(--red); }.workflow-jobs, .workflow-publication { margin-top: 24px; }
+.job-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 20px; border-top: 1px solid var(--border); padding: 22px 0; }
+.job-info { min-width: 0; }.job-info > small { display: block; margin-top: 8px; font-size: 11px; overflow-wrap: anywhere; }
+.job-progress { display: flex; align-items: center; gap: 16px; margin-top: 14px; font-size: 12px; }.job-progress progress { flex: 1; min-width: 0; height: 5px; accent-color: var(--mint); }
+.job-diagnostic { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; margin: 12px 0 0; }
+.publication-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; border-top: 1px solid var(--border); padding: 20px 0; }
+.publication-row strong { overflow-wrap: anywhere; }
+.publication-row p { margin: 10px 0 0; }
+.badge.qualification_failed { color: var(--red); background: #40292A; border-color: #80524F; }
+@media (max-width: 900px) { .workflow-grid { grid-template-columns: 1fr; }.job-row { grid-template-columns: 1fr; gap: 8px; }.publication-row { flex-direction: column; align-items: flex-start; } }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; }.record-heading { flex-wrap: wrap; }.workflow-message { font-size: 12px; }.job-row .record-actions { gap: 6px; }.source-actions { gap: 10px; } }

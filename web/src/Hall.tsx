@@ -2,11 +2,12 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useResource } from './api';
 import { useRevision } from './App';
 import { Board } from './Board';
-import { Badge, ErrorPanel, Icon, identityColor, labels, nameLabel, PageTitle, State } from './ui';
+import { Badge, ErrorPanel, Icon, identityColor, labels, useNameLabel, PageTitle, State } from './ui';
 import type { Match, Replay, Row, Tournament } from './types';
 
 export type Page<T> = { items: T[]; total?: number };
 export function MatchRows({ rows }: {rows: Match[]}) {
+  const nameLabel = useNameLabel();
   return <div className="match-list">{rows.map(row => <Link className="match-row" to={`/matches/${row.id}`} key={row.id}>
     <div className="match-players">{row.entrants.map((e, i) => <span key={e.id}>{i > 0 && <small className="versus-text">vs</small>}<i style={{ background: identityColor(e.id) }} /><strong>{nameLabel(e.id)}</strong></span>)}<small>{row.title}</small></div>
     <div className="match-score mono">{row.result?.valid ? row.result.players.map((p: Row) => p.placement_score).join(' : ') : '—'}</div>
@@ -16,6 +17,7 @@ export function MatchRows({ rows }: {rows: Match[]}) {
 }
 
 function Feature({ match }: {match: Match}) {
+  const nameLabel = useNameLabel();
   const replay = useResource<Replay>(`/api/v1/matches/${match.id}/frames`);
   const index = replay.data ? Math.min(15, replay.data.frames.length - 1) : 0;
   return <Link to={`/matches/${match.id}`} className="feature-match">

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useResource } from './api';
-import { Icon } from './ui';
+import { Icon, IdentityNames, nameLabel } from './ui';
 import { Hall, Batch, Entrants, EntrantPage, Manage, Batches } from './pages';
 import { Viewer } from './Viewer';
 
@@ -12,17 +12,27 @@ export function App() {
   const [revision, setRevision] = useState(0);
   const [connected, setConnected] = useState(false);
   const health = useResource<{status: string; app_version: string}>('/health', revision);
+  const entrants = useResource<{items: {id: string; name: string}[]}>('/api/v1/entrants', revision);
+  const names = Object.fromEntries((entrants.data?.items || []).map(e => [e.id, nameLabel(e.name || e.id)]));
   const location = useLocation();
   useEffect(() => {
     const events = new EventSource('/api/v1/events');
     let last = 0;
+    let trailing: ReturnType<typeof setTimeout> | undefined;
     events.onopen = () => setConnected(true);
     events.onerror = () => setConnected(false);
-    events.onmessage = () => { if (performance.now() - last > 350) { last = performance.now(); setRevision(r => r + 1); } };
-    return () => events.close();
+    events.onmessage = event => {
+      const notice = JSON.parse(event.data);
+      if (notice.type !== 'frame' || performance.now() - last > 350) {
+        clearTimeout(trailing); last = performance.now(); setRevision(r => r + 1);
+      } else {
+        clearTimeout(trailing); trailing = setTimeout(() => { last = performance.now(); setRevision(r => r + 1); }, 350);
+      }
+    };
+    return () => { clearTimeout(trailing); events.close(); };
   }, []);
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
-  return <Revision.Provider value={revision}><div className="app-shell">
+  return <IdentityNames.Provider value={names}><Revision.Provider value={revision}><div className="app-shell">
     <aside className="rail"><Link to="/" className="brand" aria-label="LLM Arena 比赛大厅"><span /><span /><span /><span /></Link>
       <nav aria-label="主要页面">
         <NavLink to="/" end title="比赛大厅"><Icon name="grid" /><span>大厅</span></NavLink>
@@ -42,5 +52,5 @@ export function App() {
       <Route path="/manage" element={<Manage />} /><Route path="*" element={<div className="state-panel"><h1>页面不存在</h1><Link to="/">回到比赛大厅</Link></div>} />
     </Routes></main>
     <footer className="site-footer"><span>LLM Arena <span className="mono">v{health.data?.app_version || '0.2.0'}</span></span><span>双人规则 1 · C++20 / WASM · 可复现比赛</span><span>观赛速度不影响比赛</span></footer>
-    </div></div></Revision.Provider>;
+    </div></div></Revision.Provider></IdentityNames.Provider>;
 }
