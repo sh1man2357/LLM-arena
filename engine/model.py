@@ -64,6 +64,7 @@ class World:
     fault_counters: list[dict] = field(default_factory=list)
 
     def __post_init__(self):
+        self.grid = list(self.grid)
         if not (1 <= self.width <= 31 and 1 <= self.height <= 31):
             raise ValueError("Map dimensions must be in 1..31")
         if len(self.grid) != self.width * self.height or any(v not in (0, 1, 2) for v in self.grid):

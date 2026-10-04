@@ -146,6 +146,15 @@ class FaultAndRankingTests(unittest.TestCase):
 
 
 class MapTests(unittest.TestCase):
+    def test_frozen_map_and_state_vectors(self):
+        import json
+        from pathlib import Path
+        fixture = json.loads((Path(__file__).parent / "fixtures/vectors.json").read_text(encoding="utf-8"))
+        m = generate(1)
+        self.assertEqual(m, fixture["map_seed_1"])
+        w = World(13, 11, m["grid"], [Player(i, *p) for i, p in enumerate(m["spawns"])])
+        self.assertEqual(w.state_hash(), fixture["initial_state_sha256"])
+
     def test_rng_vector(self):
         rng = XorShift32(1)
         self.assertEqual([rng.next() for _ in range(5)], [270369, 67634689, 2647435461, 307599695, 2398689233])
