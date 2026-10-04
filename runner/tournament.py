@@ -61,7 +61,7 @@ def schedule(entrants, cases):
     return result
 
 
-def run_tournament(entrants, cases, output, resume=False, retry_failures=False):
+def run_tournament(entrants, cases, output, resume=False, retry_failures=False, observer=None, should_stop=None):
     cases = validate_cases(cases)
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
@@ -90,6 +90,10 @@ def run_tournament(entrants, cases, output, resume=False, retry_failures=False):
             qualifications.append(dict(id=e["id"], **qualify(backend, e["wasm"])))
         write_json(output / "qualification.json", qualifications)
         for index, item in enumerate(plan):
+            if should_stop and should_stop():
+                break
+            if observer:
+                observer("match_start", dict(item=item, index=index, manifest=manifest))
             rp = output / "replays" / f"{item['match_id']}.jsonl"
             result_path = output / "matches" / f"{item['match_id']}.json"
             cached = read_json(result_path) if result_path.exists() else None
@@ -117,10 +121,13 @@ def run_tournament(entrants, cases, output, resume=False, retry_failures=False):
                         (prior / f"{attempt}.replay.jsonl").write_bytes(rp.read_bytes())
                 result, _ = run_match(backend, [by_id[i] for i in item["entrants"]], item["map_seed"],
                                       [int(s, 16) for s in item["bot_seeds"]], item["match_id"],
-                                      replay_path=rp, version=manifest["components"])
+                                      replay_path=rp, version=manifest["components"],
+                                      record_sink=(lambda record: observer("record", dict(item=item, record=record))) if observer else None)
                 result["replay_sha256"] = sha_file(rp)
                 write_json(result_path, result)
             results.append(result)
+            if observer:
+                observer("match_end", dict(item=item, index=index, manifest=manifest, result=result, replay=str(rp)))
             if (index + 1) % 25 == 0 or index == 0:
                 print(f"Matches {index+1}/{len(plan)}", flush=True)
         write_lines(output / "results.jsonl", results)

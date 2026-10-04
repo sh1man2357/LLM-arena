@@ -56,6 +56,18 @@ class Store:
             rows = db.execute("SELECT body FROM records WHERE kind=? ORDER BY updated DESC,id", (kind,)).fetchall()
         return [json.loads(r["body"]) for r in rows]
 
+    def update(self, kind, identity, change):
+        """Read-modify-write under one lock so concurrent progress cannot undo a stop or disclosure."""
+        with self.connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT body FROM records WHERE kind=? AND id=?", (kind, identity)).fetchone()
+            if row is None:
+                raise KeyError(identity)
+            value = json.loads(row["body"])
+            change(value)
+            self.put(kind, value, db=db)
+        return value
+
     def put(self, kind, value, *, create=False, db=None):
         if db is None:
             with self.connection() as connection:

@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from copy import deepcopy
 from pathlib import Path
 import sys
 import platform
@@ -16,7 +17,7 @@ def components():
         for path in sorted((ROOT / folder).rglob("*")):
             if path.is_file() and path.suffix in (".py", ".hpp", ".cpp", ".json") and "__pycache__" not in path.parts:
                 files[path.relative_to(ROOT).as_posix()] = sha_file(path)
-    return dict(benchmark_id="bomber-v0.1", ruleset="1", map_generator="1", sdk="1", baseline_set="1",
+    return dict(benchmark_id="bomber-v0.2-rules1", ruleset="1", map_generator="1", sdk="1", baseline_set="1",
                 reporter="1", runtime="wasmtime-49.0.0", toolchain=read_json(ROOT / "configs/toolchain.json"),
                 python=sys.version.split()[0], platform=dict(system=platform.system(), machine=platform.machine()),
                 source_hash=digest(files), source_files=files)
@@ -78,7 +79,7 @@ def make_result(world, stats, match_id, reason=None):
 
 
 def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=None,
-              replay_path=None, init_fuel=INIT_FUEL, tick_fuel=TICK_FUEL, version=None):
+              replay_path=None, init_fuel=INIT_FUEL, tick_fuel=TICK_FUEL, version=None, record_sink=None):
     if len(entrants) != 2 or len(bot_seeds) != 2 or len({e["id"] for e in entrants}) != 2:
         raise ValueError("v0.1 matches require two distinct entrants and two seeds")
     rules = rules or Rules()
@@ -104,6 +105,8 @@ def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=N
                 stats[pid]["initialization_failures"] = 1
                 init_records.append(dict(id=pid, status="eliminated", diagnostic=str(exc)))
         header["initial_state"], header["initial_state_hash"] = world.state(), world.state_hash()
+        if record_sink:
+            record_sink(deepcopy(header))
         initial_end = world.end_reason() is not None
         while not world.end_reason():
             before = world.state_hash()
@@ -115,12 +118,23 @@ def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=N
                                 calls=[dict(id=pid, **calls[pid]) for pid in sorted(calls)],
                                 actions=[dict(id=pid, action=actions[pid]) for pid in sorted(actions)],
                                 events=events, state=world.state(), after_hash=world.state_hash()))
+            if record_sink:
+                record_sink(deepcopy(records[-1]))
         result = make_result(world, stats, match_id, "initialization_end" if initial_end else None)
         records.append(result)
+        if record_sink:
+            record_sink(deepcopy(result))
     except Exception as exc:
+        if records[-1].get("type") == "result":
+            records.pop()
         result = dict(type="result", match_id=match_id, valid=False, reason="infrastructure_failure",
                       diagnostic=f"{type(exc).__name__}: {exc}", ticks=world.tick, players=[], stats=stats)
         records.append(result)
+        if record_sink:
+            try:
+                record_sink(deepcopy(result))
+            except Exception:
+                pass  # The invalid result is still returned; durable output failure never becomes a win.
     finally:
         for instance in instances.values():
             instance.close()

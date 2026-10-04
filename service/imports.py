@@ -11,10 +11,16 @@ from service.replays import from_bytes
 from service.store import utc_now
 
 
-def import_replay(store, data, *, title=None, tournament_id=None, identity=None, case=None):
+def import_replay(store, data, *, title=None, tournament_id=None, identity=None, case=None, disclosure="disclosed", attempt_id="imported"):
     ui = from_bytes(data)
     identity = identity or "m-" + hashlib.sha256(data).hexdigest()[:20]
-    folder = store.root / "matches" / identity
+    try:
+        previous = store.get("match", identity)
+        if previous["status"] == "completed" and previous["source_sha256"] != ui["source_sha256"]:
+            raise ValueError("Cannot replace completed match evidence")
+    except KeyError:
+        pass
+    folder = store.root / "matches" / identity / ui["source_sha256"][:16]
     folder.mkdir(parents=True, exist_ok=True)
     replay_path = folder / "replay.jsonl"
     if replay_path.exists() and replay_path.read_bytes() != data:
@@ -23,9 +29,9 @@ def import_replay(store, data, *, title=None, tournament_id=None, identity=None,
     write_json(folder / "projection.json", ui)
     row = dict(id=identity, title=title or " × ".join(e["id"] for e in ui["entrants"]),
                tournament_id=tournament_id, entrants=ui["entrants"], status="completed" if ui["result"]["valid"] else "failed",
-               ticks=len(ui["frames"])-1, result=ui["result"], verified=ui["verified"], disclosure="disclosed",
+               ticks=len(ui["frames"])-1, result=ui["result"], verified=ui["verified"], disclosure=disclosure,
                replay=str(replay_path), projection=str(folder / "projection.json"), created=utc_now(),
-               source_sha256=ui["source_sha256"], case=case, attempt_id="imported")
+               source_sha256=ui["source_sha256"], case=case, attempt_id=attempt_id)
     row["facts"] = dict(moves=sum(e["type"] == "move" for f in ui["frames"] for e in f["events"]),
                         blocked_moves=sum(len(f["visual"]["blocked_moves"]) for f in ui["frames"]),
                         waits=sum(a["action"] == 0 for f in ui["frames"] for a in f["actions"]))

@@ -105,7 +105,8 @@ def generate_report(output):
             if dict(records[-1], replay_sha256=sha_file(path)) != result:
                 raise ValueError("Report result differs from authoritative Replay")
     write_json(output / "report.json", report)
-    lines = ["# LLM Arena v0.1 report", "", f"Status: {report['status']}", ""]
+    lines = ["# LLM Arena report", "", f"Benchmark: {manifest['components']['benchmark_id']}",
+             f"Status: {report['status']}", ""]
     if report["status"] == "complete":
         lines += ["| Entrant | Opponent | W / L / D | Mean placement | 95% map interval |",
                   "| --- | --- | --- | --- | --- |"]

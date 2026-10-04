@@ -2,10 +2,13 @@ import copy
 from pathlib import Path
 import tempfile
 import unittest
+import time
+import json
+import zipfile
 from engine.model import digest, Rules
 from engine.maps import generate
 from runtime.wasm import Backend, QualificationError
-from runner.io import read_json, write_json, write_lines, sha_file
+from runner.io import ROOT, read_json, write_json, write_lines, sha_file
 from runner.match import run_match, qualify
 from runner.tournament import run_tournament, schedule, validate_cases
 from runner.report import aggregate, generate_report, interval
@@ -37,6 +40,46 @@ class PipelineTests(unittest.TestCase):
                 changed = copy.deepcopy(records); changed[position][key] = value
                 with self.assertRaises(ValueError):
                     verify_world(changed)
+
+    def test_record_sink_is_a_snapshot_and_failure_is_not_a_win(self):
+        with Backend() as backend:
+            expected, raw = run_match(backend, self.entrants, 1, [1, 2], rules=Rules(max_ticks=8))
+            seen = []
+            def observer(record):
+                seen.append(copy.deepcopy(record))
+                record.clear()  # A consumer cannot mutate the runner's stored evidence.
+            actual, records = run_match(backend, self.entrants, 1, [1, 2], rules=Rules(max_ticks=8), record_sink=observer)
+            self.assertEqual(actual, expected)
+            self.assertEqual(records, raw)
+            self.assertEqual(seen, raw)
+            def broken(record):
+                if record['type'] == 'tick':
+                    raise OSError('durable stream unavailable')
+            failed, _ = run_match(backend, self.entrants, 1, [1, 2], record_sink=broken)
+            self.assertFalse(failed['valid'])
+            self.assertEqual(failed['players'], [])
+            self.assertEqual(failed['reason'], 'infrastructure_failure')
+
+    def test_new_observed_runner_matches_frozen_v01_reference(self):
+        archive_path = ROOT / 'artifacts/acceptance/v0.1-release/evidence.zip'
+        with zipfile.ZipFile(archive_path) as archive, Backend() as backend:
+            plan = json.loads(archive.read('schedule.json'))
+            for name in ('heuristic', 'safe', 'random'):
+                (self.root / f'{name}.wasm').write_bytes(archive.read(f'build/{name}.wasm'))
+            samples = [p for p in plan if p['case_index'] == 0]
+            self.assertEqual(len(samples), 6)
+            for item in samples:
+                expected = [json.loads(line) for line in archive.read(f"replays/{item['match_id']}.jsonl").decode().splitlines()]
+                observed = []
+                def sink(record):
+                    observed.append(record)
+                    if record['type'] == 'tick':
+                        time.sleep(.0001)  # Host presentation delay is outside Bot fuel / world hashes.
+                _, records = run_match(backend, [dict(id=eid, wasm=str(self.root / f'{eid}.wasm')) for eid in item['entrants']],
+                                       item['map_seed'], [int(s,16) for s in item['bot_seeds']], item['match_id'],
+                                       version=expected[0]['components'], record_sink=sink)
+                self.assertEqual(records, expected)
+                self.assertEqual(observed, expected)
 
     def test_initialization_all_fail_and_one_fail(self):
         failed = self.root / "fail.wasm"; failed.write_bytes(module(init="unreachable"))
