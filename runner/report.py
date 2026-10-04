@@ -3,7 +3,7 @@ import random
 from statistics import mean
 from engine.model import digest
 from runner.io import read_json, write_json, sha_file
-from replay.verify import read, verify_world
+from replay.verify import read, verify_scheduled
 
 BOOTSTRAP_SEED, BOOTSTRAP_SAMPLES = 20261005, 2000
 
@@ -24,7 +24,8 @@ def interval(values):
 
 
 def aggregate(manifest, plan, results):
-    if len({p["match_id"] for p in plan}) != len(plan) or digest(plan) != manifest["schedule_sha256"]:
+    if (len({p["match_id"] for p in plan}) != len(plan) or digest(plan) != manifest["schedule_sha256"] or
+            manifest["expected_matches"] != len(plan)):
         raise ValueError("Invalid or duplicate frozen schedule")
     expected = {p["match_id"]: p for p in plan}
     if len({r["match_id"] for r in results}) != len(results):
@@ -88,15 +89,21 @@ def aggregate(manifest, plan, results):
 
 def generate_report(output):
     manifest, plan = read_json(output / "manifest.json"), read_json(output / "schedule.json")
+    from runner.tournament import schedule, validate_cases
+    cases = validate_cases(read_json(output / "cases.json"))
+    if digest(cases) != manifest["cases_sha256"] or schedule(manifest["entrants"], cases) != plan:
+        raise ValueError("Cases/schedule differ from frozen complete round robin")
+    expected = {p["match_id"]: p for p in plan}
     results = read(output / "results.jsonl")
+    # Detect duplicate/unknown IDs before selecting any expected schedule entry.
+    report = aggregate(manifest, plan, results)
     for result in results:
         if result.get("valid"):
             path = output / "replays" / f"{result['match_id']}.jsonl"
             records = read(path)
-            verify_world(records)
+            verify_scheduled(records, expected[result["match_id"]], manifest)
             if dict(records[-1], replay_sha256=sha_file(path)) != result:
                 raise ValueError("Report result differs from authoritative Replay")
-    report = aggregate(manifest, plan, results)
     write_json(output / "report.json", report)
     lines = ["# LLM Arena v0.1 report", "", f"Status: {report['status']}", ""]
     if report["status"] == "complete":

@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 from engine.maps import generate
 from engine.model import Rules, digest
-from replay.verify import read, verify_world
+from replay.verify import read, verify_scheduled
 from runner.io import ROOT, read_json, sha_file, write_json, write_lines
 from runner.match import components, qualify, run_match
 from runtime.wasm import Backend, INIT_FUEL, TICK_FUEL
@@ -52,9 +52,12 @@ def schedule(entrants, cases):
                 seeds = case["bot_seeds"].copy()
                 if swapped:
                     ids.reverse(); seeds.reverse()
-                result.append(dict(match_id=f"{a['id']}--{b['id']}--{index:03d}--{int(swapped)}",
+                pair_key = digest([a["id"], b["id"]])[:16]
+                result.append(dict(match_id=f"p{pair_key}-c{index:04d}-s{int(swapped)}",
                                    pair=[a["id"], b["id"]], case_index=index, swapped=swapped,
                                    map_seed=case["map_seed"], entrants=ids, bot_seeds=seeds))
+    if len({item["match_id"] for item in result}) != len(result):
+        raise ValueError("Schedule match ID collision")
     return result
 
 
@@ -92,7 +95,7 @@ def run_tournament(entrants, cases, output, resume=False, retry_failures=False):
             cached = read_json(result_path) if result_path.exists() else None
             if cached is not None and cached.get("valid"):
                 records = read(rp)
-                verify_world(records)
+                verify_scheduled(records, item, manifest)
                 if (records[0]["components"] != manifest["components"] or
                         dict(records[-1], replay_sha256=sha_file(rp)) != cached):
                     raise ValueError("Cached result/version differs from Replay")

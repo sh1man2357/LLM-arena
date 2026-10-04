@@ -1,5 +1,7 @@
 from dataclasses import asdict
 from pathlib import Path
+import sys
+import platform
 from engine.maps import generate
 from engine.model import Player, Rules, World, digest
 from engine.rules import step
@@ -16,6 +18,7 @@ def components():
                 files[path.relative_to(ROOT).as_posix()] = sha_file(path)
     return dict(benchmark_id="bomber-v0.1", ruleset="1", map_generator="1", sdk="1", baseline_set="1",
                 reporter="1", runtime="wasmtime-49.0.0", toolchain=read_json(ROOT / "configs/toolchain.json"),
+                python=sys.version.split()[0], platform=dict(system=platform.system(), machine=platform.machine()),
                 source_hash=digest(files), source_files=files)
 
 

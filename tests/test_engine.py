@@ -79,12 +79,31 @@ class ExplosionTests(unittest.TestCase):
         _, events = act(w, BOMB, WAIT)
         self.assertEqual([e["bomb"] for e in events if e["type"] == "explode"], [0, 1])
         self.assertFalse(w.players[0].alive)
-        w = arena([(1, 1), (7, 5)])
+        w = arena([(1, 1), (7, 5), (7, 1)])
         w.bombs = [Bomb(0, 0, 4, 5, 1, 3)]
-        step(w, {0: dict(fault="trap"), 1: dict(raw_action=WAIT)})
+        step(w, {0: dict(fault="trap"), 1: dict(raw_action=WAIT), 2: dict(raw_action=WAIT)})
         self.assertEqual(len(w.bombs), 1)
-        # Once the world terminates the runner stops; direct closure still proves owner-independent blast.
-        self.assertIn((7, 5), explode(w, [0])[2])
+        act(w, WAIT, WAIT, WAIT)
+        self.assertFalse(w.players[1].alive)
+        self.assertTrue(w.players[2].alive)
+        self.assertFalse(w.bombs)
+
+    def test_hard_wall_and_no_lingering_flames(self):
+        w = arena([(1, 1), (7, 5)])
+        w.grid[3*w.width+3] = HARD_WALL
+        w.grid[2*w.width+2] = SOFT_WALL
+        w.bombs = [Bomb(0, 0, 2, 3, 0, 3)]
+        coverage = explode(w, [0])[2]
+        self.assertNotIn((3, 3), coverage)
+        self.assertNotIn((4, 3), coverage)
+        self.assertNotIn((2, 1), coverage)
+        act(w, WAIT, WAIT)
+        self.assertEqual(w.cell(3, 3), HARD_WALL)
+        self.assertEqual(w.cell(2, 2), FLOOR)
+        act(w, RIGHT, WAIT)
+        act(w, DOWN, WAIT)
+        self.assertTrue(w.players[0].alive)
+        self.assertEqual((w.players[0].x, w.players[0].y), (2, 2))
 
     def test_soft_wall_snapshot_and_root_order(self):
         w = arena([(1, 1), (7, 5)])

@@ -9,7 +9,7 @@ from runner.io import read_json, write_json, write_lines, sha_file
 from runner.match import run_match, qualify
 from runner.tournament import run_tournament, schedule, validate_cases
 from runner.report import aggregate, generate_report, interval
-from replay.verify import verify_world, verify_bot
+from replay.verify import verify_world, verify_bot, verify_scheduled
 from tests.test_runtime import module
 
 
@@ -72,6 +72,9 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(plan[1]["entrants"], ["b", "a"])
         self.assertEqual(plan[0]["bot_seeds"], list(reversed(plan[1]["bot_seeds"])))
         with self.assertRaises(ValueError): validate_cases([self.cases[0], self.cases[0]])
+        ambiguous = [dict(id=name) for name in ("a", "a--b", "b--c", "c")]
+        collision_plan = schedule(ambiguous, self.cases[:1])
+        self.assertEqual(len({p["match_id"] for p in collision_plan}), 12)
 
     def test_tournament_resume_report_and_missing_duplicate(self):
         folder = self.root / "run"
@@ -96,6 +99,18 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(interval([.5]*50), [.5, .5])
         self.assertEqual(interval([0, 1]*25), interval([0, 1]*25))
         self.assertIsNone(interval([1]*9))
+
+    def test_frozen_manifest_bound_to_replay(self):
+        folder = self.root / "bound"
+        manifest, plan, _ = run_tournament(self.entrants, self.cases[:1], folder)
+        from replay.verify import read
+        records = read(folder / "replays" / f"{plan[0]['match_id']}.jsonl")
+        verify_scheduled(records, plan[0], manifest)
+        for key, value in (("map_seed", 2), ("bot_seeds", ["0000000000000000"]*2)):
+            altered = copy.deepcopy(plan[0]); altered[key] = value
+            with self.assertRaises(ValueError): verify_scheduled(records, altered, manifest)
+        altered = copy.deepcopy(manifest); altered["budget"]["tick_fuel"] = 10
+        with self.assertRaises(ValueError): verify_scheduled(records, plan[0], altered)
 
 
 if __name__ == "__main__":
