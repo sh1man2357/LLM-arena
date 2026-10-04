@@ -1,0 +1,10 @@
+{
+  "wasi_sdk": "33.0",
+  "archive": "wasi-sdk-33.0-x86_64-windows.tar.gz",
+  "url": "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-x86_64-windows.tar.gz",
+  "sha256": "df14ca2a2127c2d6b6be07e6f5549b3af9c1b3c0112430c200a4749970c59f06",
+  "wasmtime": "49.0.0",
+  "python": "3.12",
+  "target": "wasm32-wasi",
+  "platform": "windows-amd64"
+}

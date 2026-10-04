@@ -1,6 +1,6 @@
 # Bot SDK 与运行契约 v0.1 草案
 
-C++20 → WebAssembly 是建议技术路线。具体编译器和运行时尚未选定；本文件先定义实现必须满足的边界，不能据此声称已有可运行 SDK。
+C++20 → WebAssembly 已实现：WASI SDK 33.0 / Clang 22.1.0 编译，Wasmtime 49.0.0 执行。版本与验证依据见 [实现决策](./07-decisions.md)，最终交付状态以根目录 DELIVERY.md 为准。
 
 ## 面向模型的接口
 
@@ -36,11 +36,15 @@ arena_tick(state_ptr: i32, state_len: i32) -> i32
 
 SDK 合成种子为 `uint64_t(seed_lo) | (uint64_t(seed_hi) << 32)`，参数按无符号位模式解释。模型不必直接编写上述导出函数。
 
+统一编译禁用异常和 RTTI。静态构造在 arena_init 中执行；常用 STL 容器可用，普通 new 分配失败在模块内 trap，nothrow new 返回 null。标准库终止诊断直接 trap，不提供输出、文件或时钟功能。
+
 arena_init 完成后，宿主调用 arena_input_ptr，检查缓冲区完整落在已分配内存内；该偏移在整局固定。每 Tick 将观察写入此区域，再调用 arena_tick。SDK 保留整个 64 KiB 区域，Bot 分配器和内部状态不得占用它。
 
 模块不得导入任何宿主函数、文件、网络、时钟、线程、随机源或 WASI。拒绝共享内存、memory64、多内存和 start section。线性内存必须声明 maximum，且最多 1024 页，每页 64 KiB。SDK 的默认栈建议为 1 MiB，计入总线性内存。
 
 只启用冻结清单中声明的 WASM 特性。比赛行为不得依赖未定义的 C++ 行为或未固定的浮点 NaN 位模式；游戏协议和官方 Baseline 使用整数逻辑。
+
+实现附加资格限制为源码最多 1 MiB、WASM 最多 8 MiB、最多一个 table 且最多 65,536 元素；宿主 WASM 栈上限 1 MiB。仅允许 core WASM、bulk-memory 和 multi-value，具体禁用项由运行清单记录。
 
 ## 状态二进制格式
 
