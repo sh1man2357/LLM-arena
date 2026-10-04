@@ -12,3 +12,10 @@ artifacts/acceptance/*/checks/*.jsonl
 *.tmp
 .env
 configs/private/
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+artifacts/local/
+artifacts/acceptance/*/visual/*.png
+artifacts/acceptance/*/visual/*.webm
