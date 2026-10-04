@@ -26,6 +26,9 @@ def import_replay(store, data, *, title=None, tournament_id=None, identity=None,
                ticks=len(ui["frames"])-1, result=ui["result"], verified=ui["verified"], disclosure="disclosed",
                replay=str(replay_path), projection=str(folder / "projection.json"), created=utc_now(),
                source_sha256=ui["source_sha256"], case=case, attempt_id="imported")
+    row["facts"] = dict(moves=sum(e["type"] == "move" for f in ui["frames"] for e in f["events"]),
+                        blocked_moves=sum(len(f["visual"]["blocked_moves"]) for f in ui["frames"]),
+                        waits=sum(a["action"] == 0 for f in ui["frames"] for a in f["actions"]))
     store.put("match", row)
     for entrant in ui["entrants"]:
         try:

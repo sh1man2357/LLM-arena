@@ -1,5 +1,6 @@
 """Same-origin local spectator API and static application host."""
 import asyncio
+from collections import Counter
 from contextlib import asynccontextmanager
 import json
 import os
@@ -131,12 +132,15 @@ def create_app(data_root=None, *, demo=False, workers=False):
 
     @app.get("/api/v1/matches")
     def matches(request: Request, tournament_id: str | None = None, entrant: str | None = None,
-                status: str | None = None, reason: str | None = None, offset: int = 0, limit: int = 30, q: str = ""):
+                status: str | None = None, reason: str | None = None, offset: int = 0, limit: int = 30, q: str = "",
+                opponent: str | None = None, case_index: int | None = None):
         rows = store.list("match")
         rows = [r for r in rows if r.get("disclosure") != "sealed" or request.cookies.get("arena_owner") == store.token]
         rows = [r for r in rows if (not tournament_id or r.get("tournament_id") == tournament_id)
                 and (not entrant or entrant in [e["id"] for e in r["entrants"]]) and (not status or r["status"] == status)
-                and (not reason or (r.get("result") or {}).get("reason") == reason) and q.lower() in r["title"].lower()]
+                and (not reason or (r.get("result") or {}).get("reason") == reason) and q.lower() in r["title"].lower()
+                and (not opponent or opponent in [e["id"] for e in r["entrants"]])
+                and (case_index is None or (r.get("case") or {}).get("case_index") == case_index)]
         limit, offset = max(1, min(limit, 100)), max(0, offset)
         return dict(items=[public_match(r) for r in rows[offset:offset+limit]], total=len(rows), offset=offset, limit=limit)
 
@@ -183,6 +187,19 @@ def create_app(data_root=None, *, demo=False, workers=False):
     def report(identity: str, request: Request):
         row = visible(store.get("tournament", identity), request)
         return row.get("report") or dict(status="incomplete", pairs=[], entrants=[])
+
+    @app.get("/api/v1/tournaments/{identity}/analysis")
+    def analysis(identity: str, request: Request):
+        visible(store.get("tournament", identity), request)
+        rows = [m for m in store.list("match") if m.get("tournament_id") == identity and (m.get("result") or {}).get("valid")]
+        reasons = Counter(m["result"]["reason"] for m in rows)
+        draws = [m for m in rows if m["result"]["players"][0]["placement_score"] == .5]
+        return dict(matches=len(rows), reasons=dict(reasons), draws=len(draws),
+                    draw_reasons=dict(Counter(m["result"]["reason"] for m in draws)),
+                    bombs_placed=sum(s.get("bombs_placed", 0) for m in rows for s in m["result"]["stats"]),
+                    moves=sum(m.get("facts", {}).get("moves", 0) for m in rows),
+                    blocked_moves=sum(m.get("facts", {}).get("blocked_moves", 0) for m in rows),
+                    waits=sum(m.get("facts", {}).get("waits", 0) for m in rows))
 
     @app.post("/api/v1/imports")
     async def imports(body: ImportInput, request: Request):

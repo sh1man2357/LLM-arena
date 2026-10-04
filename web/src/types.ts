@@ -1,0 +1,13 @@
+export type Row = Record<string, any>;
+export type Player = { id: number; x: number; y: number; alive: boolean; death_tick: number | null };
+export type Bomb = { id: number; owner_id: number; x: number; y: number; explode_at_tick: number; range: number };
+export type World = { tick: number; grid: number[]; players: Player[]; bombs: Bomb[]; fault_counters: { consecutive: number; total: number }[] };
+export type Frame = { seq: number; tick: number | null; state: World; events: Row[]; actions: {id: number; action: number}[];
+  calls: Row[]; visual: { coverage: {x: number; y: number; owners: number[]}[]; exploded_bombs: Row[]; blocked_moves: number[] } };
+export type Entrant = { id: string; slot: number; wasm_sha256: string };
+export type Replay = { frames: Frame[]; entrants: Entrant[]; rules: Row; initialization: Row[]; width: number; height: number;
+  result: Row | null; verified: boolean; partial: boolean; attempt_id: string; source_sha256: string; components: Row };
+export type Match = { id: string; title: string; status: string; entrants: Entrant[]; ticks: number; verified: boolean;
+  result: Row | null; tournament_id: string | null; disclosure: string; created: string; swap_match_id?: string;
+  attempt_id: string; case_index?: number; swapped?: boolean };
+export type Tournament = Row & { id: string; title: string; status: string; expected_matches: number; completed_matches: number; report: Row };

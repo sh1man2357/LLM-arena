@@ -16,6 +16,7 @@ web/node_modules/
 web/dist/
 web/test-results/
 web/playwright-report/
+web/*.tsbuildinfo
 artifacts/local/
 artifacts/acceptance/*/visual/*.png
 artifacts/acceptance/*/visual/*.webm
