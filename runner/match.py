@@ -87,7 +87,13 @@ def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=N
     modules = [backend.load(e["wasm"]) for e in entrants]  # Qualification errors are not match losses.
     stats = [empty_stats(), empty_stats()]
     init_records, instances = [], {}
-    records = []
+    header = dict(type="header", schema_version=1, match_id=match_id, components=version or components(),
+                  rules=asdict(rules), map=m, map_seed=map_seed,
+                  bot_seeds=[f"{s:016x}" for s in bot_seeds],
+                  entrants=[dict(id=e["id"], slot=i, wasm_sha256=sha_file(e["wasm"])) for i, e in enumerate(entrants)],
+                  budget=dict(init_fuel=init_fuel, tick_fuel=tick_fuel), initialization=init_records,
+                  initial_state=world.state(), initial_state_hash=world.state_hash())
+    records = [header]
     try:
         for pid, module in enumerate(modules):
             try:
@@ -97,13 +103,7 @@ def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=N
                 world.players[pid].alive, world.players[pid].death_tick = False, -1
                 stats[pid]["initialization_failures"] = 1
                 init_records.append(dict(id=pid, status="eliminated", diagnostic=str(exc)))
-        header = dict(type="header", schema_version=1, match_id=match_id, components=version or components(),
-                      rules=asdict(rules), map=m, map_seed=map_seed,
-                      bot_seeds=[f"{s:016x}" for s in bot_seeds],
-                      entrants=[dict(id=e["id"], slot=i, wasm_sha256=sha_file(e["wasm"])) for i, e in enumerate(entrants)],
-                      budget=dict(init_fuel=init_fuel, tick_fuel=tick_fuel), initialization=init_records,
-                      initial_state=world.state(), initial_state_hash=world.state_hash())
-        records.append(header)
+        header["initial_state"], header["initial_state_hash"] = world.state(), world.state_hash()
         initial_end = world.end_reason() is not None
         while not world.end_reason():
             before = world.state_hash()
@@ -117,9 +117,9 @@ def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=N
                                 events=events, state=world.state(), after_hash=world.state_hash()))
         result = make_result(world, stats, match_id, "initialization_end" if initial_end else None)
         records.append(result)
-    except InfrastructureError as exc:
+    except Exception as exc:
         result = dict(type="result", match_id=match_id, valid=False, reason="infrastructure_failure",
-                      diagnostic=str(exc), ticks=world.tick, players=[], stats=stats)
+                      diagnostic=f"{type(exc).__name__}: {exc}", ticks=world.tick, players=[], stats=stats)
         records.append(result)
     finally:
         for instance in instances.values():

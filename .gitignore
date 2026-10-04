@@ -4,6 +4,9 @@ __pycache__/
 *.py[cod]
 artifacts/work/
 artifacts/acceptance/*/replays/
+artifacts/acceptance/*/matches/
+artifacts/acceptance/v0.1/
+artifacts/acceptance/v0.1-final/
 artifacts/acceptance/*/build/*.wasm
 artifacts/acceptance/*/checks/*.jsonl
 *.tmp

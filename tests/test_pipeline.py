@@ -2,7 +2,7 @@ import copy
 from pathlib import Path
 import tempfile
 import unittest
-from engine.model import digest
+from engine.model import digest, Rules
 from engine.maps import generate
 from runtime.wasm import Backend, QualificationError
 from runner.io import read_json, write_json, write_lines, sha_file
@@ -111,6 +111,24 @@ class PipelineTests(unittest.TestCase):
             with self.assertRaises(ValueError): verify_scheduled(records, altered, manifest)
         altered = copy.deepcopy(manifest); altered["budget"]["tick_fuel"] = 10
         with self.assertRaises(ValueError): verify_scheduled(records, plan[0], altered)
+
+    def test_text_view_includes_actions_entities_and_events(self):
+        from replay.view import frames
+        with Backend() as backend:
+            _, records = run_match(backend, self.entrants, 1, [1, 2], rules=Rules(max_ticks=1))
+        text = "\n".join(frames(records))
+        for required in ("tick 0", "actions:", "calls:", "players:", "bombs:", "events:", "result:"):
+            self.assertIn(required, text)
+
+    def test_infrastructure_failure_keeps_header_without_scores(self):
+        from unittest.mock import patch
+        from runtime.wasm import InfrastructureError
+        with Backend() as backend, patch.object(backend, "instance", side_effect=InfrastructureError("watchdog")):
+            r, records = run_match(backend, self.entrants, 1, [1, 2])
+            self.assertFalse(r["valid"])
+            self.assertEqual(r["players"], [])
+            self.assertEqual(records[0]["type"], "header")
+            self.assertEqual(records[-1]["reason"], "infrastructure_failure")
 
 
 if __name__ == "__main__":
