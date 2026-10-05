@@ -4,11 +4,30 @@
 
 交付范围和进度见 [DELIVERY.md](./DELIVERY.md)，精确规则从 [docs/README.md](./docs/README.md) 阅读。当前工程不提供长期 Rating 或多人正式赛制。
 
-v0.1 命令行竞技场已验收。v0.2 以风格统一、交互完整的观赛前端为核心，同时建设 60 分钟收卷与资格工作台、调度控制台、批次分析和数据发布。已有本地服务、历史图形回放、大厅与报告页面；收卷、作业和真实直播仍在开发，整版尚未验收。范围、实际进度与完成标准见 [DELIVERY_v0.2.md](./DELIVERY_v0.2.md)，产品设计从 [v0.2 规划](./docs/08-v0.2-plan.md) 阅读。
+v0.1 命令行竞技场已验收。v0.2 已有观赛前端、60 分钟收卷与资格工作台、真实直播、调度、批次分析与基本发布流程；完整故障恢复、发布交接与最终视觉 / 性能验收仍在推进。范围、实际进度与完成标准见 [DELIVERY_v0.2.md](./DELIVERY_v0.2.md)，产品设计从 [v0.2 规划](./docs/08-v0.2-plan.md) 阅读。
 
 向不同模型分发开发任务使用 [MODEL_TASK.md](./MODEL_TASK.md)：包含完整规则、SDK 接口和源码提交要求。统一 60 分钟内交卷，可提前提交；没有待填配置，默认在当前对话提交 `bot.cpp` 源码。
 
 ## 环境准备
+
+### v0.2 浏览器界面
+
+支持 Windows x64、Python 3.12、Node 24.19.0 与 npm 11.17.0，运行版本见 `tools/runtime-lock.json`。首次准备执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\setup-ui.ps1
+powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
+```
+
+安装脚本使用哈希锁定的 Python 依赖、已校验 SDK 和 `npm ci`，随后构建前端。可用 `-Python`、`-NodeDirectory` 明确指定运行环境；`-CompilerArchive`、`-WheelDirectory` 可复用本地缓存。前端首次安装仍需 npm 网络访问。只修改项目目录和安装进程的 PATH，不修改系统设置。
+
+启动后打开本机浏览器，默认 `http://127.0.0.1:8787`；在启动控制台按 Enter 停止该实例及自有 worker。若停止时正在计算，下一次启动将作业标为中断，由工作台恢复；当前单局从冻结输入重新运行。可用 `-Port 8791` 避开端口冲突，`-NoBrowser` 仅启动服务。同一数据目录只允许一个 worker 实例。
+
+首启异步导入原有 v0.1 工程参考赛。管理入口可收卷、编译并资格检查、选择冻结参赛者、创建单局 / 全配对批次和查看日志。单局可选择运行节奏；观众的播放、变速与回看不影响计算。正式隐藏批次关闭收卷后才开放地图。
+
+开发服务仍可直接运行 `python -m service --demo`；前端在 `web/` 执行 `npm run dev`。发行使用上述同源静态构建。浏览器检查使用 `npm test`，需要本机 Chrome；`ARENA_BASE_URL` 可指向另一端口的本地验收实例。
+
+### v0.1 命令行环境
 
 首个支持和验收平台是 Windows x64、PowerShell、Python 3.12。需要 Git 才能使用源码版本记录；运行程序本身不需要 Git。依赖锁定 Wasmtime 49.0.0 和 WASI SDK 33.0 / Clang 22.1.0，安装包校验 SHA-256。
 

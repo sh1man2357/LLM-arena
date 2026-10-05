@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 import time
 import unittest
+import zipfile
 
 from fastapi.testclient import TestClient
 from runner.io import ROOT, sha_file
@@ -103,8 +104,9 @@ class RealWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             app = create_app(folder, workers=True)
             store = app.state.store
-            safe = ROOT / "artifacts/work/baselines/safe.wasm"
-            self.assertTrue(safe.is_file(), "Build baselines before running the real workflow check")
+            safe = Path(folder) / "safe.wasm"
+            with zipfile.ZipFile(ROOT / "artifacts/acceptance/v0.1-release/evidence.zip") as archive:
+                safe.write_bytes(archive.read("build/safe.wasm"))
             store.put("entrant", dict(id="safe", name="Safe", status="qualified", wasm=str(safe), wasm_sha256=sha_file(safe)))
             with TestClient(app) as client:
                 client.post("/api/v1/admin/unlock", headers={"x-arena-local": "1"})

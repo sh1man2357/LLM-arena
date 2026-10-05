@@ -1,0 +1,9 @@
+{
+  "platform": "windows-x64",
+  "python": "3.12",
+  "node": "24.19.0",
+  "npm": "11.17.0",
+  "frontend_lock": "web/package-lock.json",
+  "core_lock": "requirements.lock",
+  "service_lock": "requirements-service.lock"
+}

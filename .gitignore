@@ -7,6 +7,8 @@ artifacts/acceptance/*/replays/
 artifacts/acceptance/*/matches/
 artifacts/acceptance/v0.1/
 artifacts/acceptance/v0.1-final/
+# Superseded development batch with earlier SDK provenance; retained locally.
+artifacts/acceptance/v0.2-core/
 artifacts/acceptance/*/build/*.wasm
 artifacts/acceptance/*/checks/*.jsonl
 *.tmp
