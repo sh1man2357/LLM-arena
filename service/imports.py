@@ -110,7 +110,8 @@ def import_replay(store, data, *, title=None, tournament_id=None, identity=None,
         entrant["id"] = safe_id(aliases.get(original, original))
     folder = store.root / "matches" / identity / ui["source_sha256"][:16]
     folder.mkdir(parents=True, exist_ok=True)
-    replay_path = folder / "replay.jsonl"
+    public_only = ui.get("verification") == "public_world_only"
+    replay_path = folder / ("source-public.json" if public_only else "replay.jsonl")
     if replay_path.exists() and replay_path.read_bytes() != data:
         raise FileExistsError("Cannot replace frozen match evidence")
     replay_path.write_bytes(data)
@@ -124,6 +125,8 @@ def import_replay(store, data, *, title=None, tournament_id=None, identity=None,
                ticks=len(ui["frames"])-1, result=ui["result"], verified=ui["verified"], disclosure=disclosure,
                replay=str(replay_path), projection=str(folder / "projection.json"), created=utc_now(),
                source_sha256=ui["source_sha256"], case=mapped_case, attempt_id=attempt_id)
+    row.update(source_format="public_projection" if public_only else "raw_jsonl",
+               origin_source_sha256=ui.get("origin_source_sha256"), bot_rerunnable=not public_only)
     row["facts"] = dict(moves=sum(e["type"] == "move" for f in ui["frames"] for e in f["events"]),
                         blocked_moves=sum(len(f["visual"]["blocked_moves"]) for f in ui["frames"]),
                         waits=sum(a["action"] == 0 for f in ui["frames"] for a in f["actions"]))
@@ -144,37 +147,45 @@ def import_replay(store, data, *, title=None, tournament_id=None, identity=None,
     return row
 
 
+def validate_archive_entries(archive, *, max_entries=2000, max_total=MAX_EXPANDED_BYTES, max_entry=MAX_REPLAY_BYTES):
+    infos = archive.infolist()
+    if len(infos) > max_entries or sum(i.file_size for i in infos) > max_total:
+        raise ValueError("Archive expansion limit exceeded")
+    targets = {}
+    for info in infos:
+        if info.flag_bits & 1 or info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
+            raise ValueError("Only unencrypted Stored/Deflate ZIP entries are supported")
+        name = PurePosixPath(info.filename.replace("\\", "/"))
+        if (name.is_absolute() or not name.parts or ".." in name.parts or ":" in str(name)
+                or ((info.external_attr >> 16) & 0o170000) == 0o120000
+                or any(p.endswith((".", " ")) or any(ord(c) < 32 or c in '<>"|?*' for c in p)
+                       or re.match(r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", p, re.I)
+                       for p in name.parts)):
+            raise ValueError("Unsafe archive path")
+        key = str(name).casefold()
+        if key in targets:
+            raise ValueError("Duplicate or escaping archive path")
+        if info.file_size > max_entry:
+            raise ValueError("Archive entry limit exceeded")
+        targets[key] = info
+    for key, info in targets.items():
+        for parent in PurePosixPath(key).parents:
+            if str(parent) in targets and not targets[str(parent)].is_dir():
+                raise ValueError("Archive file/directory collision")
+    return infos
+
+
 def extract_archive(path, destination):
     destination = Path(destination).resolve()
     if Path(path).stat().st_size > MAX_ARCHIVE_BYTES:
         raise ValueError("Archive exceeds 16 MiB")
     try:
         with zipfile.ZipFile(path) as archive:
-            infos = archive.infolist()
-            if len(infos) > 2000 or sum(i.file_size for i in infos) > MAX_EXPANDED_BYTES:
-                raise ValueError("Archive expansion limit exceeded")
-            targets = {}
-            for info in infos:
-                name = PurePosixPath(info.filename.replace("\\", "/"))
-                if (name.is_absolute() or not name.parts or ".." in name.parts or ":" in str(name)
-                        or ((info.external_attr >> 16) & 0o170000) == 0o120000
-                        or any(p.endswith((".", " ")) or any(ord(c) < 32 or c in '<>"|?*' for c in p)
-                               or re.match(r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", p, re.I)
-                               for p in name.parts)):
-                    raise ValueError("Unsafe archive path")
-                target = destination.joinpath(*name.parts).resolve()
-                key = str(name).casefold()
-                if not target.is_relative_to(destination) or key in targets:
-                    raise ValueError("Duplicate or escaping archive path")
-                if info.file_size > MAX_REPLAY_BYTES:
-                    raise ValueError("Archive entry limit exceeded")
-                targets[key] = info
-            for key, info in targets.items():
-                for parent in PurePosixPath(key).parents:
-                    if str(parent) in targets and not targets[str(parent)].is_dir():
-                        raise ValueError("Archive file/directory collision")
+            infos = validate_archive_entries(archive)
             for info in infos:
                 target = destination.joinpath(*PurePosixPath(info.filename.replace("\\", "/")).parts)
+                if not target.resolve().is_relative_to(destination):
+                    raise ValueError("Archive path escapes import directory")
                 if info.is_dir():
                     target.mkdir(parents=True, exist_ok=True)
                 else:

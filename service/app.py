@@ -79,7 +79,8 @@ def public_submission(row):
 
 def public_match(row):
     return {k: row.get(k) for k in ("id", "title", "tournament_id", "entrants", "status", "ticks", "result", "verified",
-                                    "disclosure", "created", "case_index", "swapped", "source_sha256", "attempt_id")}
+                                    "disclosure", "created", "case_index", "swapped", "source_sha256", "attempt_id",
+                                    "source_format", "origin_source_sha256", "bot_rerunnable")}
 
 
 def public_tournament(row):
@@ -144,6 +145,9 @@ def create_app(data_root=None, *, demo=False, workers=False):
         if (request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path != "/api/v1/admin/unlock"
                 and request.cookies.get("arena_owner") != store.token):
             return JSONResponse(dict(code="owner_required", message="请先进入主办方工作台。"), status_code=403)
+        if request.method not in ("GET", "HEAD", "OPTIONS") and any(
+                j["kind"] == "backup" and j["status"] == "running" for j in store.list("job")):
+            return JSONResponse(dict(code="backup_in_progress", message="正在固定私有备份，请稍后再修改数据；观赛仍可继续。"), status_code=423)
         length = request.headers.get("content-length")
         if length and (not length.isdigit() or int(length) > 18 * 1024 * 1024):
             return JSONResponse(dict(code="upload_too_large", message="请求超过大小限制。"), status_code=413)
@@ -399,6 +403,26 @@ def create_app(data_root=None, *, demo=False, workers=False):
         if body.source != "bundled-v0.1":
             raise APIError("invalid_source", "只能选择预注册的参考归档；上传 Replay 使用文件导入。", 422)
         return public_job(queue.create("import", {}, request.headers.get("idempotency-key")))
+
+    @app.get("/api/v1/backups")
+    def backups(request: Request):
+        owner(request)
+        return dict(items=[{k: r[k] for k in ("id", "created", "sha256", "size", "files", "records", "contains_private_inputs")}
+                           for r in store.list("backup")])
+
+    @app.post("/api/v1/backups", status_code=202)
+    def backup(request: Request):
+        owner(request)
+        return public_job(queue.create("backup", {}, request.headers.get("idempotency-key")))
+
+    @app.get("/api/v1/backups/{identity}")
+    def download_backup(identity: str, request: Request):
+        owner(request)
+        from runner.io import sha_file
+        row = store.get("backup", identity)
+        if not Path(row["path"]).is_file() or sha_file(row["path"]) != row["sha256"]:
+            raise FileExistsError("Private backup is missing or changed; create a new verified backup")
+        return FileResponse(row["path"], media_type="application/zip", filename=f"{identity}.zip")
 
     @app.post("/api/v1/imports/replay")
     async def upload_replay(file: UploadFile, request: Request):

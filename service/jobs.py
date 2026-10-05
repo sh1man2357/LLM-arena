@@ -46,6 +46,12 @@ class Queue:
     def start(self):
         if self.thread:
             raise RuntimeError("Queue already started")
+        self.lock_workspace()
+        self.recover_interrupted()
+        self.thread = threading.Thread(target=self.loop, name="arena-job-queue", daemon=True)
+        self.thread.start()
+
+    def lock_workspace(self):
         self.workspace_lock = (self.store.root / "worker.lock").open("a+b")
         try:
             self.workspace_lock.seek(0)
@@ -63,6 +69,8 @@ class Queue:
             self.workspace_lock.close()
             self.workspace_lock = None
             raise RuntimeError("Another service owns this data workspace")
+
+    def recover_interrupted(self):
         for job in self.store.list("job"):
             if job["status"] in ("running", "stop_requested"):
                 job.update(status="interrupted", diagnostic="Local service restarted; inspect evidence before resuming.")
@@ -72,8 +80,6 @@ class Queue:
                 if row["status"] in ("running", "compiling"):
                     row.update(status="interrupted")
                     self.store.put(kind, row)
-        self.thread = threading.Thread(target=self.loop, name="arena-job-queue", daemon=True)
-        self.thread.start()
 
     def stop(self):
         self.shutdown.set()

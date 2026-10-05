@@ -3,7 +3,7 @@ import hashlib
 import json
 import re
 
-from engine.model import Bomb, Rules, World
+from engine.model import Bomb, Rules, World, digest
 from engine.rules import explode, step
 from replay.verify import verify_world
 
@@ -139,6 +139,96 @@ def project(records, *, partial=False, source_hash=None):
 
 def from_bytes(data):
     try:
+        if len(data) > MAX_REPLAY_BYTES:
+            raise ValueError("Replay exceeds 16 MiB")
+        try:
+            value = json.loads(data.decode("utf-8-sig"))
+        except json.JSONDecodeError:
+            value = None  # Original JSONL contains multiple top-level records.
+        if isinstance(value, dict) and "projection_version" in value:
+            return from_public(value, hashlib.sha256(data).hexdigest())
         return project(decode(data), source_hash=hashlib.sha256(data).hexdigest())
     except (UnicodeDecodeError, KeyError, TypeError, IndexError, AttributeError) as exc:
         raise ValueError(f"Malformed Replay schema: {type(exc).__name__}") from exc
+
+
+def from_public(value, file_hash):
+    """Recompute seed-free world facts. Never trust uploaded verification flags."""
+    from runner.match import empty_stats, account, make_result
+    if (value.get("schema_version") != 1 or value.get("projection_version") not in (1, 2)
+            or (value.get("width"), value.get("height")) != (13, 11)):
+        raise ValueError("Unsupported public Replay schema")
+    frames = value["frames"]
+    if not isinstance(frames, list) or not 1 <= len(frames) <= 501 or value.get("partial") is not False:
+        raise ValueError("Public Replay must include an initial frame and a complete result")
+    first = frames[0]
+    if first.get("seq") != 0 or first.get("tick") is not None:
+        raise ValueError("Invalid public initial frame")
+    rules = Rules(**value["rules"])
+    world = World.from_state(13, 11, rules, first["state"])
+    if (any(type(cell) is not int for cell in world.grid)
+            or any(type(p.alive) is not bool or type(p.id) is not int or type(p.x) is not int or type(p.y) is not int
+                   for p in world.players)):
+        raise ValueError("Invalid public world value types")
+    expected = World(13, 11, world.grid, world.players, rules)
+    if (world.tick != 0 or world.bombs or world.next_bomb_id != 0 or world.fault_counters != expected.fault_counters
+            or world.state() != first["state"] or [(p.x, p.y) for p in world.players] != [(1, 1), (11, 9)]):
+        raise ValueError("Invalid public initial world")
+    if len(value["initialization"]) != 2:
+        raise ValueError("Missing public initialization records")
+    stats = [empty_stats(), empty_stats()]
+    for slot, (player, entry) in enumerate(zip(world.players, value["initialization"])):
+        if entry.get("id") != slot or (entry.get("status") == "ok" and (not player.alive or player.death_tick is not None)):
+            raise ValueError("Invalid public initialization state")
+        if entry.get("status") == "eliminated":
+            if player.alive or player.death_tick != -1:
+                raise ValueError("Invalid public initialization death")
+            stats[slot]["initialization_failures"] = 1
+    initial_end = world.end_reason() is not None
+    h = dict(type="header", schema_version=1, map=dict(width=13, height=11),
+             rules=value["rules"], match_id=value["match_id"], entrants=value["entrants"],
+             budget=value["budget"], components=value["components"], initialization=value["initialization"],
+             initial_state=world.state())
+    records = [h]
+    for seq, frame in enumerate(frames[1:], 1):
+        if frame.get("seq") != seq or frame.get("tick") != seq-1 or world.end_reason():
+            raise ValueError("Nonsequential or post-terminal public frame")
+        calls = {c["id"]: {k: v for k, v in c.items() if k != "id"} for c in frame["calls"]}
+        if len(calls) != len(frame["calls"]):
+            raise ValueError("Duplicate public Bot call")
+        if set(calls) != {p.id for p in world.players if p.alive}:
+            raise ValueError("Public calls must match the living spawn slots")
+        previous = world.state()
+        _, events = step(world, calls)
+        account(stats, calls, events)
+        record = dict(type="tick", tick=frame["tick"], before_hash=digest(previous), after_hash=digest(frame["state"]),
+                      state=frame["state"], calls=frame["calls"], actions=frame["actions"], events=frame["events"])
+        records.append(record)
+    # The normal adapter verifies every frame and rebuilds the event geometry.
+    ui = project(records, partial=True, source_hash=file_hash)
+    for supplied, rebuilt in zip(frames, ui["frames"]):
+        if any(supplied.get(k) != rebuilt[k] for k in ("seq", "tick", "state", "events", "actions", "calls", "visual")):
+            raise ValueError("Public frame/geometry differs from reconstructed world")
+    result = value["result"]
+    if type(result.get("valid")) is not bool:
+        raise ValueError("Invalid public result")
+    if result["valid"]:
+        if world.end_reason() is None:
+            raise ValueError("Public Replay ends before a terminal world")
+        rebuilt = make_result(world, stats, h["match_id"], "initialization_end" if initial_end else None)
+        public = {k: rebuilt[k] for k in ("valid", "reason", "ticks", "survivors", "groups", "players", "stats", "final_state_hash")}
+        if result != public:
+            raise ValueError("Public result differs from reconstructed world")
+        ui.update(result=public, verified=True)
+    else:
+        # Infrastructure failure is a diagnostic trace and never an official score.
+        records.append(dict(type="result", **result))
+        ui = project(records, source_hash=file_hash)
+        if result.get("ticks") != world.tick or result.get("stats") != stats:
+            raise ValueError("Public failure statistics differ from confirmed frames")
+    origin = value.get("origin_source_sha256") or value.get("source_sha256")
+    if not isinstance(origin, str) or not re.fullmatch(r"[0-9a-f]{64}", origin):
+        raise ValueError("Public Replay requires its original evidence hash association")
+    ui.update(projection_version=2, partial=False, verification="public_world_only", origin_source_sha256=origin,
+              origin_association="unverified_claim", bot_rerunnable=False)
+    return ui

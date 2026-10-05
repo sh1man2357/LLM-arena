@@ -6,7 +6,8 @@ export type Frame = { seq: number; tick: number | null; state: World; events: Ro
   calls: Row[]; visual: { coverage: {x: number; y: number; owners: number[]}[]; exploded_bombs: Row[]; blocked_moves: number[] } };
 export type Entrant = { id: string; slot: number; wasm_sha256: string };
 export type Replay = { frames: Frame[]; entrants: Entrant[]; rules: Row; initialization: Row[]; width: number; height: number;
-  result: Row | null; verified: boolean; partial: boolean; attempt_id: string; source_sha256: string; components: Row };
+  result: Row | null; verified: boolean; partial: boolean; attempt_id: string; source_sha256: string; components: Row;
+  verification?: string; origin_source_sha256?: string; bot_rerunnable?: boolean };
 export type Match = { id: string; title: string; status: string; entrants: Entrant[]; ticks: number; verified: boolean;
   result: Row | null; tournament_id: string | null; disclosure: string; created: string; swap_match_id?: string;
   attempt_id: string; case_index?: number; swapped?: boolean };

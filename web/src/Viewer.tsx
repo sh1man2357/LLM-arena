@@ -127,6 +127,7 @@ export function Viewer() {
   return <div className="viewer-page"><div className="viewer-top"><BackLink /><div className="viewer-tools">
     <button className="quiet" onClick={share}><Icon name="share" />复制帧链接</button><a className="button quiet" href={`/api/v1/exports/${id}`}><Icon name="share" />公开 Replay</a>
   </div></div><div className="match-heading"><div><p className="eyebrow">{match.data.tournament_id ? '批次对局' : '单局观赛'} · 双人规则 1</p><h1>{match.data.title}</h1></div><Badge status={match.data.status} /></div>
+  {data.verification === 'public_world_only' && <p className="notice">公开副本：已重算世界轨迹，缺少 Seed，不能重跑 Bot 或纳入正式批次。原始证据哈希仅为文件声明的关联。</p>}
   <div className="spectator-stage" ref={stage}>
     <div className="versus-bar">{data.entrants.map((entrant, slot) => {
       const p = frame.state.players[slot]; const color = identityColor(entrant.id);

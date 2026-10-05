@@ -191,6 +191,10 @@ def main(data_root, job_id):
             row = (import_uploaded_archive(store, inputs["archive"], inputs["source_sha256"], inputs["title"])
                    if "archive" in inputs else import_bundled(store))
             result = dict(tournament_id=row["id"])
+        elif job["kind"] == "backup":
+            from service.backup import create_backup
+            row = create_backup(store, current_job=job["id"])
+            result = dict(backup_id=row["id"])
         else:
             raise ValueError("Unknown job type")
         progress = store.get("job", job_id)["progress"] if result.get("stopped") else store.get("job", job_id)["total"]
