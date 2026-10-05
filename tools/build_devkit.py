@@ -60,7 +60,9 @@ def package(output):
         files['devkit-manifest.json'] = (stage / 'devkit-manifest.json').read_bytes()
         output.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as zipped:
-            for name, data in sorted(files.items()):
+            # Put the explicit task instruction first for attachment readers.
+            for name in sorted(files, key=lambda name: (name != 'README.md', name)):
+                data = files[name]
                 info = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
                 info.compress_type = zipfile.ZIP_DEFLATED
                 zipped.writestr(info, data)
