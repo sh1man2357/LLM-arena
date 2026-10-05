@@ -1,125 +1,35 @@
 # LLM Arena
 
+在本机运行的双人炸弹人 AI 竞技场。不同模型在统一条件下编写 C++20 Bot，源码冻结后编译成 WASM，以相同计算预算和内存限制比赛。比赛过程中不调用模型。
 
-v0.2 全部 29 / 29 项验收已完成，统一证据见 [整版交接](./HANDOFF_v0.2.md)。负责人已直接确认最终视觉验收通过；历史阶段记录保留其原始范围。
+支持源码收卷与资格检查、单局与批量换边、真实直播与逐帧回放、成绩分析、公开导出和私有备份恢复。播放速度不影响比赛结算，同一套冻结输入可以重跑验证。
 
-本地可复现的双人炸弹人竞技场。Bot 用 C++20 编写，编译为无宿主导入的 WASM，在相同 fuel 与内存限制下同时提交动作。源码提交后冻结，比赛期间不调用模型。
+## 快速启动
 
-交付范围和进度见 [DELIVERY.md](./DELIVERY.md)，精确规则从 [docs/README.md](./docs/README.md) 阅读。当前工程不提供长期 Rating 或多人正式赛制。
-
-v0.1 命令行竞技场已验收。v0.2 的观赛前端、60 分钟收卷与资格工作台、真实直播、调度、批次分析与发布流程，以及故障恢复、本机性能、完整页面状态、可访问性、交接与最终人工视觉均已验收。范围、实际进度与完成标准见 [DELIVERY_v0.2.md](./DELIVERY_v0.2.md)，产品设计从 [v0.2 规划](./docs/08-v0.2-plan.md) 阅读。
-
-v0.2 以“可观赛、可解释、可交接”为主题，观赛前端为主要产品成果。配套开发包括收卷资格、赛事组织与直播、结果解释、故障恢复、证据分发与数据迁移、安装交接；具体取舍与优先级在规划中统一维护。
-
-当前验收为 29 / 29 项。共用组件与五类实际高保真页面通过核对，加载 / 空数据 / 不存在 / 局部读取恢复见 [组件与页面状态](./docs/17-components-and-page-states.md)；私有收卷档案、上传 / 粘贴编译、固定截止、冻结和未完成排名见 [收卷记录](./docs/18-receipts-and-freezing.md)。首帧、定位、正常播放及真实后台编译 / 单局响应通过 [本机性能验收](./docs/16-performance.md)。完整状态、可访问性、赛事冻结、封存发布、人工视觉和交接均已完成；实现与投入记录见 [发布前投入安排](./docs/08-v0.2-plan.md)，逐页要求见 [前端规范](./docs/09-v0.2-frontend.md)。
-
-向不同模型分发开发任务使用 [MODEL_TASK.md](./MODEL_TASK.md)：包含完整规则、SDK 接口和源码提交要求。统一 60 分钟内交卷，可提前提交；没有待填配置，默认在当前对话提交 `bot.cpp` 源码。
-
-## 环境准备
-
-### v0.2 浏览器界面
-
-支持 Windows x64、Python 3.12、Node 24.19.0 与 npm 11.17.0，运行版本见 `tools/runtime-lock.json`。首次准备执行：
+支持 Windows x64、Python 3.12、Node 24.19.0 / npm 11.17.0。在项目根目录执行：
 
 ```powershell
+# 首次安装依赖并构建前端
 powershell -ExecutionPolicy Bypass -File tools\setup-ui.ps1
+# 启动本机应用
 powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 ```
 
-安装脚本使用哈希锁定的 Python 依赖、已校验 SDK 和 `npm ci`，随后构建前端。可用 `-Python`、`-NodeDirectory` 明确指定运行环境；`-CompilerArchive`、`-WheelDirectory` 可复用本地缓存。前端首次安装仍需 npm 网络访问。只修改项目目录和安装进程的 PATH，不修改系统设置。
+默认打开 `http://127.0.0.1:8787`，在启动控制台按 Enter 停止。环境选择、离线缓存和端口参数见[安装与启动](./docs/guides/getting-started.md)。
 
-启动后打开本机浏览器，默认 `http://127.0.0.1:8787`；在启动控制台按 Enter 停止该实例及自有 worker。若停止时正在计算，下一次启动将作业标为中断，由工作台恢复；当前单局从冻结输入重新运行。可用 `-Port 8791` 避开端口冲突，`-NoBrowser` 仅启动服务。同一数据目录只允许一个 worker 实例。
+## 从这里开始
 
-首启异步导入原有 v0.1 工程参考赛。管理入口可收卷、编译并资格检查、选择冻结参赛者、创建单局 / 全配对批次和查看日志。单局可选择运行节奏；观众的播放、变速与回看不影响计算。正式隐藏批次关闭收卷后才开放地图。
+| 想做什么 | 阅读入口 |
+| --- | --- |
+| 了解项目与代码结构 | [项目概览](./docs/project.md)、[架构](./docs/architecture/overview.md) |
+| 收卷、开赛、观赛和发布 | [组织比赛与观赛](./docs/guides/organizing-matches.md) |
+| 使用命令行编译、比赛和校验 | [CLI 指南](./docs/guides/cli.md) |
+| 向模型分发开发任务 | [MODEL_TASK.md](./MODEL_TASK.md)，统一 60 分钟交卷 |
+| 开发或运行检查 | [开发与验证](./docs/guides/development.md) |
+| 查找规则、设计或验收证据 | [文档目录](./docs/README.md) |
 
-管理入口也支持上传旧批次 ZIP（最大 16 MiB，根目录含 manifest、schedule、cases、results 和 replays；build/WASM 可选）。服务逐文件验证后统一注册，保留原始文件；带 WASM 的参赛者须通过哈希与资格检查。上传批次默认封存，主办方确认原参赛池收卷结束后开放观看。完整批次发布时固定公开报告、Replay 与哈希清单；重复发布保留首次记录，可下载清单核对原始证据关联。
+## 版本与范围
 
-公开 Replay `.json` 可上传再导入，服务重新验证世界轨迹；没有 Seed 的副本仅用于观赛，不能重跑 Bot。工作台可创建并下载完整私有备份，包含源码、隐藏 Seed、收卷与发布记录；恢复命令校验后创建新目录，更新凭据，未完成作业等待手动恢复。具体步骤、限制与阶段证据见 [数据恢复说明](./docs/12-data-recovery.md)。
+v0.2 已完成 29 / 29 项验收，包括最终人工视觉确认；逐项状态以[版本交付清单](./docs/releases/v0.2.md)为准，复现与证据索引见[版本交接](./docs/releases/handoff-v0.2.md)。v0.1 CLI 的历史交付单独保留。
 
-直播断连保留已确认棋盘，恢复连接后补齐缺帧并去重；新执行尝试从初始帧重新展示。服务退出和 worker 失败后，可在工作台检查“执行尝试与旧日志”再手动恢复，已完成对局保留，未完成单局使用冻结输入从 Tick 0 重跑。实际强制退出、活动变速与批次恢复证据见 [直播与作业恢复](./docs/13-live-and-job-recovery.md)。
-
-观赛支持实际逐帧、五档变速、鼠标 / 触控拖动、事件定位、同地图换边与全屏。检查器明确初始化淘汰、调用 fuel、运行崩溃和本 Tick 爆炸事实；四尺寸长名称、完整数据截图与操作录像已归档，见 [观赛质量验证](./docs/14-viewer-quality.md)。本机性能通过独立测量；全部异常状态、完整可访问性与最终人工视觉均已验收，见 [最终工程记录](./docs/19-final-engineering-acceptance.md) 和 [用户视觉确认](./docs/20-final-visual-review.md)。
-
-批次报告展示完整配对统计、出生位 / 地图区间和故障率，保持同分并列。平局按终局原因分类，行动、成功放弹与无在场炸弹的静止片段可由原轨迹复核并跳到对应帧；新旧参考赛的分析和样本限制见 [成绩核对与分析](./docs/15-results-analysis.md)。
-
-开发服务仍可直接运行 `python -m service --demo`；前端在 `web/` 执行 `npm run dev`。发行使用上述同源静态构建。浏览器检查使用 `npm test`，需要本机 Chrome；`ARENA_BASE_URL` 指向专用验收实例，`ARENA_EMPTY_URL` 指向另一个新建的空实例。全量状态检查需这两个实例，并先用真实工作流程提供资格 / 作业样例；完整准备步骤见 [页面状态复现](./docs/17-components-and-page-states.md)。测试会改变专用数据，不对正在使用的比赛实例运行。
-
-### v0.1 命令行环境
-
-首个支持和验收平台是 Windows x64、PowerShell、Python 3.12。需要 Git 才能使用源码版本记录；运行程序本身不需要 Git。依赖锁定 Wasmtime 49.0.0 和 WASI SDK 33.0 / Clang 22.1.0，安装包校验 SHA-256。
-
-在项目根目录执行：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\setup.ps1
-```
-
-脚本优先检测本地 Codex 自带 Python，再查找 python.exe；也可明确指定已安装的 Python 3.12：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\setup.ps1 -Python 'C:\Python312\python.exe'
-```
-
-下载需要访问 PyPI 和 GitHub；编译器官方压缩包约 625 MiB，解压还需额外磁盘空间。只写入项目内 .venv 和 .tools，不修改系统 PATH。如果已经缓存同一官方包，可加 `-CompilerArchive 'C:\cache\wasi-sdk-33.0-x86_64-windows.tar.gz'`，仍会校验哈希。
-
-## 编译与参赛资格
-
-```powershell
-.\.venv\Scripts\python.exe arena.py build sdk\template.cpp --output artifacts\work\template.wasm
-.\.venv\Scripts\python.exe arena.py qualify artifacts\work\template.wasm
-.\.venv\Scripts\python.exe arena.py baselines --output artifacts\work\baselines
-```
-
-模板只需实现 `bot::init(uint64_t)` 和 `bot::tick(const GameState&)`。支持持久状态和常用 STL 容器；禁异常、RTTI、线程和宿主 I/O。源码上限 1 MiB，WASM 上限 8 MiB，线性内存上限 64 MiB。普通 new 失败直接 trap，nothrow new 返回 null。
-
-编译生成 .wasm、.metadata.json、.compile.json 和 .deps，记录源码、SDK、引用头文件、编译器及 WASM 哈希。资格检查包括 ABI、禁止特性、初始化和公开状态 smoke check。编译或资格失败返回非零退出码，不进入普通比赛排名。
-
-## 单局、回放与复现
-
-```powershell
-.\.venv\Scripts\python.exe arena.py match --bot heuristic=artifacts/work/baselines/heuristic.wasm --bot random=artifacts/work/baselines/random.wasm --map-seed 1 --bot-seed 0000000000000001 --bot-seed 0000000000000002 --output artifacts/work/example
-.\.venv\Scripts\python.exe arena.py view artifacts/work/example/replay.jsonl --output artifacts/work/example/replay.txt
-.\.venv\Scripts\python.exe arena.py verify artifacts/work/example/replay.jsonl
-.\.venv\Scripts\python.exe arena.py verify artifacts/work/example/replay.jsonl --wasm artifacts/work/baselines/heuristic.wasm --wasm artifacts/work/baselines/random.wasm
-```
-
-`--bot`、`--bot-seed` 和 `--wasm` 的顺序都对应出生槽位 0、1。单局输出 result.json 和 replay.jsonl；无 `--output` 的 view 在终端显示整场。文本符号：`#` 硬墙、`+` 软墙、`.` 道路、`*` 炸弹、数字是玩家槽位。
-
-不带 `--wasm` 的 verify 只重建世界；带 WASM 则重新执行 Bot，校验动作、故障、状态和结果。Bot 重跑要求代码、工具链和配置与 Replay 一致；世界回放不执行 Bot。
-
-## 批量换边与报告
-
-```powershell
-.\.venv\Scripts\python.exe arena.py tournament --entrants artifacts/work/baselines/entrants.json --cases configs/acceptance-cases.json --output artifacts/acceptance/v0.1
-.\.venv\Scripts\python.exe arena.py report artifacts/acceptance/v0.1
-.\.venv\Scripts\python.exe arena.py verify-all artifacts/acceptance/v0.1 --entrants artifacts/work/baselines/entrants.json
-.\.venv\Scripts\python.exe arena.py verify-all artifacts/acceptance/v0.1 --entrants artifacts/work/baselines/entrants.json --rerun
-```
-
-50 张工程验收地图 × 每对换边 2 局 × 三个 Baseline 的 3 个配对，共 300 局。生成 manifest.json、schedule.json、cases.json、qualification.json、matches、results.jsonl、replays、report.json 和 report.md。每次完整验收使用新输出目录。
-
-中断后用相同命令加 `--resume` 恢复。源码、组件或清单变化会拒绝恢复，需开新批次；缓存结果会再次核对 Replay。基础设施失败不计入分数，修复后加 `--resume --retry-failures`，旧失败结果及 Replay 保存至 failed_attempts。
-
-报告提供胜负平、平均名次分、出生位表现、地图换边组合、辅助统计和固定 Seed 的 2,000 次 bootstrap 区间。缺失局或基础设施失败标为 incomplete，不生成正式汇总成绩；重复 match_id、被修改结果或错误 Replay 返回失败。
-
-configs/public-dev.json 是 10 张公开开发地图；configs/acceptance-cases.json 是 50 张公开工程验收地图。正式模型评测应使用新的隐藏集：
-
-```powershell
-.\.venv\Scripts\python.exe arena.py seeds --count 50 --output configs/private/season-cases.json
-.\.venv\Scripts\python.exe arena.py map 1 --output artifacts/work/map-1.json
-```
-
-Seed 清单以 secrets 随机生成并落盘，比赛依赖文件中的固定种子，不在运行期间抽新种子。private 目录被 Git 忽略。正式提交前冻结任务包和完整开发协议，参见评测文档。
-
-## 检查与版本记录
-
-已完成的工程验收证据见 [交接说明](./artifacts/acceptance/v0.1-release/handoff.md) 和 [逐项审计](./artifacts/acceptance/v0.1-release/audit.md)：39 项检查、300 局有效比赛、全部世界回放与 Bot 重跑，以及独立目录的另一个 300 局批次均通过。完整原始证据归档为 evidence.zip，恢复方式和 SHA-256 见交接说明。
-
-```powershell
-.\.venv\Scripts\python.exe -m unittest discover -v
-git log --oneline
-```
-
-检查包含规则、地图向量、真实 C++ 编译、STL/构造/堆状态、ABI、fuel trap 恢复、内存上限、watchdog、调度恢复和结果防篡改。运行时和链接决策见 [实现决策](./docs/07-decisions.md)。
-
-编译器和虚拟环境不进入 Git；原始批量 Replay 不以散文件提交，完整证据通过带 SHA-256 的 ZIP 归档保存，清单和摘要单独提交。文本回放已提供；v0.2 图形观赛开发进度见独立交付文档，自动模型提供方集成留待后续。
+当前交付为 Windows 本地应用，参考 Bot 为 Random、Safe、Heuristic。真实外部模型参赛成绩需实际收卷后产生；长期 Rating、多人正式赛制、道具、缩圈、云端账号和自动模型提供方集成属于后续范围。

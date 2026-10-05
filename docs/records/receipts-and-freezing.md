@@ -1,5 +1,7 @@
 # 收卷档案、源码冻结与未完成批次
 
+> 验收记录：下文的检查数量、未完成项和结论属于各自记录时点。当前版本状态见[版本交付清单](../releases/v0.2.md)，最终复现入口见[版本交接](../releases/handoff-v0.2.md)。
+
 记录日期：2026-10-05。此阶段补齐主办方收卷档案入口，保持固定 60 分钟、可提前交卷的协议。工程样例使用手写源码及显式外部时间记录，不冒充真实模型提交。
 
 ## 实际入口与状态
@@ -30,7 +32,7 @@
 
 ## 验证与复现
 
-本阶段记录位于 `artifacts/acceptance/v0.2-development/checks/`，实际截图与 API 样例封存在 [收卷证据归档](../artifacts/acceptance/v0.2-development/visual/receipts-evidence.zip)，来源、构建哈希、命令、诊断与逐文件校验见 [阶段索引](../artifacts/acceptance/v0.2-development/checks/receipts-stage.json)。
+本阶段记录位于 `artifacts/acceptance/v0.2-development/checks/`，实际截图与 API 样例封存在 [收卷证据归档](../../artifacts/acceptance/v0.2-development/visual/receipts-evidence.zip)，来源、构建哈希、命令、诊断与逐文件校验见 [阶段索引](../../artifacts/acceptance/v0.2-development/checks/receipts-stage.json)。
 
 真实 Chrome 检查覆盖上传含中文注释的单文件源码、提前冻结、重复提交、拒绝覆盖、统一编译、资格与哈希、私有读取、四尺寸长名称和纯文本诊断、失败 / 未交卷 / 逾期记录、实际截止后的自动更新，以及停止批次后禁止正式排名 / 发布。七种档案状态与未完成批次各留四尺寸截图，共 32 张。粘贴编译、真实单局直播、隐藏换边批次和发布由既有工作流在当前构建上重验。
 

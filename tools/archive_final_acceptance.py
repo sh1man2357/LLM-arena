@@ -44,11 +44,11 @@ def main():
         assert read_json(root/'checks'/name)['status']=='passed',name
     # Each row is an explicitly retained requirement; evidence is scoped rather than inferred from a green total.
     evidence={
-        'A01':['checks/read-states-stage.json','docs/17-components-and-page-states.md'],
+        'A01':['checks/read-states-stage.json','docs/records/components-and-page-states.md'],
         'A02':['final/checks/viewer-quality.json'],'A03':['final/checks/viewer-quality.json'],
         'A04':['final/checks/accessibility.json','final/checks/viewer-quality.json'],
-        'A05':['checks/final-browser.json','checks/final-queue-browser.json','docs/19-final-engineering-acceptance.md','checks/browser-live-recovery.json'],
-        'A06':['docs/20-final-visual-review.md'],
+        'A05':['checks/final-browser.json','checks/final-queue-browser.json','docs/records/final-engineering-acceptance.md','checks/browser-live-recovery.json'],
+        'A06':['docs/records/final-visual-review.md'],
         'B01':['final/checks/viewer-cases.json','final/checks/viewer-quality.json'],
         'B02':['final/checks/viewer-cases.json','final/checks/viewer-quality.json'],
         'B03':['checks/live-process-recovery.json'],'B04':['checks/browser-live-recovery.json','checks/live-process-recovery.json'],
@@ -60,17 +60,17 @@ def main():
         'D01':['artifacts/acceptance/v0.2-baselines/handoff.md','artifacts/acceptance/v0.2-baselines/evidence.zip'],
         'D02':['checks/report-stage.json','checks/report-traces.json'],'D03':['checks/legacy-import-publication.json','checks/final-browser.json'],
         'D04':['checks/reference-300.json'],'D05':['final/checks/runtime-api.json','checks/final-python.log'],
-        'D06':['checks/final-browser.json','checks/browser-recovery-restored.json'],'D07':['checks/report-traces.json','docs/15-results-analysis.md'],
+        'D06':['checks/final-browser.json','checks/browser-recovery-restored.json'],'D07':['checks/report-traces.json','docs/records/results-analysis.md'],
         'E01':['checks/final-python.log','checks/final-browser.json','service/__main__.py'],
         'E02':['checks/clean-room-ui.json'],'E03':['final/checks/performance-final.json','checks/performance-stage.json'],
-        'E04':['checks/final-browser.json','checks/recovery.json'],'E05':['HANDOFF_v0.2.md','docs/19-final-engineering-acceptance.md']}
-    delivery=(ROOT/'DELIVERY_v0.2.md').read_text(encoding='utf-8')
+        'E04':['checks/final-browser.json','checks/recovery.json'],'E05':['docs/releases/handoff-v0.2.md','docs/records/final-engineering-acceptance.md']}
+    delivery=(ROOT/'docs/releases/v0.2.md').read_text(encoding='utf-8')
     items=re.findall(r'^- \[([ x])\] ([A-E]\d\d)：(.+)$',delivery,re.M)
     assert len(items)==29 and {i for _,i,_ in items}==set(evidence)
     pending=[i for status,i,_ in items if status==' ']
     assert pending in ([],['A06']),'Only the human visual gate may remain after engineering acceptance'
     passed=sum(status=='x' for status,_,_ in items)
-    human=dict(status='pending',record='docs/20-final-visual-review.md',engineering_reviewer='Codex',human_reviewer=None)
+    human=dict(status='pending',record='docs/records/final-visual-review.md',engineering_reviewer='Codex',human_reviewer=None)
     if not pending:
         approval=read_json(checks/'human-visual-approval.json')
         assert approval['status']=='approved' and approval['scope']=='A06'
@@ -87,7 +87,7 @@ def main():
     for status,identity,requirement in items:
         sources=[]
         for name in evidence[identity]:
-            file=ROOT/name if name.startswith(('docs/','artifacts/','service/')) or name=='HANDOFF_v0.2.md' else root/name
+            file=ROOT/name if name.startswith(('docs/','artifacts/','service/')) else root/name
             assert file.is_file(),file
             sources.append(dict(file=file.relative_to(ROOT).as_posix(),sha256=sha_file(file)))
         rows.append(dict(id=identity,requirement=requirement,status='passed' if status=='x' else 'pending_human_visual_review',evidence=sources))

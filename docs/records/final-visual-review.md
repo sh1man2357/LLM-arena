@@ -1,5 +1,7 @@
 # v0.2 最终视觉走查与人工确认
 
+> 验收记录：下文的检查数量、未完成项和结论属于各自记录时点。当前版本状态见[版本交付清单](../releases/v0.2.md)，最终复现入口见[版本交接](../releases/handoff-v0.2.md)。
+
 日期：2026-10-06。工程视觉走查者：Codex。**最终人工审美确认：项目负责人（本对话用户）已回复“通过视觉验收”，A06 通过。** 人工结论来自用户直接回复，工程检查与 AI 看图单独记录。
 
 ## 已完成的工程视觉走查
@@ -29,13 +31,13 @@
 | 身份档案 | 标题与哈希按窄屏断行；数据总数与真实对局事实清晰 | 超长标题占用较多首屏、最新 100 局形成长列表属非阻断；保留完整姓名，不将首屏截图当作全部记录 |
 | 主办方工作台 | 收卷、资格、组织、导入、备份与作业沿用观赛字体 / 边线；桌面分栏、手机单列，日志折叠 | 主操作与禁用态可辨；真实排队 / 编译与失败档案另存；无临时默认主题 |
 
-留白、字重、数字对齐、图标与深色表面一致；长名称满数据确实增加阅读密度，接受完整身份信息优先的处理。时间轴、爆炸、玩家移动与减少动效的动态复核依实际操作记录，静态截图不证明动效。加载、空态、拒绝、失败和恢复的覆盖 / 构造方式见 [工程状态记录](./19-final-engineering-acceptance.md)。人工确认见下方独立记录。
+留白、字重、数字对齐、图标与深色表面一致；长名称满数据确实增加阅读密度，接受完整身份信息优先的处理。时间轴、爆炸、玩家移动与减少动效的动态复核依实际操作记录，静态截图不证明动效。加载、空态、拒绝、失败和恢复的覆盖 / 构造方式见 [工程状态记录](./final-engineering-acceptance.md)。人工确认见下方独立记录。
 
 ## 可查看的实际画面
 
 最终媒体位于 `artifacts/acceptance/v0.2-development/final/visual/`，同时按哈希封存在 `final/evidence.zip`。解压后可检查所有四尺寸、状态和录像。
 
-可以直接打开 [桌面观赛首屏](../artifacts/acceptance/v0.2-development/final/visual/review-viewport/viewer-1280.png)、[手机观赛首屏](../artifacts/acceptance/v0.2-development/final/visual/review-viewport/viewer-390.png)、[桌面大厅](../artifacts/acceptance/v0.2-development/final/visual/review-viewport/hall-1440.png) 和 [手机榜单](../artifacts/acceptance/v0.2-development/final/visual/review-viewport/batch-390.png)。Git 源码交接保留这四张代表画面供直接查看；完整媒体在带哈希的 ZIP 中，本机也保留全部原图。
+可以直接打开 [桌面观赛首屏](../../artifacts/acceptance/v0.2-development/final/visual/review-viewport/viewer-1280.png)、[手机观赛首屏](../../artifacts/acceptance/v0.2-development/final/visual/review-viewport/viewer-390.png)、[桌面大厅](../../artifacts/acceptance/v0.2-development/final/visual/review-viewport/hall-1440.png) 和 [手机榜单](../../artifacts/acceptance/v0.2-development/final/visual/review-viewport/batch-390.png)。Git 源码交接保留这四张代表画面供直接查看；完整媒体在带哈希的 ZIP 中，本机也保留全部原图。
 
 | 页面 / 范围 | 桌面与手机代表截图 |
 | --- | --- |
@@ -54,4 +56,4 @@
 
 确认记录时间：2026-10-06 00:28:30（Asia/Taipei；UTC 2026-10-05 16:28:30）。该时间为接收确认后的归档时间，不冒充用户消息的原始发送时间。对应问题引用为 `request_user_input_async/call_ypIO8zArng7WHpUhp6zLzhUy/0`。
 
-结果：A06 通过，v0.2 全部 29 项验收完成。机器可校验的 [用户确认记录](../artifacts/acceptance/v0.2-development/final/checks/human-visual-approval.json) 保存原回复、确认来源、评审范围、所提供画面及工程版本哈希。不据此声称用户逐张观看了所有截图或进行了额外现场测试。
+结果：A06 通过，v0.2 全部 29 项验收完成。机器可校验的 [用户确认记录](../../artifacts/acceptance/v0.2-development/final/checks/human-visual-approval.json) 保存原回复、确认来源、评审范围、所提供画面及工程版本哈希。不据此声称用户逐张观看了所有截图或进行了额外现场测试。

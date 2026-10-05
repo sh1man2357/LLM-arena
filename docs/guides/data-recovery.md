@@ -1,6 +1,6 @@
 # v0.2 公开回放与私有备份恢复
 
-公开回放用于分发观赛资料，完整私有备份用于迁移主办方实例。两者入口均已实现并通过阶段检查；整版状态仍以 [交付清单](../DELIVERY_v0.2.md) 为准。
+公开回放用于分发观赛资料，完整私有备份用于迁移主办方实例。本文说明操作、格式与限制；版本状态见[交付清单](../releases/v0.2.md)。所有命令在项目根目录执行。
 
 ## 公开回放再导入
 
@@ -28,7 +28,7 @@
 
 ## 恢复到新目录
 
-先准备当前项目的依赖和发行前端，见 [安装说明](../README.md)。下载私有 ZIP，并保留工作台显示的 SHA-256；以下命令中的哈希来自该下载记录，不是额外开发协议配置。
+先准备当前项目的依赖和发行前端，见[安装与启动](./getting-started.md)。下载私有 ZIP，并保留工作台显示的 SHA-256；以下命令中的哈希来自该下载记录，不是额外开发协议配置。
 
 ```powershell
 .\.venv\Scripts\python.exe -m service.backup restore artifacts/work/private-backup.zip --destination artifacts/local-restored --sha256 <备份记录中的SHA-256>
@@ -54,12 +54,14 @@ powershell -ExecutionPolicy Bypass -File .\start-arena.ps1 -Data artifacts/local
 
 同一 v0.2 数据 schema 可迁移；不承诺跨未来未知 schema 自动升级。备份仅复制已注册外部产物和数据根目录的文件，不复制工具链 / 前端程序；新实例使用当前项目依赖，精确重跑旧比赛仍须保留其冻结版本和环境。数据超限、冻结文件被修改或注册产物缺失时，创建备份会失败并保留作业诊断。
 
-## 本轮验收证据
+## 恢复阶段的验收证据
 
-- [完整 Python 检查](../artifacts/acceptance/v0.2-development/checks/python-recovery.log)：64 项通过；覆盖篡改 / 路径拒绝、现有目录保护、凭据轮换、缓存重建、排队编译转中断并手动完成真实 C++ 编译。
-- [浏览器流程](../artifacts/acceptance/v0.2-development/checks/browser-recovery.json)：8 条 Chrome 流程通过；包括收卷 → 编译 → 真实单局直播 / 回放 → 隐藏批次换边 → 关闭收卷 / 发布 → 下载报告，以及公开回放再导入 / 私有备份下载。
-- [最终备份边界检查](../artifacts/acceptance/v0.2-development/checks/browser-backup-boundaries.json)：针对补强后的代码，真实备份运行期间健康 / 回放读取成功，收卷修改返回 423，完成后下载归档哈希一致；归档下载使用独立文件名，保留此前恢复证据。
-- [新目录恢复核对](../artifacts/acceptance/v0.2-development/checks/recovery.json)：同一下载归档包含 2,843 个文件、630 条元数据；2,238 个原始文件哈希一致，605 个投影缓存重建，221 条事件保持顺序。验证工具为 `tools/verify_recovery.py`。
-- [恢复实例观赛检查](../artifacts/acceptance/v0.2-development/checks/browser-recovery-restored.json)：实际 Chrome 核对同一冻结提交、500 Tick 单局、已发布换边批次、精确帧剪贴板链接、PNG / Replay / 报告下载和旧凭据拒绝。验证工具为 `web/tools/verify-recovery.mjs`。
+以下保留恢复功能阶段的样例和检查数量。最终检查及旧证据的复用范围见[版本交接](../releases/handoff-v0.2.md)。
 
-私有 ZIP 和恢复数据库保存在本地忽略目录，不作为公开源码或验收证明内容提交。本轮不证明实际进程崩溃恢复、直播断连 / attempt 切换、最终视觉与性能均已通过；这些仍单独验收。
+- [完整 Python 检查](../../artifacts/acceptance/v0.2-development/checks/python-recovery.log)：64 项通过；覆盖篡改 / 路径拒绝、现有目录保护、凭据轮换、缓存重建、排队编译转中断并手动完成真实 C++ 编译。
+- [浏览器流程](../../artifacts/acceptance/v0.2-development/checks/browser-recovery.json)：8 条 Chrome 流程通过；包括收卷 → 编译 → 真实单局直播 / 回放 → 隐藏批次换边 → 关闭收卷 / 发布 → 下载报告，以及公开回放再导入 / 私有备份下载。
+- [最终备份边界检查](../../artifacts/acceptance/v0.2-development/checks/browser-backup-boundaries.json)：针对补强后的代码，真实备份运行期间健康 / 回放读取成功，收卷修改返回 423，完成后下载归档哈希一致；归档下载使用独立文件名，保留此前恢复证据。
+- [新目录恢复核对](../../artifacts/acceptance/v0.2-development/checks/recovery.json)：同一下载归档包含 2,843 个文件、630 条元数据；2,238 个原始文件哈希一致，605 个投影缓存重建，221 条事件保持顺序。验证工具为 `tools/verify_recovery.py`。
+- [恢复实例观赛检查](../../artifacts/acceptance/v0.2-development/checks/browser-recovery-restored.json)：实际 Chrome 核对同一冻结提交、500 Tick 单局、已发布换边批次、精确帧剪贴板链接、PNG / Replay / 报告下载和旧凭据拒绝。验证工具为 `web/tools/verify-recovery.mjs`。
+
+私有 ZIP 和恢复数据库保存在本地忽略目录，不作为公开源码或验收证明内容提交。本节证据只覆盖数据迁移；进程崩溃与直播恢复、视觉和性能分别查阅[恢复记录](../records/live-and-job-recovery.md)、[视觉确认](../records/final-visual-review.md)和[性能记录](../records/performance.md)。

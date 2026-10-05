@@ -1,5 +1,7 @@
 # v0.2 成绩核对与行为分析
 
+> 验收记录：下文的检查数量、未完成项和结论属于各自记录时点。当前版本状态见[版本交付清单](../releases/v0.2.md)，最终复现入口见[版本交接](../releases/handoff-v0.2.md)。
+
 日期：2026-10-05。对应 D02、D07。新增描述统计与检查入口，冻结规则、报告算法、旧成绩及原始 Replay 均未修改。
 
 ## 界面与证据
@@ -51,10 +53,10 @@
 
 ## 证据与复现
 
-- [报告与原始轨迹核对](../artifacts/acceptance/v0.2-development/checks/report-traces.json)：三份验证报告、690 份 Replay 哈希和独立累计结果。
-- [逐字段 Chrome 检查](../artifacts/acceptance/v0.2-development/checks/browser-report-quality.json)：42 配对、690 实际案例选择、并列排名、精确片段跳转、24 张四尺寸截图及实测对比度。
-- [八条 Chrome 回归](../artifacts/acceptance/v0.2-development/checks/browser-analysis-regression.json)、[73 项 Python 回归](../artifacts/acceptance/v0.2-development/checks/python-analysis.log) 与 [最终受影响范围检查](../artifacts/acceptance/v0.2-development/checks/python-analysis-final.log)。
-- [源码 / 检查 / 证据包哈希](../artifacts/acceptance/v0.2-development/checks/report-stage.json) 及 [截图与工程原始轨迹 ZIP](../artifacts/acceptance/v0.2-development/visual/report-quality.zip)。工程批次含 WASM / 资格 / 调度 / Replay / 报告；新旧 300 局继续引用原归档，不复制或覆盖。画面均为原生 HTML / CSS / Canvas / SVG，无新增外部视觉资产。
+- [报告与原始轨迹核对](../../artifacts/acceptance/v0.2-development/checks/report-traces.json)：三份验证报告、690 份 Replay 哈希和独立累计结果。
+- [逐字段 Chrome 检查](../../artifacts/acceptance/v0.2-development/checks/browser-report-quality.json)：42 配对、690 实际案例选择、并列排名、精确片段跳转、24 张四尺寸截图及实测对比度。
+- [八条 Chrome 回归](../../artifacts/acceptance/v0.2-development/checks/browser-analysis-regression.json)、[73 项 Python 回归](../../artifacts/acceptance/v0.2-development/checks/python-analysis.log) 与 [最终受影响范围检查](../../artifacts/acceptance/v0.2-development/checks/python-analysis-final.log)。
+- [源码 / 检查 / 证据包哈希](../../artifacts/acceptance/v0.2-development/checks/report-stage.json) 及 [截图与工程原始轨迹 ZIP](../../artifacts/acceptance/v0.2-development/visual/report-quality.zip)。工程批次含 WASM / 资格 / 调度 / Replay / 报告；新旧 300 局继续引用原归档，不复制或覆盖。画面均为原生 HTML / CSS / Canvas / SVG，无新增外部视觉资产。
 
 运行于 Windows x64、Python 3.12.14、Node 24.19.0、Chrome 154.0.8037.93。新建隔离目录，不覆盖正式数据；在根目录执行：
 

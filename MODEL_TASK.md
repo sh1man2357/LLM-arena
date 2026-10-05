@@ -222,4 +222,4 @@ Action tick(const GameState&) { return Action::WAIT; }
 5. 截止时未收到任何源码的提交记为未交卷；已经收到但编译或资格检查失败的源码记为资格失败。不要删除失败记录或在交卷后代为修复。
 6. 冻结源码、WASM、SDK、编译参数与哈希后才使用新的隐藏案例清单比赛。更改任何冻结产物时建立新提交，不沿用旧成绩。
 
-规则来源：[游戏规则](./docs/02-rules.md)、[SDK 契约](./docs/03-bot-sdk.md)、[地图与随机性](./docs/04-maps-and-randomness.md)、[评测协议](./docs/05-benchmark.md)。工程环境准备与完整 CLI 说明见 [README.md](./README.md)。
+规则来源：[游戏规则](./docs/specs/rules.md)、[SDK 契约](./docs/specs/bot-sdk.md)、[地图与随机性](./docs/specs/maps-and-randomness.md)、[评测协议](./docs/specs/benchmark.md)。工程环境准备见[安装与启动](./docs/guides/getting-started.md)，完整命令见[CLI 指南](./docs/guides/cli.md)。

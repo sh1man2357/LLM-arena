@@ -1,6 +1,8 @@
 # v0.2 直播断连与作业恢复
 
-本文说明实际恢复行为及验证范围。完整私有目录迁移见 [数据恢复说明](./12-data-recovery.md)，整版完成标准见 [交付清单](../DELIVERY_v0.2.md)。首个验收平台为 Windows x64。
+> 验收记录：下文的检查数量、未完成项和结论属于各自记录时点。当前版本状态见[版本交付清单](../releases/v0.2.md)，最终复现入口见[版本交接](../releases/handoff-v0.2.md)。
+
+本文说明实际恢复行为及验证范围。完整私有目录迁移见 [数据恢复说明](../guides/data-recovery.md)，整版完成标准见 [交付清单](../releases/v0.2.md)。首个验收平台为 Windows x64。
 
 ## 观众断连和回看
 
@@ -10,7 +12,7 @@
 
 临时断连保留最后确认棋盘及本地回看位置，展示恢复提示；服务重新连接后重新读取持久状态。暂停、播放和倍速只改变当前浏览器位置，服务器继续计算，其他观众可独立跟随最新。直播数据更新不会反复重置播放计时器，0.25 倍速回看仍能推进。
 
-首次 SSE 订阅没有显式游标时，从订阅时的持久事件水位开始，onopen 重新读取当前资源；不重放所有历史通知来反复取消页面请求。重连的 `Last-Event-ID` 与显式 `after` 取较大的非负值并有序补齐，显式 `after=0` 仍支持从头读取。实际旧数据首连、字段过滤和断连 / 进程恢复的补验收见 [性能与响应验证](./16-performance.md)。
+首次 SSE 订阅没有显式游标时，从订阅时的持久事件水位开始，onopen 重新读取当前资源；不重放所有历史通知来反复取消页面请求。重连的 `Last-Event-ID` 与显式 `after` 取较大的非负值并有序补齐，显式 `after=0` 仍支持从头读取。实际旧数据首连、字段过滤和断连 / 进程恢复的补验收见 [性能与响应验证](./performance.md)。
 
 出现新执行尝试时，已有回看的观众回到新尝试初始帧，停止播放 / 自动跟随并显示提示。当前单局完成后读取完整终局快照；只有未经登记的临时 result 行时，不宣布正式胜者。
 
@@ -43,10 +45,10 @@ Windows 的 worker 及其后代归属一个非继承的 Job Object，最后一�
 
 | 证据 | 覆盖范围 |
 | --- | --- |
-| [真实进程与浏览器证明](../artifacts/acceptance/v0.2-development/checks/live-process-recovery.json) | 缺帧恢复、去重、离线计算继续、播放独立、新尝试、旧记录、父进程退出及批次唯一计分 |
-| [Python 完整回归](../artifacts/acceptance/v0.2-development/checks/python-live-recovery.json) | 启动失败、终态竞态、缓存登记窗口、失败证据归档，以及既有规则 / SDK / 服务 / 恢复检查 |
-| [Chrome 常规回归](../artifacts/acceptance/v0.2-development/checks/browser-live-recovery.json) | 收卷、编译、真实直播、历史回放、换边批次、发布和私有备份等八条流程 |
-| [阶段文件与协议记录](../artifacts/acceptance/v0.2-development/checks/live-stage.json) | 本阶段源码 / 证据哈希、运行环境及帧协议检查的命令、输出和退出状态 |
+| [真实进程与浏览器证明](../../artifacts/acceptance/v0.2-development/checks/live-process-recovery.json) | 缺帧恢复、去重、离线计算继续、播放独立、新尝试、旧记录、父进程退出及批次唯一计分 |
+| [Python 完整回归](../../artifacts/acceptance/v0.2-development/checks/python-live-recovery.json) | 启动失败、终态竞态、缓存登记窗口、失败证据归档，以及既有规则 / SDK / 服务 / 恢复检查 |
+| [Chrome 常规回归](../../artifacts/acceptance/v0.2-development/checks/browser-live-recovery.json) | 收卷、编译、真实直播、历史回放、换边批次、发布和私有备份等八条流程 |
+| [阶段文件与协议记录](../../artifacts/acceptance/v0.2-development/checks/live-stage.json) | 本阶段源码 / 证据哈希、运行环境及帧协议检查的命令、输出和退出状态 |
 
 在已安装锁定依赖、已构建前端的 Windows 环境中，项目根目录可执行以下专门验证。输出目录先创建，数据目录必须是新的；8797 须未被其他实例占用。
 

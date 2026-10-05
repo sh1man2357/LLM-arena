@@ -1,5 +1,7 @@
 # v0.2 观赛画面与交互验证
 
+> 验收记录：下文的检查数量、未完成项和结论属于各自记录时点。当前版本状态见[版本交付清单](../releases/v0.2.md)，最终复现入口见[版本交接](../releases/handoff-v0.2.md)。
+
 日期：2026-10-05。对应 A02、A03、B01、B02、B05；支持 A04 的部分自动检查。整版仍在开发，最终人工视觉、完整可访问性、全部异常状态及性能尚未验收。
 
 ## 真实画面与行为
@@ -32,10 +34,10 @@ Tab 可先到“跳到主要内容”，Enter 聚焦主内容；焦点为可见 
 
 ## 证据、来源与复现
 
-- [WASM 案例索引](../artifacts/acceptance/v0.2-development/checks/viewer-cases.json)：十份原始 Replay 与模块哈希、实际结果和终帧事件。
-- [浏览器画面检查](../artifacts/acceptance/v0.2-development/checks/viewer-quality.json)：控制、换边、触控、截图文件名、Chrome 版本及对比度。
-- [常规流程回归](../artifacts/acceptance/v0.2-development/checks/browser-viewer-quality.json)：首次七条通过，备份等待超时；实际备份约 93.4 秒后成功，超过原脚本 90 秒等待。仅调整这条检查的上限后单独重验通过，保留首次和重验原日志。
-- [证据包与 SHA-256 索引](../artifacts/acceptance/v0.2-development/checks/viewer-stage.json)：当前前端 / 验收脚本源码哈希，以及 [截图与操作录屏 ZIP](../artifacts/acceptance/v0.2-development/visual/viewer-quality.zip)。包含 42 张 PNG、最终 Chrome 操作 WEBM 及对应检查文件；不包含私有备份或原始隐藏输入。
+- [WASM 案例索引](../../artifacts/acceptance/v0.2-development/checks/viewer-cases.json)：十份原始 Replay 与模块哈希、实际结果和终帧事件。
+- [浏览器画面检查](../../artifacts/acceptance/v0.2-development/checks/viewer-quality.json)：控制、换边、触控、截图文件名、Chrome 版本及对比度。
+- [常规流程回归](../../artifacts/acceptance/v0.2-development/checks/browser-viewer-quality.json)：首次七条通过，备份等待超时；实际备份约 93.4 秒后成功，超过原脚本 90 秒等待。仅调整这条检查的上限后单独重验通过，保留首次和重验原日志。
+- [证据包与 SHA-256 索引](../../artifacts/acceptance/v0.2-development/checks/viewer-stage.json)：当前前端 / 验收脚本源码哈希，以及 [截图与操作录屏 ZIP](../../artifacts/acceptance/v0.2-development/visual/viewer-quality.zip)。包含 42 张 PNG、最终 Chrome 操作 WEBM 及对应检查文件；不包含私有备份或原始隐藏输入。
 
 画面由本项目的 HTML / CSS / Canvas / SVG 生成，无外部图片、字体 CDN 或新增第三方视觉素材。录屏使用锁定 Playwright 1.63.0 的浏览器录制能力及其 FFmpeg 缓存，保存在项目 `.tools/playwright`。运行环境为 Windows x64、Python 3.12.14、Node 24.19.0、Chrome 154.0.8037.93，版本锁文件不变。
 

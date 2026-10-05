@@ -1,6 +1,6 @@
 # Bot SDK 与运行契约 v0.1
 
-C++20 → WebAssembly 已实现：WASI SDK 33.0 / Clang 22.1.0 编译，Wasmtime 49.0.0 执行。版本与验证依据见 [实现决策](./07-decisions.md)，最终交付状态以根目录 DELIVERY.md 为准。
+C++20 → WebAssembly 已实现：WASI SDK 33.0 / Clang 22.1.0 编译，Wasmtime 49.0.0 执行。版本与验证依据见[实现决策](../architecture/decisions.md)，交付状态见[版本清单](../releases/v0.2.md)。
 
 ## 面向模型的接口
 

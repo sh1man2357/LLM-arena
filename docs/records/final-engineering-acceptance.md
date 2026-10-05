@@ -1,6 +1,8 @@
 # v0.2 发布前工程验收
 
-日期：2026-10-06。平台为 Windows x64，本机 Chrome；工程数据和手写 Baseline 不冒充外部模型展示赛。最终人工审美确认独立记录，不能由自动化通过替代；负责人现已直接回复“通过视觉验收”，见 [人工确认](./20-final-visual-review.md)。
+> 验收记录：下文的检查数量、未完成项和结论属于各自记录时点。当前版本状态见[版本交付清单](../releases/v0.2.md)，最终复现入口见[版本交接](../releases/handoff-v0.2.md)。
+
+日期：2026-10-06。平台为 Windows x64，本机 Chrome；工程数据和手写 Baseline 不冒充外部模型展示赛。最终人工审美确认独立记录，不能由自动化通过替代；负责人现已直接回复“通过视觉验收”，见 [人工确认](./final-visual-review.md)。
 
 ## 本轮修正
 
@@ -38,7 +40,7 @@
 
 ## 证据与复现
 
-最终索引、命令 / 退出状态、源文件 / 构建 / 媒体哈希及旧证据复用依据见 [整版交接](../HANDOFF_v0.2.md) 和 [验收索引](../artifacts/acceptance/v0.2-development/final/acceptance-index.json)。完整媒体封存在 `final/evidence.zip`；原始文件与工程 API 样例含本机诊断，不能当作面向观众的公开报告分发。
+最终索引、命令 / 退出状态、源文件 / 构建 / 媒体哈希及旧证据复用依据见 [整版交接](../releases/handoff-v0.2.md) 和 [验收索引](../../artifacts/acceptance/v0.2-development/final/acceptance-index.json)。完整媒体封存在 `final/evidence.zip`；原始文件与工程 API 样例含本机诊断，不能当作面向观众的公开报告分发。
 
 旧 300 局、报告核对、后台作业、实际进程恢复、16 MiB 边界和独立安装证据仍对应各自记录的源码版本。此次不修改 27 个比赛核心源文件；索引核对它们与当前 Baseline 清单逐个哈希一致。UI 和当前实际构建另封存，并经此次真实原生操作、完整浏览器及性能重验。
 
