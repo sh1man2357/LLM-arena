@@ -11,3 +11,12 @@
 *.tsx text eol=lf
 *.css text eol=lf
 *.html text eol=lf
+web/tools/measure-background-work.mjs text eol=lf
+web/tools/measure-performance.mjs text eol=lf
+web/tools/performance-instrumentation.mjs text eol=lf
+tools/capture_performance_machine.ps1 text eol=lf
+# Preserve the exact bytes hashed by this acceptance archive, including raw logs.
+artifacts/acceptance/v0.2-development/checks/*performance* -text
+artifacts/acceptance/v0.2-development/checks/*performance*.json whitespace=cr-at-eol
+artifacts/acceptance/v0.2-development/checks/*performance*.log whitespace=-blank-at-eol
+artifacts/acceptance/v0.2-development/performance-regression-final/checks/*.json -text

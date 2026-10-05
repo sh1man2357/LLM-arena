@@ -92,6 +92,10 @@ class Store:
         return [dict(event_id=r["id"], resource_id=r["resource"], type=r["type"], payload=json.loads(r["body"]),
                      created=r["created"]) for r in rows]
 
+    def event_watermark(self):
+        with self.connection() as db:
+            return db.execute('SELECT COALESCE(MAX(id),0) FROM events').fetchone()[0]
+
     def backup_metadata(self, output):
         with self.connection() as db:
             rows = db.execute("SELECT kind,id,body FROM records ORDER BY kind,id").fetchall()

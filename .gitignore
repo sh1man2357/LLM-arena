@@ -25,3 +25,6 @@ artifacts/acceptance/*/visual/*.webm
 artifacts/acceptance/*/visual/viewer-quality/*.png
 artifacts/acceptance/*/visual/viewer-quality/*.webm
 artifacts/acceptance/*/visual/report-quality/*.png
+artifacts/acceptance/*/visual/performance/*.png
+artifacts/acceptance/*/performance-regression*/visual/viewer-quality/*.png
+artifacts/acceptance/*/performance-regression*/visual/viewer-quality/*.webm

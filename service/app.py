@@ -469,9 +469,13 @@ def create_app(data_root=None, *, demo=False, workers=False):
         return public_tournament(publish_tournament(store, identity))
 
     @app.get("/api/v1/events")
-    async def events(request: Request, after: int = 0):
+    async def events(request: Request, after: int | None = None):
         try:
-            cursor = max(after, int(request.headers.get("last-event-id", "0")))
+            last = request.headers.get("last-event-id")
+            # A new viewer reads current snapshots on open. Do not flood it
+            # with historical notifications that repeatedly cancel those reads.
+            cursor = (max(after or 0, int(last or '0')) if after is not None or last is not None
+                      else await asyncio.to_thread(store.event_watermark))
         except ValueError:
             raise APIError("invalid_cursor", "事件序号无效。", 422)
         async def stream():

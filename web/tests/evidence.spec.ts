@@ -5,12 +5,24 @@ import { resolve } from 'node:path';
 
 const sha = (data: Buffer) => createHash('sha256').update(data).digest('hex');
 
+// Repeated suites must import a fresh archive, while preserving every original
+// entry byte. A ZIP comment changes only container identity, not frozen evidence.
+function withComment(original: Buffer, comment: string) {
+  const offset = original.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  if (offset < 0 || offset + 22 + original.readUInt16LE(offset + 20) !== original.length) throw new Error('Invalid ZIP end record');
+  const end = Buffer.from(original.subarray(0, offset + 22)), bytes = Buffer.from(comment, 'utf8');
+  if (bytes.length > 65535) throw new Error('ZIP comment too large');
+  end.writeUInt16LE(bytes.length, offset + 20);
+  return Buffer.concat([end, bytes]);
+}
+
 test('host imports full legacy archive, compares swaps and downloads immutable publication', async ({ page }) => {
   test.setTimeout(120000);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const path = resolve('../artifacts/acceptance/v0.1-release/evidence.zip');
-  const data = readFileSync(path), originalHash = sha(data);
-  const title = '浏览器旧证据';
+  const original = readFileSync(path), originalHash = sha(original);
+  const title = `浏览器旧证据 ${Date.now()}`;
+  const data = withComment(original, title);
   await page.goto('/manage');
   const receipt = page.waitForResponse(r => r.url().includes('/api/v1/imports/archive') && r.request().method() === 'POST');
   await page.getByLabel('上传批次 ZIP', { exact: true }).setInputFiles({ name: `${title}.zip`, mimeType: 'application/zip', buffer: data });
@@ -53,6 +65,12 @@ test('host imports full legacy archive, compares swaps and downloads immutable p
   expect(sha(await report.body())).toBe(manifest.report.public_sha256);
   const printed = JSON.stringify(manifest) + await replay.text();
   for (const forbidden of ['map_seed', 'bot_seeds', 'source_files', 'C:\\Users', 'diagnostic']) expect(printed).not.toContain(forbidden);
+  const publishedBefore = await (await page.request.get(`/api/v1/tournaments/${job.resources.tournament_id}`)).json();
+  const firstKey = (await response.request().allHeaders())['idempotency-key'];expect(firstKey).toBeTruthy();
+  const repeatImport = await page.request.post(response.url(), {headers:{'idempotency-key':firstKey},multipart:{file:{name:`${title}.zip`,mimeType:'application/zip',buffer:data}}});
+  expect(repeatImport.status()).toBe(202);expect((await repeatImport.json()).id).toBe(job.id);
+  const publishedAfter = await (await page.request.get(`/api/v1/tournaments/${job.resources.tournament_id}`)).json();
+  expect(publishedAfter.disclosure).toBe('archived');expect(publishedAfter.publication_id).toBe(publishedBefore.publication_id);
   expect(sha(readFileSync(path))).toBe(originalHash);
   expect(errors).toEqual([]);
 });
