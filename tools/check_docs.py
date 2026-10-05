@@ -13,7 +13,7 @@ from runner.match import components
 
 def main():
     evidence = ROOT / "artifacts/acceptance/v0.1-release"
-    files = [ROOT/"README.md", ROOT/"DELIVERY.md", ROOT/"DELIVERY_v0.2.md", ROOT/"MODEL_TASK.md", *(ROOT/"docs").glob("*.md"),
+    files = [ROOT/"README.md", ROOT/"DELIVERY.md", ROOT/"DELIVERY_v0.2.md", ROOT/"HANDOFF_v0.2.md", ROOT/"MODEL_TASK.md", *(ROOT/"docs").glob("*.md"),
              evidence/"handoff.md", evidence/"audit.md", ROOT/"artifacts/acceptance/v0.2-baselines/handoff.md"]
     for path in files:
         text = path.read_text(encoding="utf-8")

@@ -32,3 +32,12 @@ artifacts/acceptance/v0.2-development/checks/*receipts* -text
 artifacts/acceptance/v0.2-development/checks/*receipts*.json whitespace=cr-at-eol
 artifacts/acceptance/v0.2-development/checks/*receipts*.log whitespace=-blank-at-eol
 artifacts/acceptance/v0.2-development/visual/receipts/*.json -text
+web/tools/*.mjs text eol=lf
+artifacts/acceptance/v0.2-development/checks/final* -text
+artifacts/acceptance/v0.2-development/checks/final*.json whitespace=cr-at-eol
+artifacts/acceptance/v0.2-development/checks/final*.log whitespace=-blank-at-eol
+artifacts/acceptance/v0.2-development/final/checks/* -text
+artifacts/acceptance/v0.2-development/final/checks/*.json whitespace=cr-at-eol
+artifacts/acceptance/v0.2-development/final/visual/*accessibility.txt -text
+artifacts/acceptance/v0.2-development/checks/live-stage.json -text
+artifacts/acceptance/v0.2-development/checks/live-stage.json whitespace=cr-at-eol

@@ -165,7 +165,7 @@ export function Viewer() {
     <div className="versus-bar">{data.entrants.map((entrant, slot) => {
       const p = frame.state.players[slot]; const color = identityColor(entrant.id);
       return <button className={`versus-player ${player === slot && mode === 'player' ? 'selected' : ''}`} key={entrant.id}
-        aria-pressed={player === slot && mode === 'player'}
+        aria-pressed={player === slot && mode === 'player'} title={nameLabel(entrant.id)}
         onClick={() => { setPlayer(slot); setMode('player'); }} style={{ '--player': color } as React.CSSProperties}>
         <span className={`player-marker p${slot}`}>{slot}</span><span><strong>{nameLabel(entrant.id)}</strong><small>槽位 {slot} · {playerStateLabel(p)}</small></span>
         <span className="player-action">{frame.actions.find(a => a.id === slot) ? actionNames[frame.actions.find(a => a.id === slot)!.action] : '未调用'}<small>{p.x}, {p.y}</small></span>

@@ -100,6 +100,6 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
     motion.addEventListener('change', redraw);
     return () => { cancelAnimationFrame(raf); observer.disconnect(); motion.removeEventListener('change', redraw); };
   }, [frame, previous, entrantIds, overlay, selectedX, selectedY, animate]);
-  return <canvas ref={canvasRef} className={`board ${compact ? 'compact' : ''}`} aria-label={`比赛棋盘，${frame.tick === null ? '初始状态' : `Tick ${frame.tick} 已结算`}。玩家及格子信息见下方检查器。`}
+  return <canvas ref={canvasRef} role="img" className={`board ${compact ? 'compact' : ''}`} aria-label={`比赛棋盘，${frame.tick === null ? '初始状态' : `Tick ${frame.tick} 已结算`}。玩家及格子信息见下方检查器。`}
     onClick={onSelect ? event => { const r = event.currentTarget.getBoundingClientRect(); onSelect([Math.min(12, Math.floor((event.clientX - r.left) / r.width * 13)), Math.min(10, Math.floor((event.clientY - r.top) / r.height * 11))]); } : undefined} />;
 }

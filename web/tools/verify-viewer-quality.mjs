@@ -160,6 +160,7 @@ async function pixels(frame) {
       await page.evaluate(()=>document.fonts.ready);
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
       if(name==='viewer') {const box=await page.locator('canvas').boundingBox(); expect(Math.abs(box.width/box.height-13/11)).toBeLessThan(.001);}
+      if(name==='viewer'&&width>=1280) {const box=await page.getByRole('button',{name:'播放 (Space)',exact:true}).boundingBox();expect(box.y+box.height,'desktop transport remains visible with the real 92-character name').toBeLessThanOrEqual(1000);}
       const contrast=await contrastReport(page); contrasts.push({page:name,width,...contrast});
       expect(contrast.failures,`${name}-${width} text contrast`).toEqual([]);
       if(contrast.field_boundary_ratio!==null)expect(contrast.field_boundary_ratio).toBeGreaterThanOrEqual(3);
@@ -190,6 +191,7 @@ async function pixels(frame) {
     await expect(mobile.getByLabel('格子 x')).toHaveValue('5'); await expect(mobile.getByLabel('格子 y')).toHaveValue('5');
     await range.scrollIntoViewIfNeeded(); const r=await range.boundingBox(), cdp=await touch.newCDPSession(mobile);
     const y=r.y+r.height/2;
+    expect(await mobile.evaluate(({x,y})=>document.elementFromPoint(x,y)?.getAttribute('aria-label'),{x:r.x+8,y}),'native range hit must not land on the fixed navigation').toBe('回放帧');
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:r.x+8,y}]});
     for(let step=1;step<=12;step++)await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:r.x+8+(r.width*.75-8)*step/12,y}]});
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
