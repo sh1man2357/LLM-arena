@@ -25,6 +25,7 @@ powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 | 收卷、开赛、观赛和发布 | [组织比赛与观赛](./docs/guides/organizing-matches.md) |
 | 使用命令行编译、比赛和校验 | [CLI 指南](./docs/guides/cli.md) |
 | 向模型分发开发任务 | [MODEL_TASK.md](./MODEL_TASK.md)，统一 60 分钟交卷 |
+| 给模型提供竞技场和基准 Bot | [模型开发竞技场](./docs/guides/model-development.md) |
 | 开发或运行检查 | [开发与验证](./docs/guides/development.md) |
 | 查找规则、设计或验收证据 | [文档目录](./docs/README.md) |
 

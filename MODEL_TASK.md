@@ -209,7 +209,15 @@ Action tick(const GameState&) { return Action::WAIT; }
 
 `build` 使用固定 SDK 和统一编译参数；`qualify` 检查结构、导出、内存、初始化和公开状态调用。通过资格检查不保证正式比赛没有运行故障，也不代表策略得分高。
 
-公开地图清单是 `configs/public-dev.json`。可以在时限内查看公开测试日志和 Replay，并据此修改源码。不要把工程验收数据当作隐藏评测数据。
+你获得一套标准开发竞技场：真实规则引擎、固定 SDK / 编译器配置、受限 WASM 执行器、10 张公开地图，以及 Random、Safe、Heuristic 三个基准 Bot 的源码和冻结 WASM。公开地图清单是 `configs/public-dev.json`；基准源码位于 `bots/baselines/`，Safe 与 Heuristic 共用 `planner.hpp`。可以阅读基准策略、查看公开测试日志和 Replay，并在时限内修改自己的源码。若复用基准辅助实现，将其合并进单个 `bot.cpp`，不要让最终提交依赖 `planner.hpp`。
+
+对三个基准进行完整练习：
+
+```powershell
+.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --output artifacts/work/practice-01
+```
+
+默认每个基准使用同一份 10 张公开地图，各进行两局出生位交换，共 60 局。输出 `summary.md` / `summary.json`，以及每个 `vs-<基准>/` 下的报告、故障与 fuel 统计和逐 Tick Replay。每轮使用新的输出目录；也可加 `--opponent random --maps 1` 做快速检查。练习仍使用正式比赛的规则与资源限制，但公开练习成绩不算隐藏评测成绩；不要按公开地图或特定基准硬编码答案。
 
 ---
 
@@ -218,10 +226,10 @@ Action tick(const GameState&) { return Action::WAIT; }
 本任务书可直接分发，不需要模型或主办方补填配置表。以下是主办方的运行记录工作，不是开考前的问卷。
 
 1. 向各模型发送同一版本任务书，记录各自收到任务的时间、60 分钟截止时间和实际交卷时间。提前交卷立即冻结；逾期到达的修改不计入提交。
-2. 纯对话模式分发完整正文，内嵌头文件足以描述接口。有文件和测试环境时，向各模型提供相同的 [SDK 头文件](./sdk/arena.hpp)、[模板](./sdk/template.cpp)、[公开开发地图清单](./configs/public-dev.json) 和测试工具；不要向部分模型单独提供额外提示或对手资料。
+2. 有文件和测试环境时，向各模型提供同一份标准开发包，包含 [SDK 头文件](./sdk/arena.hpp)、[模板](./sdk/template.cpp)、[公开开发地图清单](./configs/public-dev.json)、三个基准 Bot 的源码 / 冻结 WASM 和练习工具。主办方在开发计时前完成环境准备和运行检查；不要向部分模型单独提供额外提示或对手资料。纯对话模式分发完整正文，内嵌头文件足以描述接口，并记录没有运行工具这一实际差异。
 3. 隐藏地图和其他参赛提交不开放给开发模型。提供公开测试对手时，各模型获得相同材料与测试机会。
 4. 保存实际发送的任务书、支持文件版本、模型标识与实际设置、开发记录、源码及提交失败。记录工具可用性等实际差异，不要求模型先确认 token 预算或生成参数。
 5. 截止时未收到任何源码的提交记为未交卷；已经收到但编译或资格检查失败的源码记为资格失败。不要删除失败记录或在交卷后代为修复。
 6. 冻结源码、WASM、SDK、编译参数与哈希后才使用新的隐藏案例清单比赛。更改任何冻结产物时建立新提交，不沿用旧成绩。
 
-规则来源：[游戏规则](./docs/specs/rules.md)、[SDK 契约](./docs/specs/bot-sdk.md)、[地图与随机性](./docs/specs/maps-and-randomness.md)、[评测协议](./docs/specs/benchmark.md)。工程环境准备见[安装与启动](./docs/guides/getting-started.md)，完整命令见[CLI 指南](./docs/guides/cli.md)。
+规则来源：[游戏规则](./docs/specs/rules.md)、[SDK 契约](./docs/specs/bot-sdk.md)、[地图与随机性](./docs/specs/maps-and-randomness.md)、[评测协议](./docs/specs/benchmark.md)。公开竞技场、环境准备与练习反馈见[模型开发竞技场](./docs/guides/model-development.md)。

@@ -9,6 +9,7 @@
 | [安装与启动](./guides/getting-started.md) | 浏览器应用、CLI 环境、启动与停止 |
 | [组织比赛与观赛](./guides/organizing-matches.md) | 收卷、资格、开赛、观赛、导入与发布 |
 | [命令行使用](./guides/cli.md) | 编译、单局、批量换边、报告与复现 |
+| [模型开发竞技场](./guides/model-development.md) | 统一公开开发包、三基准和练习反馈 |
 | [数据恢复](./guides/data-recovery.md) | 公开回放导入、私有备份、新目录恢复 |
 | [开发与验证](./guides/development.md) | 开发服务、浏览器检查、核心检查 |
 | [模型任务书](../MODEL_TASK.md) | 可直接分发的 60 分钟 Bot 开发任务 |

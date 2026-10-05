@@ -3,6 +3,7 @@
 __pycache__/
 *.py[cod]
 artifacts/work/
+artifacts/distribution/
 artifacts/acceptance/*/replays/
 artifacts/acceptance/*/matches/
 artifacts/acceptance/v0.1/
