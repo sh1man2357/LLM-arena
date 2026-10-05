@@ -4,11 +4,12 @@ import { useRevision } from './App';
 import { MatchRows, type Page } from './Hall';
 import { Badge, ErrorPanel, Icon, identityColor, nameLabel, PageTitle, State, labels, LoadingPanel, ReadNotice } from './ui';
 import type { Match, Row } from './types';
+import { ReceiptList } from './Receipts';
 
 export function Entrants() {
   const entrants = useResource<Page<Row>>('/api/v1/entrants', useRevision());
   if (entrants.error && !entrants.data) return <ErrorPanel message={entrants.error} status={entrants.errorStatus} onRetry={entrants.retry} />;
-  return <><PageTitle eyebrow="参赛者 / ENTRANTS" title="策略的独立身份。" detail="每个冻结提交都有独立 ID。模型名称不是成绩的唯一键。" /><ReadNotice resource={entrants} />{entrants.loading && <LoadingPanel title="正在读取参赛者" />}<div className="entrant-grid">{entrants.data?.items.map(e => <Link to={`/entrants/${e.id}`} className="entrant-card panel" key={e.id}><div className="entrant-avatar" style={{ color: identityColor(e.id) }}>{nameLabel(e.name || e.id).slice(0, 1)}</div><Badge status={e.status} /><h2>{nameLabel(e.name || e.id)}</h2><p>{e.baseline ? '手写 Baseline · 工程参照' : e.model || '独立提交'}</p><small className="mono">{e.wasm_sha256?.slice(0, 16) || '等待编译'}</small><span className="entrant-link">查看参赛记录 <Icon name="arrow" /></span></Link>)}</div>{entrants.data && !entrants.data.items.length && <State title="还没有参赛者" detail="进入工作台收卷或导入已有证据。"><Link className="button primary" to="/manage">进入工作台</Link></State>}</>;
+  return <><PageTitle eyebrow="参赛者 / ENTRANTS" title="策略的独立身份。" detail="每个冻结提交都有独立 ID。模型名称不是成绩的唯一键。" /><ReadNotice resource={entrants} />{entrants.loading && <LoadingPanel title="正在读取参赛者" />}<div className="entrant-grid">{entrants.data?.items.map(e => <Link to={`/entrants/${e.id}`} className="entrant-card panel" key={e.id}><div className="entrant-avatar" style={{ color: identityColor(e.id) }}>{nameLabel(e.name || e.id).slice(0, 1)}</div><Badge status={e.status} /><h2>{nameLabel(e.name || e.id)}</h2><p>{e.baseline ? '手写 Baseline · 工程参照' : e.model || '独立提交'}</p><small className="mono">{e.wasm_sha256?.slice(0, 16) || '等待编译'}</small><span className="entrant-link">查看参赛记录 <Icon name="arrow" /></span></Link>)}</div>{entrants.data && !entrants.data.items.length && <State title="还没有参赛者" detail="进入工作台收卷或导入已有证据。"><Link className="button primary" to="/manage">进入工作台</Link></State>}<ReceiptList /></>;
 }
 
 export function EntrantPage() {

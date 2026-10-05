@@ -28,3 +28,7 @@ artifacts/acceptance/v0.2-development/checks/*read-states*.json whitespace=cr-at
 artifacts/acceptance/v0.2-development/checks/*read-states*.log whitespace=-blank-at-eol
 artifacts/acceptance/v0.2-development/read-states-regression/checks/* -text
 artifacts/acceptance/v0.2-development/read-states-regression/checks/*.json whitespace=cr-at-eol
+artifacts/acceptance/v0.2-development/checks/*receipts* -text
+artifacts/acceptance/v0.2-development/checks/*receipts*.json whitespace=cr-at-eol
+artifacts/acceptance/v0.2-development/checks/*receipts*.log whitespace=-blank-at-eol
+artifacts/acceptance/v0.2-development/visual/receipts/*.json -text

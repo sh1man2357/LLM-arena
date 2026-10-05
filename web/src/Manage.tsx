@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, useResource } from './api';
 import { useRevision } from './App';
 import { Badge, ErrorPanel, Icon, PageTitle, LoadingPanel } from './ui';
@@ -21,6 +21,7 @@ function AttemptHistory({ job }: { job: Row }) {
 
 export function Manage() {
   const revision = useRevision();
+  const [params, setParams] = useSearchParams();
   const [ready, setReady] = useState(false), [authError, setAuthError] = useState('');
   const [unlockAttempt, setUnlockAttempt] = useState(0);
   const [refresh, setRefresh] = useState(0), [busy, setBusy] = useState(false);
@@ -29,7 +30,10 @@ export function Manage() {
   const [now, setNow] = useState(Date.now());
   const [name, setName] = useState(''), [model, setModel] = useState('');
   const [external, setExternal] = useState(false), [startedAt, setStartedAt] = useState(''), [receivedAt, setReceivedAt] = useState('');
-  const [sessionId, setSessionId] = useState(''), [source, setSource] = useState('');
+  const sessionId = params.get('session') || '';
+  const [source, setSource] = useState('');
+  // A draft belongs to one receipt, including navigation through browser history.
+  useEffect(() => { setSource(''); setReceivedAt(''); }, [sessionId]);
   const [selected, setSelected] = useState<string[]>([]), [title, setTitle] = useState('新一轮策略竞技');
   const [mapSeed, setMapSeed] = useState(1), [caseCount, setCaseCount] = useState(50), [official, setOfficial] = useState(false);
   const [interval, setIntervalMs] = useState(50);
@@ -53,6 +57,12 @@ export function Manage() {
   const frozen = !!session?.submission_id;
   const bytes = new TextEncoder().encode(source).length;
 
+  function selectSession(id: string) {
+    const next = new URLSearchParams(params);
+    if (id) next.set('session', id); else next.delete('session');
+    setParams(next, {replace: true});
+  }
+
   async function act(work: () => Promise<string>) {
     if (guard.current) return;
     guard.current = true; setBusy(true); setFailed(false); setMessage('');
@@ -65,7 +75,7 @@ export function Manage() {
   }
   async function createSession() {
     const row = await post('/api/v1/sessions', { name: name.trim(), model: model.trim() || '未注明模型', time_source: external ? 'external_record' : 'host_confirmation', ...(external && startedAt ? { started_at: new Date(startedAt).toISOString() } : {}) });
-    setSessionId(row.id); setNow(Date.now()); setSource(''); setReceivedAt(''); setName('');
+    selectSession(row.id); setNow(Date.now()); setName('');
     return '收卷记录已建立，截止时间固定为收到任务后 60 分钟。';
   }
   async function freeze() {
@@ -111,8 +121,9 @@ export function Manage() {
           <details className="record-details"><summary>已有外部对话的时间记录</summary><p className="muted">已在外部发卷时，记录真实时间。此项由主办方确认，不代表程序验证了远端开发过程。</p><label className="check-label"><input type="checkbox" checked={external} onChange={e => setExternal(e.target.checked)} />使用外部记录时间</label>{external && <label>实际收到任务时间<input type="datetime-local" required value={startedAt} onChange={e => setStartedAt(e.target.value)} /></label>}</details>
           <button className="primary" disabled={!ready || busy || !name.trim()} type="submit"><Icon name="check" />记录收到任务，开始 60 分钟</button>
         </form>
-        <div className="source-workspace"><label className="field-label">选择收卷记录<select aria-label="选择收卷记录" value={sessionId} onChange={e => { setSessionId(e.target.value); setSource(''); setReceivedAt(''); }}><option value="">选择参赛者…</option>{sessions.data?.items.map(s => <option key={s.id} value={s.id}>{s.name} · {s.submission_id ? '已冻结' : new Date(s.deadline).getTime() < now ? '未交卷 / 已截止' : '开发中'}</option>)}</select></label>
-          {session && <><div className="session-clock"><div><span className="muted">{frozen ? '最终交卷已固定' : remaining ? '距离截止' : '开发时限已结束'}</span><strong className="mono">{frozen ? '已冻结' : `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`}</strong></div><Badge status={session.status} /></div><p className="small muted">发卷 {timeLabel(session.started_at)}<br />截止 {timeLabel(session.deadline)} · {session.time_source === 'external_record' ? '外部记录' : '主办方确认'}</p>
+        <div className="source-workspace"><label className="field-label">选择收卷记录<select aria-label="选择收卷记录" value={sessionId} onChange={e => selectSession(e.target.value)}><option value="">选择参赛者…</option>{sessions.data?.items.map(s => <option key={s.id} value={s.id}>{s.name} · {s.submission_id ? '已冻结' : new Date(s.deadline).getTime() < now ? '未交卷 / 已截止' : '开发中'}</option>)}</select></label>
+          {sessionId && sessions.data && !session && <p role="status" className="empty-note muted">没有找到所选收卷记录。<button onClick={() => selectSession('')}>重新选择</button></p>}
+          {session && <><div className="session-clock"><div><span className="muted">{frozen ? '最终交卷已固定' : remaining ? '距离截止' : '开发时限已结束'}</span><strong className="mono">{frozen ? '已冻结' : `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`}</strong></div><Link className="button quiet" to={`/entrants/receipts/${session.id}`}>收卷档案</Link><Badge status={session.status} /></div><p className="small muted">发卷 {timeLabel(session.started_at)}<br />截止 {timeLabel(session.deadline)} · {session.time_source === 'external_record' ? '外部记录' : '主办方确认'}</p>
             {!frozen ? <><label className="source-label">最终 bot.cpp<textarea aria-label="最终 bot.cpp" className="source-editor mono" value={source} onChange={e => setSource(e.target.value)} spellCheck={false} placeholder={'#include "arena.hpp"\n// 在此粘贴完整 C++20 源码'} /></label><div className="source-actions"><label className="file-input-label button">载入 bot.cpp<input aria-label="载入 bot.cpp" type="file" accept=".cpp" disabled={busy} onChange={e => { const file = e.target.files?.[0]; void act(() => readSource(file)); e.target.value = ''; }} /></label><span className={`small mono ${bytes > 1024*1024 ? 'danger-text' : 'muted'}`}>{bytes.toLocaleString()} / 1,048,576 bytes</span></div>{session.time_source === 'external_record' && <label className="field-label">实际收到最终源码时间<input type="datetime-local" aria-label="实际收到最终源码时间" value={receivedAt} onChange={e => setReceivedAt(e.target.value)} /><small className="muted">留空按服务端接收时间记录；外部交卷须填写真实接收时间。</small></label>}<button className="primary" disabled={busy || !source || bytes > 1024*1024} onClick={() => void act(freeze)}><Icon name="check" />{remaining || session.time_source === 'external_record' ? '最终交卷并冻结' : '按逾期留档'}</button><p className="small muted">提前交卷即结束开发。编译失败也不重新开放修改。</p></> : <p className="frozen-note"><Icon name="check" />本次最终源码已冻结，可在提交记录中检查资格和诊断。</p>}
           </>}
           {sessions.data && !sessions.data.items.length && <p className="empty-note muted">还没有收卷记录。先填写参赛者名称即可开始。</p>}

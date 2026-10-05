@@ -29,3 +29,4 @@ artifacts/acceptance/*/visual/performance/*.png
 artifacts/acceptance/*/performance-regression*/visual/viewer-quality/*.png
 artifacts/acceptance/*/performance-regression*/visual/viewer-quality/*.webm
 artifacts/acceptance/*/visual/read-states*/*.png
+artifacts/acceptance/*/visual/receipts*/*.png

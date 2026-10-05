@@ -99,6 +99,29 @@ def public_entrant(row):
     return {k: row.get(k) for k in ("id", "name", "model", "wasm_sha256", "status", "baseline", "created", "submission_id")}
 
 
+def private_receipt(store, session, *, submissions=None, compile_jobs=None):
+    """Read-only lifecycle projection; unqualified records never become entrants."""
+    viewed = session_view(session)
+    result = {key: viewed.get(key) for key in ("id", "name", "model", "started_at", "deadline", "time_source",
+              "status", "submission_id", "received_at", "created", "task_sha256")}
+    result.update(submission=None, job=None)
+    if session.get("submission_id"):
+        submission = store.get("submission", session["submission_id"]) if submissions is None else submissions[session["submission_id"]]
+        result["submission"] = public_submission(submission)
+        result["status"] = submission["status"]
+        jobs = (compile_jobs.get(submission["id"], []) if compile_jobs is not None else
+                [job for job in store.list("job") if job["kind"] == "compile"
+                 and job["inputs"].get("submission_id") == submission["id"]])
+        if jobs:
+            latest = max(jobs, key=lambda job: (job["created"], job["id"]))
+            result["job"] = public_job(latest)
+            if latest["status"] in ("queued", "running", "stopped", "interrupted"):
+                result["status"] = "compiling" if latest["status"] == "running" else latest["status"]
+            elif latest["status"] == "failed" and submission["status"] != "qualification_failed":
+                result["status"] = "failed"
+    return result
+
+
 def create_app(data_root=None, *, demo=False, workers=False):
     store = Store(data_root or os.environ.get("ARENA_DATA", str(ROOT / "artifacts/local")))
     queue = Queue(store)
@@ -125,9 +148,11 @@ def create_app(data_root=None, *, demo=False, workers=False):
     app.state.store = store
     app.state.queue = queue
 
+    def is_owner(request):
+        return secrets.compare_digest(request.cookies.get("arena_owner", "").encode(), store.token.encode())
+
     def owner(request):
-        cookie = request.cookies.get("arena_owner", "")
-        if not secrets.compare_digest(cookie, store.token):
+        if not is_owner(request):
             raise APIError("owner_required", "请先进入主办方工作台。", 403)
 
     def visible(row, request):
@@ -195,6 +220,26 @@ def create_app(data_root=None, *, demo=False, workers=False):
         response.set_cookie("arena_owner", store.token, httponly=True, samesite="strict")
         return response
 
+    @app.get("/api/v1/admin/status")
+    def access_status(request: Request):
+        return dict(owner=is_owner(request))
+
+    @app.get("/api/v1/receipts")
+    def receipts(request: Request):
+        owner(request)
+        submissions = {row["id"]: row for row in store.list("submission")}
+        jobs = {}
+        for job in store.list("job"):
+            if job["kind"] == "compile":
+                jobs.setdefault(job["inputs"].get("submission_id"), []).append(job)
+        return dict(items=[private_receipt(store, row, submissions=submissions, compile_jobs=jobs)
+                           for row in store.list("session")])
+
+    @app.get("/api/v1/receipts/{identity}")
+    def receipt(identity: str, request: Request):
+        owner(request)
+        return private_receipt(store, store.get("session", identity))
+
     @app.get("/api/v1/entrants")
     def entrants():
         return dict(items=[public_entrant(r) for r in store.list("entrant")])
@@ -239,7 +284,10 @@ def create_app(data_root=None, *, demo=False, workers=False):
     def source(identity: str, request: Request):
         owner(request)
         row = store.get("submission", identity)
-        return Response(Path(row["source"]).read_text(encoding="utf-8"), media_type="text/plain")
+        data = Path(row["source"]).read_bytes()
+        if hashlib.sha256(data).hexdigest() != row["source_sha256"]:
+            raise APIError("frozen_source_changed", "冻结源码与交卷哈希不一致，请检查本机证据；不能作为原交卷源码读取。", 409)
+        return Response(data, media_type="text/plain")
 
     @app.post("/api/v1/submissions/{identity}/compile", status_code=202)
     def compile_bot(identity: str, request: Request):

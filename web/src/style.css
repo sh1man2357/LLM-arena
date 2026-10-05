@@ -122,6 +122,13 @@ main { max-width: 1530px; margin: auto; padding: 38px 42px 48px; min-height: cal
 .read-error > div { flex: 1; min-width: 180px; overflow-wrap: anywhere; }
 .read-error h2 { font-size: 14px; margin-bottom: 3px; }
 .read-error p { margin-bottom: 0; }
+.receipt-evidence { margin-top: 24px; }
+.receipt-times { margin-top: 24px; }
+.receipt-evidence dl { display: grid; grid-template-columns: 150px minmax(0,1fr); gap: 12px 20px; }
+.receipt-evidence dt { color: var(--muted); font-size: 12px; }
+.receipt-evidence dd { margin: 0; overflow-wrap: anywhere; }
+.receipt-section .entrant-card h3 { margin-top: 18px; overflow-wrap: anywhere; }
+@media (max-width:600px) { .receipt-evidence dl { grid-template-columns: minmax(0,1fr); gap: 5px; }.receipt-evidence dd { margin-bottom: 12px; } }
 .connection-banner, .notice { padding: 12px 20px; background: #3D3425; color: #EED2A1; display: flex; gap: 12px; font-size: 12px; align-items: center; }.notice { margin-bottom: 24px; border-radius: 8px; }
 .viewer-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .back-link { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }.back-link:hover { color: var(--mint); }
@@ -217,7 +224,7 @@ dl { margin: 0; }dl > div { display: flex; gap: 14px; justify-content: space-bet
 .check-label span { overflow-wrap: anywhere; }
 .check-label small { display: block; margin-top: 4px; }
 .source-workspace { padding-top: 24px; margin-top: 24px; border-top: 1px solid var(--border); }
-.session-clock { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 20px 0 12px; }
+.session-clock { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin: 20px 0 12px; }
 .session-clock strong { display: block; font-size: 32px; color: var(--text); margin-top: 7px; }
 .session-clock span.muted { font-size: 11px; }
 .source-editor { width: 100%; min-height: 230px; font-size: 12px; line-height: 1.7; resize: vertical; tab-size: 2; white-space: pre; }

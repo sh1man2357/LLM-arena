@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useResource } from './api';
 import { Icon, IdentityNames, nameLabel } from './ui';
-import { Hall, Batch, Entrants, EntrantPage, Manage, Batches } from './pages';
+import { Hall, Batch, Entrants, EntrantPage, Manage, Batches, ReceiptPage } from './pages';
 import { Viewer } from './Viewer';
 
 const Revision = createContext(0);
@@ -49,6 +49,7 @@ export function App() {
       <Route path="/" element={<Hall />} /><Route path="/matches/:id" element={<Viewer />} />
       <Route path="/tournaments" element={<Batches />} /><Route path="/tournaments/:id" element={<Batch />} />
       <Route path="/entrants" element={<Entrants />} /><Route path="/entrants/:id" element={<EntrantPage />} />
+      <Route path="/entrants/receipts/:id" element={<ReceiptPage />} />
       <Route path="/manage" element={<Manage />} /><Route path="*" element={<div className="state-panel"><h1>页面不存在</h1><Link to="/">回到比赛大厅</Link></div>} />
     </Routes></main>
     <footer className="site-footer"><span>LLM Arena <span className="mono">v{health.data?.app_version || '0.2.0'}</span></span><span>双人规则 1 · C++20 / WASM · 可复现比赛</span><span>观赛速度不影响比赛</span></footer>
