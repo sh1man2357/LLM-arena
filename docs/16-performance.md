@@ -74,4 +74,6 @@ node tools/measure-performance.mjs http://127.0.0.1:8811 ../artifacts/acceptance
 node tools/measure-background-work.mjs http://127.0.0.1:8811 ../artifacts/acceptance/v0.2-performance-local final
 ```
 
+后续共用读取与页面状态改动后又完成普通真实 500 Tick 四尺寸回归，最慢首帧 / 定位为 478 / 24.7ms、实际 Canvas 绘制 80.2～80.8 FPS，仍满足原目标；当前源文件及机器 / 数据见 [页面阶段记录](./17-components-and-page-states.md)。本页原始大小边界与后台作业证据保留原哈希。
+
 测量期间不并行启动其他验收计算或录像。完成后停止该实例。完整观赛 / 进程恢复回归另需原观赛案例数据与全新恢复目录，实际命令见证据索引；这些验证与性能采样分开执行。

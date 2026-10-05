@@ -42,11 +42,20 @@ export function eventLabel(event: { type: string; fault?: string }) {
 export function Badge({ status, children }: {status?: string; children?: ReactNode}) {
   return <span className={`badge ${status || ''}`}><span className="status-dot" />{children || labels[status || ''] || status}</span>;
 }
-export function State({ title, detail, children }: {title: string; detail?: string; children?: ReactNode}) {
-  return <div className="state-panel"><Icon name="info" size={26} /><h2>{title}</h2>{detail && <p>{detail}</p>}{children}</div>;
+export function State({ title, detail, children, role }: {title: string; detail?: string; children?: ReactNode; role?: 'status' | 'alert'}) {
+  return <div className="state-panel" role={role}><Icon name="info" size={26} /><h2>{title}</h2>{detail && <p>{detail}</p>}{children}</div>;
 }
-export function ErrorPanel({ message }: {message: string}) {
-  return <State title="暂时无法读取数据" detail={message}><button onClick={() => location.reload()}><Icon name="refresh" />重新连接</button></State>;
+export function ErrorPanel({ message, status, onRetry, compact = false }: {message: string; status?: number; onRetry: () => void; compact?: boolean}) {
+  const title = status === 404 ? '没有找到这份资料' : status === 403 ? '当前资料暂未开放' : '暂时无法读取数据';
+  if (compact) return <div className="notice read-error" role="alert"><Icon name="info" /><div><h2>{title}</h2><p>{message}</p></div><button className="quiet" onClick={onRetry}><Icon name="refresh" />重试读取</button></div>;
+  return <State title={title} detail={message} role="alert"><div className="state-actions"><button onClick={onRetry}><Icon name="refresh" />重试读取</button><Link className="button quiet" to="/">回到比赛大厅</Link></div></State>;
+}
+export function LoadingPanel({ title = '正在读取数据' }: {title?: string}) {
+  return <State title={title} detail="正在读取本机记录，请稍候。" role="status" />;
+}
+export function ReadNotice({ resource }: {resource: {data?: unknown; error: string; retry: () => void}}) {
+  if (!resource.error) return null;
+  return <div className="notice read-notice" role="status"><Icon name="info" /><div>{resource.data === undefined ? '暂时无法读取这部分资料。' : '更新暂未完成。已保留上次读取的资料。'}<small>{resource.error}</small></div><button className="quiet" onClick={resource.retry}>重试读取</button></div>;
 }
 export function PageTitle({ eyebrow, title, children, detail }: {eyebrow: string; title: string; detail?: string; children?: ReactNode}) {
   return <div className="page-title"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1>{detail && <p className="muted">{detail}</p>}</div>{children}</div>;

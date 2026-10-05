@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, useResource } from './api';
 import { useRevision } from './App';
-import { Badge, ErrorPanel, Icon, PageTitle } from './ui';
+import { Badge, ErrorPanel, Icon, PageTitle, LoadingPanel } from './ui';
 import type { Row } from './types';
 
 const timeLabel = (time?: string) => time ? new Date(time).toLocaleString('zh-CN', { hour12: false }) : '—';
@@ -22,6 +22,7 @@ function AttemptHistory({ job }: { job: Row }) {
 export function Manage() {
   const revision = useRevision();
   const [ready, setReady] = useState(false), [authError, setAuthError] = useState('');
+  const [unlockAttempt, setUnlockAttempt] = useState(0);
   const [refresh, setRefresh] = useState(0), [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(''), [failed, setFailed] = useState(false);
   const guard = useRef(false);
@@ -38,7 +39,7 @@ export function Manage() {
       .then(() => { if (!canceled) setReady(true); }).catch(e => { if (!canceled) setAuthError(e.message); });
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => { canceled = true; clearInterval(timer); };
-  }, []);
+  }, [unlockAttempt]);
   const version = revision + refresh;
   const sessions = useResource<{ items: Row[] }>(ready ? '/api/v1/sessions' : null, version);
   const submissions = useResource<{ items: Row[] }>(ready ? '/api/v1/submissions' : null, version);
@@ -48,7 +49,7 @@ export function Manage() {
   const backups = useResource<{ items: Row[] }>(ready ? '/api/v1/backups' : null, version);
   const session = sessions.data?.items.find(s => s.id === sessionId);
   const eligible = entrants.data?.items.filter(e => e.status === 'qualified') || [];
-  const remaining = session ? Math.max(0, Math.ceil((new Date(session.deadline).getTime() - now) / 1000)) : 0;
+  const remaining = session ? Math.min(3600, Math.max(0, Math.ceil((new Date(session.deadline).getTime() - now) / 1000))) : 0;
   const frozen = !!session?.submission_id;
   const bytes = new TextEncoder().encode(source).length;
 
@@ -64,7 +65,7 @@ export function Manage() {
   }
   async function createSession() {
     const row = await post('/api/v1/sessions', { name: name.trim(), model: model.trim() || '未注明模型', time_source: external ? 'external_record' : 'host_confirmation', ...(external && startedAt ? { started_at: new Date(startedAt).toISOString() } : {}) });
-    setSessionId(row.id); setSource(''); setReceivedAt(''); setName('');
+    setSessionId(row.id); setNow(Date.now()); setSource(''); setReceivedAt(''); setName('');
     return '收卷记录已建立，截止时间固定为收到任务后 60 分钟。';
   }
   async function freeze() {
@@ -94,11 +95,14 @@ export function Manage() {
     const job = await api<Row>(`/api/v1/imports/archive?title=${encodeURIComponent(file.name.replace(/\.zip$/i, '').slice(0, 120) || '导入的比赛批次')}`, { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: form });
     return `批次归档已排队验证 · ${job.id}。校验通过后出现在大厅，失败可查看执行日志。`;
   }
-  const resourceError = backups.error || sessions.error || submissions.error || jobs.error || batches.error || entrants.error;
-  if (authError) return <ErrorPanel message={authError} />;
+  const resources = [backups, sessions, submissions, jobs, batches, entrants];
+  const failedRead = resources.find(resource => resource.error);
+  function retryReads() { for (const resource of resources) if (resource.error) resource.retry(); }
+  if (authError) return <ErrorPanel message={authError} onRetry={() => { setAuthError(''); setUnlockAttempt(value => value + 1); }} />;
   return <><PageTitle eyebrow="主办方 / CONTROL ROOM" title="让比赛准备就绪。" detail="收卷、冻结、资格与比赛调度 · 全程保留真实证据。"><button className="quiet" onClick={() => setRefresh(r => r + 1)}><Icon name="refresh" />刷新状态</button></PageTitle>
     {!ready && <p role="status" className="muted">正在连接本机工作台…</p>}
-    {resourceError && <ErrorPanel message={resourceError} />}
+    {failedRead && <ErrorPanel message={failedRead.error} status={failedRead.errorStatus} onRetry={retryReads} compact />}
+    {ready && resources.some(resource => resource.loading) && <LoadingPanel title="正在读取工作台记录" />}
     <div className={`workflow-message ${failed ? 'error' : ''}`} role={failed ? 'alert' : 'status'} aria-live="polite">{busy ? '正在提交操作…' : message || '从收到任务开始计时。最终交卷后立即冻结，比赛只执行已冻结的 Bot。'}</div>
     <div className="manage-grid workflow-grid"><div className="workflow-column">
       <section className="panel"><div className="section-heading"><h2><span className="step-number mono">01</span> 收卷与源码冻结</h2><Icon name="people" /></div>
@@ -111,11 +115,11 @@ export function Manage() {
           {session && <><div className="session-clock"><div><span className="muted">{frozen ? '最终交卷已固定' : remaining ? '距离截止' : '开发时限已结束'}</span><strong className="mono">{frozen ? '已冻结' : `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`}</strong></div><Badge status={session.status} /></div><p className="small muted">发卷 {timeLabel(session.started_at)}<br />截止 {timeLabel(session.deadline)} · {session.time_source === 'external_record' ? '外部记录' : '主办方确认'}</p>
             {!frozen ? <><label className="source-label">最终 bot.cpp<textarea aria-label="最终 bot.cpp" className="source-editor mono" value={source} onChange={e => setSource(e.target.value)} spellCheck={false} placeholder={'#include "arena.hpp"\n// 在此粘贴完整 C++20 源码'} /></label><div className="source-actions"><label className="file-input-label button">载入 bot.cpp<input aria-label="载入 bot.cpp" type="file" accept=".cpp" disabled={busy} onChange={e => { const file = e.target.files?.[0]; void act(() => readSource(file)); e.target.value = ''; }} /></label><span className={`small mono ${bytes > 1024*1024 ? 'danger-text' : 'muted'}`}>{bytes.toLocaleString()} / 1,048,576 bytes</span></div>{session.time_source === 'external_record' && <label className="field-label">实际收到最终源码时间<input type="datetime-local" aria-label="实际收到最终源码时间" value={receivedAt} onChange={e => setReceivedAt(e.target.value)} /><small className="muted">留空按服务端接收时间记录；外部交卷须填写真实接收时间。</small></label>}<button className="primary" disabled={busy || !source || bytes > 1024*1024} onClick={() => void act(freeze)}><Icon name="check" />{remaining || session.time_source === 'external_record' ? '最终交卷并冻结' : '按逾期留档'}</button><p className="small muted">提前交卷即结束开发。编译失败也不重新开放修改。</p></> : <p className="frozen-note"><Icon name="check" />本次最终源码已冻结，可在提交记录中检查资格和诊断。</p>}
           </>}
-          {!sessions.loading && !sessions.data?.items.length && <p className="empty-note muted">还没有收卷记录。先填写参赛者名称即可开始。</p>}
+          {sessions.data && !sessions.data.items.length && <p className="empty-note muted">还没有收卷记录。先填写参赛者名称即可开始。</p>}
         </div>
       </section>
       <section className="panel"><div className="section-heading"><h2><span className="step-number mono">02</span> 统一编译与参赛资格</h2><span className="muted small">C++20 → WASM</span></div>
-        {!submissions.data?.items.length && <p className="empty-note muted">最终交卷后，源码哈希、资格与编译日志在此保留。</p>}
+        {submissions.data && !submissions.data.items.length && <p className="empty-note muted">最终交卷后，源码哈希、资格与编译日志在此保留。</p>}
         <div className="submission-list">{submissions.data?.items.map(s => <article className="submission-row" key={s.id}><div className="record-heading"><div><strong>{s.name}</strong><small className="muted">{s.model} · {timeLabel(s.received_at)}</small></div><Badge status={s.status} /></div><p className="hash-text mono">源码 {s.source_sha256}</p>{s.wasm_sha256 && <p className="hash-text mono">WASM {s.wasm_sha256}</p>}{s.late && <p className="danger-text small">超过 60 分钟截止，仅保留记录，不能进入本次正式参赛。</p>}<div className="record-actions">{!s.late && ['submitted', 'interrupted'].includes(s.status) && <button disabled={busy} onClick={() => void act(async () => { const job = await post(`/api/v1/submissions/${s.id}/compile`); return `编译作业已排队 · ${job.id}。`; })}>编译并检查资格</button>}<a className="button quiet" href={`/api/v1/submissions/${s.id}/source`} target="_blank" rel="noreferrer">查看冻结源码</a>{s.entrant_id && <Link className="button quiet" to={`/entrants/${s.entrant_id}`}>参赛者详情<Icon name="arrow" /></Link>}</div>{(s.compile_log || s.diagnostic) && <details className="record-details"><summary>编译日志与诊断</summary><pre className="compile-log mono">{s.diagnostic || ''}{s.compile_log ? '\n' + JSON.stringify(s.compile_log, null, 2) : ''}</pre></details>}</article>)}</div>
       </section>
     </div><div className="workflow-column">
@@ -125,7 +129,7 @@ export function Manage() {
       <section className="panel"><div className="section-heading"><h2>备份与新目录恢复</h2><Icon name="share" /></div><p className="muted">私有备份包含冻结源码、WASM、隐藏 Seed、收卷时间、比赛和发布记录。请保存在主办方本地，不作为公开比赛资料分发。</p><button disabled={busy || !ready || jobs.data?.items.some(j => j.kind === 'backup' && ['queued', 'running'].includes(j.status))} onClick={() => void act(async () => { const job = await post('/api/v1/backups'); return `完整私有备份已排队 · ${job.id}。完成后可在此下载，观赛仍可继续。`; })}>创建完整私有备份</button><div className="submission-list">{backups.data?.items.map(b => <article className="submission-row" key={b.id}><div className="record-heading"><strong>{timeLabel(b.created)}</strong><span className="small mono">{(b.size / 1024 / 1024).toFixed(2)} MiB</span></div><p className="small muted">{b.files} 个文件 · {b.records} 条元数据</p><p className="hash-text mono">SHA-256 {b.sha256}</p><a className="button quiet" href={`/api/v1/backups/${b.id}`}>下载私有备份</a></article>)}</div><details className="record-details"><summary>恢复到新数据目录</summary><p className="muted">使用交接文档中的恢复命令。程序校验归档和原始证据后创建新目录，不覆盖现有数据；新凭据由新实例生成，未完成作业等待主办方恢复。</p><pre className="compile-log mono">{'.\\.venv\\Scripts\\python.exe -m service.backup restore backup.zip --destination artifacts/local-restored --sha256 <下载记录中的 SHA-256>'}</pre></details></section>
     </div></div>
     <section className="panel workflow-jobs"><div className="section-heading"><h2><span className="step-number mono">04</span> 作业进度与恢复</h2><span className="muted small">一次一个计算作业 · 页面可继续操作</span></div>
-      {!jobs.data?.items.length && <p className="empty-note muted">尚无作业。编译、单局、批次与导入会显示在这里。</p>}
+      {jobs.data && !jobs.data.items.length && <p className="empty-note muted">尚无作业。编译、单局、批次与导入会显示在这里。</p>}
       {jobs.data?.items.map(job => <article className="job-row" key={job.id} data-job-id={job.id}><div className="job-info"><div className="record-heading"><strong>{job.resources.title || jobNames[job.kind]}</strong><Badge status={job.status} /></div><small className="muted mono">{job.id} · {jobNames[job.kind]} · 尝试 {job.attempts.length}</small><div className="job-progress"><progress max={job.total || 1} value={job.status === 'succeeded' ? job.total || 1 : job.progress} /><span className="mono">{job.progress} / {job.total}</span></div>{job.diagnostic && <p className="danger-text job-diagnostic">{job.diagnostic}</p>}<AttemptHistory job={job} /></div><div className="record-actions">{(job.status === 'queued' || (job.kind === 'tournament' && job.status === 'running')) && <button disabled={busy} onClick={() => void act(async () => { await post(`/api/v1/jobs/${job.id}/stop`); return job.status === 'queued' ? '已停止排队。' : '已请求停止调度，当前单局完成后停止。'; })}>{job.status === 'queued' ? '停止排队' : '当前局后停止'}</button>}{['stopped', 'interrupted', 'failed'].includes(job.status) && <button disabled={busy} onClick={() => void act(async () => { await post(`/api/v1/jobs/${job.id}/resume`); return '作业已重新排队，原尝试与证据保留。'; })}>恢复 / 重试</button>}{job.resources.match_id && <Link className="button quiet" to={`/matches/${job.resources.match_id}`}>进入观赛<Icon name="arrow" /></Link>}{(job.resources.tournament_id || job.result?.tournament_id) && <Link className="button quiet" to={`/tournaments/${job.resources.tournament_id || job.result.tournament_id}`}>查看批次<Icon name="arrow" /></Link>}{job.attempt_id && <a className="button quiet" href={`/api/v1/jobs/${job.id}/log`} target="_blank" rel="noreferrer">执行日志</a>}</div></article>)}
     </section>
     {!!batches.data?.items.some(b => b.official || b.job_id || b.imported) && <section className="panel workflow-publication"><div className="section-heading"><h2>观看与成绩发布</h2><Icon name="share" /></div><p className="muted">正式批次关闭收卷后才开放地图。完整比赛证据校验通过才能发布正式报告。</p>{batches.data.items.filter(b => b.official || b.job_id || b.imported).map(batch => <article className="publication-row" key={batch.id}><div><Link to={`/tournaments/${batch.id}`}><strong>{batch.title}</strong></Link><p className="small muted">{batch.completed_matches} / {batch.expected_matches} 局 · <Badge status={batch.disclosure} /></p>{batch.published_at && <p className="small muted">发布 {timeLabel(batch.published_at)} · 公开副本已固定</p>}</div><div className="record-actions">{(batch.official || batch.requires_disclosure_confirmation) && !batch.submission_window_closed && <button disabled={busy} onClick={() => void act(async () => { await post(`/api/v1/tournaments/${batch.id}/close-submissions`); return '收卷窗口已关闭，地图已披露；后续提交须使用新的隐藏集。'; })}>{batch.requires_disclosure_confirmation ? '确认原收卷结束并开放观看' : '关闭收卷并开放观看'}</button>}{!batch.publication_id && batch.status === 'complete' && (!(batch.official || batch.requires_disclosure_confirmation) || batch.submission_window_closed) && <button disabled={busy} onClick={() => void act(async () => { await post(`/api/v1/tournaments/${batch.id}/publish`); return '完整证据已重新校验，成绩发布记录已保存。'; })}>校验并发布成绩</button>}{batch.publication_id && <a className="button quiet" href={`/api/v1/exports/${batch.id}?kind=publication`}>下载发布清单</a>}</div></article>)}</section>}

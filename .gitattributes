@@ -1,4 +1,6 @@
 * text=auto
+.gitattributes text eol=lf
+.gitignore text eol=lf
 *.py text eol=lf
 *.hpp text eol=lf
 *.cpp text eol=lf
@@ -20,3 +22,9 @@ artifacts/acceptance/v0.2-development/checks/*performance* -text
 artifacts/acceptance/v0.2-development/checks/*performance*.json whitespace=cr-at-eol
 artifacts/acceptance/v0.2-development/checks/*performance*.log whitespace=-blank-at-eol
 artifacts/acceptance/v0.2-development/performance-regression-final/checks/*.json -text
+web/tools/capture-page-views.mjs text eol=lf
+artifacts/acceptance/v0.2-development/checks/*read-states* -text
+artifacts/acceptance/v0.2-development/checks/*read-states*.json whitespace=cr-at-eol
+artifacts/acceptance/v0.2-development/checks/*read-states*.log whitespace=-blank-at-eol
+artifacts/acceptance/v0.2-development/read-states-regression/checks/* -text
+artifacts/acceptance/v0.2-development/read-states-regression/checks/*.json whitespace=cr-at-eol

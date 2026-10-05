@@ -2,7 +2,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useResource } from './api';
 import { useRevision } from './App';
 import { MatchRows, type Page } from './Hall';
-import { Badge, ErrorPanel, Icon, identityColor, labels, useNameLabel, PageTitle, State } from './ui';
+import { Badge, ErrorPanel, Icon, identityColor, labels, useNameLabel, PageTitle, State, LoadingPanel, ReadNotice } from './ui';
 import type { Match, Row, Tournament } from './types';
 
 const statLabels: Record<string, string> = {calls:'调用次数', fuel_used:'累计 fuel', max_tick_fuel:'单次最高 fuel', bombs_placed:'放置炸弹', explosion_deaths:'爆炸死亡', kills:'单一归因击杀', self_kills:'单一归因自杀', mixed_deaths:'混合归因死亡', action_faults:'动作故障', fuel_exhaustions:'fuel 耗尽', runtime_eliminations:'运行淘汰', initialization_failures:'初始化失败'};
@@ -16,14 +16,16 @@ export function Batch() {
   const pair = params.get('pair')?.split(','); const caseIndex = params.get('case');
   const matches = useResource<Page<Match>>(`/api/v1/matches?tournament_id=${id}&limit=100${pair ? `&entrant=${pair[0]}&opponent=${pair[1]}` : ''}${caseIndex !== null ? `&case_index=${caseIndex}` : ''}`, revision);
   const analysis = useResource<Row>(`/api/v1/tournaments/${id}/analysis`, revision);
-  if (batch.error) return <ErrorPanel message={batch.error} />;
-  if (!batch.data) return <State title="正在读取批次" />;
+  if (batch.error && !batch.data) return <ErrorPanel message={batch.error} status={batch.errorStatus} onRetry={batch.retry} />;
+  if (!batch.data) return <LoadingPanel title="正在读取批次" />;
   const facts = analysis.data; const b = batch.data; const report = b.report || { pairs: [], entrants: [] };
   const rows: Row[] = [...(report.entrants || [])].sort((a, c) => c.mean_placement - a.mean_placement);
   const pairs: Row[] = report.pairs || [];
   const selected = pairs.find(p => pair && p.entrant === pair[0] && p.opponent === pair[1]) || pairs[0];
   function selectPair(a: string, other: string) { const next = new URLSearchParams(params); next.set('pair', `${a},${other}`); next.delete('case'); setParams(next); }
   return <><PageTitle eyebrow="批次详情 / TOURNAMENT" title={b.title} detail={`${b.official ? '正式隐藏集' : b.bundled_reference ? '公开工程验收 · 手写 Baseline 参照' : b.imported ? '历史证据导入' : '公开开发赛'} · ${b.id}`}><Badge status={b.status} /></PageTitle>
+    <ReadNotice resource={batch} />
+    {b.disclosure === 'sealed' && <State title="地图与回放尚未开放" detail="该批次仍处于封存状态。主办方确认收卷结束并开放观看后，观众才能查看地图与回放。"><Link className="button quiet" to="/manage">主办方工作台</Link></State>}
     <div className="batch-status panel"><span><strong className="mono">{b.completed_matches} / {b.expected_matches}</strong> 局完成</span><div className="progress-track"><span style={{ width: `${b.completed_matches / (b.expected_matches || 1) * 100}%` }} /></div><span>{b.disclosure === 'sealed' ? '案例封存' : '地图已披露'}</span>{b.status === 'complete' && <a className="button quiet" href={`/api/v1/exports/${id}?kind=report`}><Icon name="share" />导出报告</a>}{b.publication_id && <a className="button quiet" href={`/api/v1/exports/${id}?kind=publication`}>发布证据清单</a>}</div>
     {report.status !== 'complete' && <div className="notice"><Icon name="info" />当前批次尚未完成。这里只显示进度和单局事实，不发布正式汇总排名。</div>}
     {report.status === 'complete' && <><div className="analysis-grid"><section className="panel standings"><div className="section-heading"><h2>批次榜单</h2><span className="muted">平均名次分</span></div><div className="ranking-head"><span>排名 / 参赛者</span><span>胜 · 负 · 平</span><span>得分</span></div>{rows.map(r => {
@@ -37,13 +39,14 @@ export function Batch() {
       <div className="case-chart"><div><h3>地图换边组合</h3><p className="muted small">每点是同地图两局的均分。点击查看对应案例。</p></div><div className="case-dots">{selected.case_means.map((v: number, i: number) => <button key={i} className={`case-dot ${String(i) === caseIndex ? 'selected' : ''}`} style={{ '--score': v } as React.CSSProperties} title={`案例 ${i+1}，均分 ${v}`} aria-label={`地图案例 ${i+1}，均分 ${v}`} onClick={() => { const next = new URLSearchParams(params); next.set('pair', `${selected.entrant},${selected.opponent}`); next.set('case', String(i)); setParams(next); }}><i /><span className="mono">{i+1}</span></button>)}</div></div>
       <details className="statistics-details"><summary>故障与行为统计</summary><div className="stat-chips">{Object.entries(statLabels).map(([key,label]) => <span key={key} data-stat={key}>{label}<b className="mono">{selected.stats[key]}</b></span>)}</div><div className="stat-chips">{rates.map(([key,label,denominator]) => <span key={key} data-rate={key}>{label}<b className="mono">{(selected.rates[key]*100).toFixed(2)}%</b><small>分母：{denominator}</small></span>)}</div><p className="muted small">单一归因仅在爆炸 owner 唯一时计入击杀 / 自杀；混合归因单列，运行淘汰不会计作自杀。动作故障包含 fuel 耗尽和非法动作，trap 单列为运行崩溃。</p><p className="muted small">区间只反映地图变化，不反映重新生成代码的波动；少于 10 个地图案例不提供区间。批次均分按对手等权，不能直接比较不同对手池。</p></details>
     </section>}
-    {analysis.error && <ErrorPanel message={analysis.error} />}
+    <ReadNotice resource={analysis} />
+    {analysis.loading && <LoadingPanel title="正在读取行为分析" />}
     {facts && <section className="panel draw-analysis"><div className="section-heading"><h2>结束原因与平局</h2><span className="muted">整个批次 · {facts.matches} 局已验证</span></div><div className="stat-chips">{Object.entries(facts.reasons || {}).map(([k,v]) => <span key={k} data-reason={k}>{labels[k] || k}<b className="mono">{String(v)}</b></span>)}</div><h3>平局原因 · {facts.draws} 局</h3><div className="stat-chips">{Object.entries(facts.draw_reasons || {}).map(([k,v]) => <span key={k} data-draw-reason={k}>{labels[k] || k}<b className="mono">{String(v)}</b></span>)}</div><div className="stat-chips">{Object.entries({no_bomb:'未成功放弹',no_successful_move:'没有成功移动',with_fault:'伴随运行 / 动作故障',with_explosion_death:'伴随爆炸死亡'}).map(([key,label]) => <span key={key} data-pattern={key}>{label}<b className="mono">{facts.draw_patterns[key]}</b></span>)}</div><p className="muted small">这些平局特征可能重叠，故障与平局同时出现不代表故障导致平局。终局原因与死亡方式分开：全部淘汰可能来自同 Tick 爆炸或运行故障；初始化结束和 Tick 上限按记录说明。</p>
       <details className="statistics-details"><summary>行动与静止片段</summary><div className="stat-chips">{Object.entries(actionLabels).map(([key,label]) => <span key={key} data-action={key}>{label}<b className="mono">{facts.actions[key] || 0}</b></span>)}</div><div className="stat-chips">{Object.entries({moves:'成功移动',blocked_moves:'受阻移动',bombs_placed:'成功放弹',quiet_ticks:'无变化 Tick',longest_quiet_run:'最长连续无变化 Tick'}).map(([key,label]) => <span key={key} data-fact={key}>{label}<b className="mono">{facts[key]}</b></span>)}</div><p className="muted small">行动是引擎规范化后的动作，包含故障后的等待，不推断 Bot 意图。无变化 Tick 要求结算前后均没有炸弹，且地图、玩家、故障计数没有变化；不比较时钟或调用 fuel。计算仅覆盖 {facts.facts_matches} 局有完整轨迹的有效对局。</p>
       {!!facts.facts_unavailable.length && <p className="notice">{facts.facts_unavailable.length} 局缺少轨迹事实；行动 / 静止统计不覆盖这些局，原成绩不变。</p>}
       {!!facts.quiet_draw_examples.length && <><h3>查看结尾的静止片段</h3><p className="muted small">从有静止结尾的平局中，按最后连续无变化 Tick 降序、对局 ID 升序选取最多三局，作为检查入口，不代表随机样本。</p><div className="analysis-examples">{facts.quiet_draw_examples.map((m:Row) => <Link className="button quiet" key={m.id} to={`/matches/${m.id}?frame=${Math.max(0,m.ticks-m.quiet_tail_ticks)}`}>{m.quiet_tail_ticks} Tick · {m.entrants.map((e:string) => nameLabel(e)).join(' × ')}{m.case_index !== null ? ` · 案例 ${m.case_index+1}${m.swapped ? ' / 换边' : ''}` : ''}</Link>)}</div></>}
       </details><p className="muted small">分析不会改变成绩。报告没有证明 Bot 意图或新玩法效果；下一版规则建议须另设版本和新案例验证。</p></section>}
     </>}
-    <section className="matches-section"><div className="section-heading"><h2>{caseIndex !== null ? `地图案例 ${Number(caseIndex)+1}` : pair ? '配对对局' : '批次对局'}</h2>{(pair || caseIndex !== null) && <button className="quiet" onClick={() => setParams({})}>清除配对筛选</button>}</div>{matches.error ? <ErrorPanel message={matches.error} /> : matches.data?.items.length ? <MatchRows rows={matches.data.items} /> : <p className="empty-note muted">尚无符合条件的对局。</p>}{(matches.data?.total || 0) > 100 && <p className="muted small">当前显示最新 100 局，可从矩阵或地图案例定位，全部记录可在大厅筛选。</p>}</section>
+    <section className="matches-section"><div className="section-heading"><h2>{caseIndex !== null ? `地图案例 ${Number(caseIndex)+1}` : pair ? '配对对局' : '批次对局'}</h2>{(pair || caseIndex !== null) && <button className="quiet" onClick={() => setParams({})}>清除配对筛选</button>}</div><ReadNotice resource={matches} />{matches.loading ? <LoadingPanel title="正在读取批次对局" /> : matches.data?.items.length ? <MatchRows rows={matches.data.items} /> : !matches.error && <p className="empty-note muted">{b.disclosure === 'sealed' ? '收卷结束并开放观看后，可浏览该批次对局。' : '尚无符合条件的对局。'}</p>}{(matches.data?.total || 0) > 100 && <p className="muted small">当前显示最新 100 局，可从矩阵或地图案例定位，全部记录可在大厅筛选。</p>}</section>
   </>;
 }

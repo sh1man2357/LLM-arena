@@ -114,6 +114,14 @@ main { max-width: 1530px; margin: auto; padding: 38px 42px 48px; min-height: cal
 .pagination { display: flex; gap: 22px; justify-content: flex-end; align-items: center; margin-top: 20px; font-size: 12px; }
 .state-panel { padding: 80px 24px; text-align: center; color: var(--muted); border: 1px dashed #465C66; border-radius: 12px; }.state-panel > svg { color: var(--mint); margin-bottom: 18px; }.state-panel h2 { color: var(--text); }
 .state-panel p { max-width: 540px; margin: 12px auto 24px; }.empty-note { padding: 30px 12px; }
+.state-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
+.read-notice { flex-wrap: wrap; }
+.read-notice > div { flex: 1; min-width: 180px; overflow-wrap: anywhere; }
+.read-notice small { display: block; color: inherit; }
+.read-error { flex-wrap: wrap; }
+.read-error > div { flex: 1; min-width: 180px; overflow-wrap: anywhere; }
+.read-error h2 { font-size: 14px; margin-bottom: 3px; }
+.read-error p { margin-bottom: 0; }
 .connection-banner, .notice { padding: 12px 20px; background: #3D3425; color: #EED2A1; display: flex; gap: 12px; font-size: 12px; align-items: center; }.notice { margin-bottom: 24px; border-radius: 8px; }
 .viewer-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .back-link { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }.back-link:hover { color: var(--mint); }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api, useResource } from './api';
 import { Board } from './Board';
-import { actionNames, BackLink, Badge, ErrorPanel, Icon, identityColor, labels, useNameLabel, State, playerStateLabel, eventLabel } from './ui';
+import { actionNames, BackLink, Badge, ErrorPanel, Icon, identityColor, labels, useNameLabel, State, playerStateLabel, eventLabel, LoadingPanel } from './ui';
 import type { Match, Replay, Row } from './types';
 import { useRevision } from './App';
 import { appendConfirmed, completeSnapshot } from './live';
@@ -32,6 +32,9 @@ export function Viewer() {
   const wasLive = useRef(false);
   const latest = useRef<Replay | undefined>(undefined);
   latest.current = data;
+  useEffect(() => {
+    if ([403, 404].includes(match.errorStatus || 0) || [403, 404].includes(initial.errorStatus || 0)) setData(undefined);
+  }, [match.errorStatus, initial.errorStatus]);
   useEffect(() => { if (initial.error) setSnapshotRetry(r => r + 1); }, [revision]);
   useEffect(() => { wasLive.current = false; setData(undefined); setPlaying(false); setFollow(!params.has('frame')); setSeq(0); setPlayer(0); setMode('player'); setCell([1, 1]); setHint(''); setLiveError(''); }, [id]);
   useEffect(() => {
@@ -129,10 +132,11 @@ export function Viewer() {
     window.addEventListener('keydown', keyboard);
     return () => window.removeEventListener('keydown', keyboard);
   }, [seq, max]);
-  if ((initial.error || match.error) && !data?.frames.length) return <ErrorPanel message={initial.error || match.error} />;
-  if (!data?.frames.length && match.data?.status === 'failed') return <State title="对局运行失败" detail="没有可播放的完整状态。该局不产生正式胜者，请到主办方工作台检查日志后重试。" />;
-  if (!data?.frames.length && match.data?.status === 'interrupted') return <State title="对局已中断" detail="主办方可以检查冻结输入后恢复；当前没有可播放的完整状态。" />;
-  if (!data?.frames.length || !match.data) return <State title="正在准备观赛画面" detail="等待第一个完整状态帧…" />;
+  function retryViewer() { match.retry(); initial.retry(); }
+  if ((initial.error || match.error) && (!data?.frames.length || [403, 404].includes(match.errorStatus || 0) || [403, 404].includes(initial.errorStatus || 0))) return <ErrorPanel message={initial.error || match.error} status={initial.error ? initial.errorStatus : match.errorStatus} onRetry={retryViewer} />;
+  if (!data?.frames.length && match.data?.status === 'failed') return <State title="对局运行失败" detail="没有可播放的完整状态。该局不产生正式胜者，请到主办方工作台检查日志后重试。"><Link className="button quiet" to="/manage">检查日志与重试</Link></State>;
+  if (!data?.frames.length && match.data?.status === 'interrupted') return <State title="对局已中断" detail="主办方可以检查冻结输入后恢复；当前没有可播放的完整状态。"><Link className="button quiet" to="/manage">检查与恢复</Link></State>;
+  if (!data?.frames.length || !match.data) return <LoadingPanel title="正在准备观赛画面" />;
   const frame = data.frames[Math.min(seq, max)];
   const current = frame.state.players[player];
   const currentCall = frame.calls.find(c => c.id === player);
@@ -172,7 +176,7 @@ export function Viewer() {
       <div className="board-wrap"><Board frame={frame} previous={data.frames[seq - 1]} entrants={data.entrants} overlay={overlay} selected={position}
         animate={playing} onSelect={p => { setCell(p); setMode('cell'); }} /></div>
       <div className="scene-caption"><span>13 × 11 <span className="muted">/ 地图完整公开</span></span><span>{frame.visual.coverage.length ? '正在显示本 Tick 事件叠层' : done ? `对局已结束 · ${data.result!.ticks} 次结算` : `下一结算 Tick ${frame.state.tick}`}</span></div>
-      {(liveError || match.error) && <div className="connection-banner" role="status">连接中断，正在恢复。{liveError || match.error}</div>}
+      {(liveError || match.error) && <div className="connection-banner read-notice" role="status">连接中断，正在恢复。{liveError || match.error}<button className="quiet" onClick={retryViewer}>重试读取</button></div>}
       {match.data.status === 'interrupted' && <div className="connection-banner" role="status">对局已中断，保留最后确认帧。等待主办方检查后恢复。</div>}
       {match.data.status === 'failed' && !data.result && <div className="connection-banner" role="status">执行进程未提交完整终局；本局没有正式胜者。请到主办方工作台检查日志后重试。</div>}
       <div className="playback-controls">
