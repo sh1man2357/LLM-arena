@@ -67,7 +67,22 @@ def main():
     delivery=(ROOT/'DELIVERY_v0.2.md').read_text(encoding='utf-8')
     items=re.findall(r'^- \[([ x])\] ([A-E]\d\d)：(.+)$',delivery,re.M)
     assert len(items)==29 and {i for _,i,_ in items}==set(evidence)
-    assert [i for status,i,_ in items if status==' ']==['A06'],'Human aesthetic gate must remain pending until actual review'
+    pending=[i for status,i,_ in items if status==' ']
+    assert pending in ([],['A06']),'Only the human visual gate may remain after engineering acceptance'
+    passed=sum(status=='x' for status,_,_ in items)
+    human=dict(status='pending',record='docs/20-final-visual-review.md',engineering_reviewer='Codex',human_reviewer=None)
+    if not pending:
+        approval=read_json(checks/'human-visual-approval.json')
+        assert approval['status']=='approved' and approval['scope']=='A06'
+        assert approval['source']=='direct_user_response' and approval['answer']=='通过视觉验收'
+        assert approval['reviewer'] and approval['recorded_at'] and approval['question_reference']
+        assert sha_file(ROOT/approval['review_record'])==approval['review_record_sha256']
+        for name,checksum in approval['production_sources_sha256'].items():assert sha_file(ROOT/name)==checksum,name
+        for media in approval['provided_media']:assert sha_file(ROOT/media['file'])==media['sha256'],media['file']
+        evidence['A06'].append('final/checks/human-visual-approval.json')
+        human.update(status='approved',human_reviewer=approval['reviewer'],recorded_at=approval['recorded_at'],
+                     approval_record=(checks/'human-visual-approval.json').relative_to(ROOT).as_posix(),
+                     approval_sha256=sha_file(checks/'human-visual-approval.json'))
     rows=[]
     for status,identity,requirement in items:
         sources=[]
@@ -83,7 +98,7 @@ def main():
         for p,r in zip(paths,records):zipped.write(p,r['file'])
     with zipfile.ZipFile(archive) as zipped:assert zipped.testzip() is None
     sources=[p for pattern in ('web/src/*','web/tests/*.ts','web/tools/*.mjs','service/*.py','tests/*.py','tools/*.py') for p in ROOT.glob(pattern) if p.is_file()]
-    write_json(out/'acceptance-index.json',dict(status='engineering_passed_awaiting_human_visual',passed=28,total=29,requirements=rows,
+    write_json(out/'acceptance-index.json',dict(status='passed' if not pending else 'engineering_passed_awaiting_human_visual',passed=passed,total=29,requirements=rows,
         final_commands=[dict(command=c,cwd=cwd,exit_code=0,log=log) for c,cwd,log in [
             ('python -m unittest discover -s tests -v','.','checks/final-python.log'),('npm.cmd run test:protocol','web','checks/final-protocol.log'),
             ('npm.cmd run build','web','checks/final-build.log'),('npm.cmd test','web','checks/final-browser.log'),
@@ -105,7 +120,7 @@ def main():
             'Touch range was obscured by mobile navigation; actual UI repaired and native hit/drag rerun passed.','Long name pushed desktop controls out of viewport; two-line name display and actual viewport assertion passed.',
             'Release check posted before unlock, then expected an empty-name submit button to be enabled; both failed reports retained and corrected.',
             'Pre-name-refinement native/performance JSON retained; its full original media was overwritten, not claimed as separately preserved.'],
-        human_visual=dict(status='pending',record='docs/20-final-visual-review.md',engineering_reviewer='Codex',human_reviewer=None)))
-    print(json.dumps(dict(passed=28,total=29,archive_bytes=archive.stat().st_size,archive_sha256=sha_file(archive),files=len(paths))))
+        human_visual=human))
+    print(json.dumps(dict(passed=passed,total=29,archive_bytes=archive.stat().st_size,archive_sha256=sha_file(archive),files=len(paths))))
 
 if __name__=='__main__':main()
