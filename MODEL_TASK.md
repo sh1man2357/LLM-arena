@@ -2,6 +2,10 @@
 
 本文件用于向不同模型分发同一项 C++20 Bot 开发任务，规则对应已验收的工程 v0.1。正文包含完成源码所需的规则和接口，可直接粘贴给模型；支持文件工具的模型同时获得指定的 SDK 与公开开发材料。
 
+**本任务书可独立阅读，理解规则和编写源码不需要打开任何外部链接。** 第 5 节已给出完整 SDK 头文件，第 8 节给出提交格式。文中提到的文件路径都是标准开发包内、相对于主办方指定工作区根目录的路径，不指向主办方电脑上的原项目。
+
+如果主办方提供了开发包和可执行工具，你可以在该工作区内编译、练习并查看三个基准 Bot；如果只收到这份文字，就按正文完成源码并在对话中交卷，无需寻找文件或链接，也不要声称已经编译或测试。
+
 开发时限统一为 **60 分钟，可提前交卷**。本任务书没有需要补填的预算或配置表，可以直接分发。
 
 ---
@@ -199,7 +203,7 @@ Action tick(const GameState&) { return Action::WAIT; }
 
 ## 9. 公开验证方式（有本地工具时使用）
 
-如果所在环境已提供并准备好项目，可在项目根目录使用以下命令。编译、测试和修改均计入 60 分钟；没有本地工具时直接提交源码。
+仅在主办方已提供并准备好标准开发包时使用本节命令，执行目录为主办方指定的开发包根目录。编译、测试和修改均计入 60 分钟。只收到任务书文字时跳过本节运行操作，直接提交源码。
 
 ```powershell
 .\.venv\Scripts\python.exe arena.py build bot.cpp --output artifacts/work/submission.wasm
@@ -209,7 +213,7 @@ Action tick(const GameState&) { return Action::WAIT; }
 
 `build` 使用固定 SDK 和统一编译参数；`qualify` 检查结构、导出、内存、初始化和公开状态调用。通过资格检查不保证正式比赛没有运行故障，也不代表策略得分高。
 
-你获得一套标准开发竞技场：真实规则引擎、固定 SDK / 编译器配置、受限 WASM 执行器、10 张公开地图，以及 Random、Safe、Heuristic 三个基准 Bot 的源码和冻结 WASM。公开地图清单是 `configs/public-dev.json`；基准源码位于 `bots/baselines/`，Safe 与 Heuristic 共用 `planner.hpp`。可以阅读基准策略、查看公开测试日志和 Replay，并在时限内修改自己的源码。若复用基准辅助实现，将其合并进单个 `bot.cpp`，不要让最终提交依赖 `planner.hpp`。
+标准开发包包含真实规则引擎、固定 SDK / 编译器配置、受限 WASM 执行器、10 张公开地图，以及 Random、Safe、Heuristic 三个基准 Bot 的源码和冻结 WASM。公开地图清单是 `configs/public-dev.json`；基准源码位于 `bots/baselines/`，Safe 与 Heuristic 共用 `planner.hpp`。拿到这些实际文件后，可以阅读基准策略、查看公开测试日志和 Replay，并在时限内修改自己的源码。若复用基准辅助实现，将其合并进单个 `bot.cpp`，不要让最终提交依赖 `planner.hpp`。
 
 对三个基准进行完整练习：
 
@@ -226,10 +230,10 @@ Action tick(const GameState&) { return Action::WAIT; }
 本任务书可直接分发，不需要模型或主办方补填配置表。以下是主办方的运行记录工作，不是开考前的问卷。
 
 1. 向各模型发送同一版本任务书，记录各自收到任务的时间、60 分钟截止时间和实际交卷时间。提前交卷立即冻结；逾期到达的修改不计入提交。
-2. 有文件和测试环境时，向各模型提供同一份标准开发包，包含 [SDK 头文件](./sdk/arena.hpp)、[模板](./sdk/template.cpp)、[公开开发地图清单](./configs/public-dev.json)、三个基准 Bot 的源码 / 冻结 WASM 和练习工具。主办方在开发计时前完成环境准备和运行检查；不要向部分模型单独提供额外提示或对手资料。纯对话模式分发完整正文，内嵌头文件足以描述接口，并记录没有运行工具这一实际差异。
+2. 有文件和测试环境时，向各模型提供同一份标准开发包，并明确告知解压后的工作区根目录。包内包括 SDK `sdk/arena.hpp`、模板 `sdk/template.cpp`、公开地图 `configs/public-dev.json`、基准源码 / WASM `bots/baselines/` 和练习工具 `tools/practice.py`。主办方在开发计时前完成环境准备和运行检查；不要向部分模型单独提供额外提示或对手资料。纯对话模式分发完整正文，内嵌头文件足以描述接口，并记录没有运行工具这一实际差异。
 3. 隐藏地图和其他参赛提交不开放给开发模型。提供公开测试对手时，各模型获得相同材料与测试机会。
 4. 保存实际发送的任务书、支持文件版本、模型标识与实际设置、开发记录、源码及提交失败。记录工具可用性等实际差异，不要求模型先确认 token 预算或生成参数。
 5. 截止时未收到任何源码的提交记为未交卷；已经收到但编译或资格检查失败的源码记为资格失败。不要删除失败记录或在交卷后代为修复。
 6. 冻结源码、WASM、SDK、编译参数与哈希后才使用新的隐藏案例清单比赛。更改任何冻结产物时建立新提交，不沿用旧成绩。
 
-规则来源：[游戏规则](./docs/specs/rules.md)、[SDK 契约](./docs/specs/bot-sdk.md)、[地图与随机性](./docs/specs/maps-and-randomness.md)、[评测协议](./docs/specs/benchmark.md)。公开竞技场、环境准备与练习反馈见[模型开发竞技场](./docs/guides/model-development.md)。
+以下是开发包内的可选参考资料路径，不是完成任务的前置阅读要求：`docs/specs/rules.md`、`docs/specs/bot-sdk.md`、`docs/specs/maps-and-randomness.md`、`docs/specs/benchmark.md`。主办方的环境准备与练习说明位于 `docs/guides/model-development.md`。仅收到任务书文字时，以本任务书正文为准。
