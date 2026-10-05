@@ -1,8 +1,8 @@
 # 模型开发竞技场
 
-每个参赛模型获得相同版本的任务书、SDK、公开地图、三个基准 Bot 和运行工具。主办方先准备环境，确认能运行，再记录模型收到任务的时间并开始 60 分钟计时。
+每个参赛模型获得相同版本的任务书、SDK、公开地图、三个基准 Bot 和运行工具。**主办方只需发送同一个 ZIP，并说“按包内 START_HERE.md 执行”。** 模型自己解压、准备环境并检查竞技场，通过后开始 60 分钟开发，最终交回 `bot.cpp`。
 
-给模型发送开发包内的 `MODEL_TASK.md`，同时告知其工作区根目录。任务书正文不依赖外部链接，包内路径相对于该目录；本指南的链接供主办方浏览材料。只复制任务书文字可以让模型编写源码，但实际测试与基准源码阅读需要另外提供开发包文件。
+无需另外指定工作区或手动运行安装命令；包内根目录的 [START_HERE.md](../../START_HERE.md) 和 README 给出代理的完整执行流程。任务书正文不依赖外部链接，包内路径相对于解压目录；本指南的链接供浏览材料。只复制 `MODEL_TASK.md` 文字也可以让模型编写源码，但实际测试与基准源码阅读需要开发包文件。
 
 ## 提供哪些材料
 
@@ -21,16 +21,17 @@
 
 包内不包含隐藏案例、其他模型源码、主办方数据、历史比赛结果、访问凭据或完整项目 Git 历史。模型可以研究基准源码和改进其策略；若复用辅助代码，最终将其合并到单个 `bot.cpp`，不要让提交依赖 `planner.hpp`。
 
-## 主办方准备 Windows 环境
+## 包内自动准备 Windows 环境
 
-将同一个 ZIP 解压到独立的开发目录。Python 3.12 已安装后，在解压目录执行：
+模型在独立解压目录执行以下命令，主办方无需执行：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\setup.ps1 -Python 'C:\Python312\python.exe'
-.\.venv\Scripts\python.exe tools\practice.py --source sdk/template.cpp --maps 1 --output artifacts/work/preflight
+powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 ```
 
-安装锁定的 Wasmtime 与 WASI SDK，不修改系统 PATH。编译器下载约 625 MiB；有官方缓存时给安装命令加 `-CompilerArchive 'C:\cache\wasi-sdk-33.0-x86_64-windows.tar.gz'`，仍校验哈希。准备工作在模型计时前完成；开发中的编译、测试和等待仍计入 60 分钟。
+启动脚本检测已有 Python 3.12 和运行环境，缺少依赖时安装锁定的 Wasmtime 与 WASI SDK，然后用模板与三个基准各跑一张地图并交换出生位，共 6 局。每次使用新目录保存报告；检查失败不会显示准备成功。不修改系统 PATH。Python 3.12 缺失时由代理在其允许的环境中准备。
+
+首次安装需要联网，编译器下载约 625 MiB；有官方缓存时给启动命令加 `-CompilerArchive 'C:\cache\wasi-sdk-33.0-x86_64-windows.tar.gz'`，仍校验哈希；已有锁定 wheel 可传 `-WheelDirectory` 离线安装。准备工作在模型计时前完成；开发中的编译、测试和等待仍计入 60 分钟。
 
 每个模型使用独立源码 / 输出目录。不同开发实例可以使用相同公开输入，但不得查看其他模型的文件或开发过程。正式隐藏比赛由主办方在全部提交冻结后组织。
 

@@ -17,8 +17,8 @@ def package(output):
     output = Path(output).resolve()
     if output.exists() or output.with_suffix('.sha256').exists():
         raise ValueError("Choose a new ZIP path; existing distribution files are not overwritten")
-    names = ["MODEL_TASK.md", "arena.py", "requirements.lock", "configs/toolchain.json", "configs/public-dev.json",
-             "tools/setup.ps1", "tools/bootstrap.py", "tools/practice.py", "tools/build_devkit.py", "sdk/arena.hpp", "sdk/wrapper.cpp", "sdk/template.cpp",
+    names = ["START_HERE.md", "start-devkit.ps1", "MODEL_TASK.md", "arena.py", "requirements.lock", "configs/toolchain.json", "configs/public-dev.json",
+             "tools/setup.ps1", "tools/bootstrap.py", "tools/devkit_ready.py", "tools/practice.py", "tools/build_devkit.py", "sdk/arena.hpp", "sdk/wrapper.cpp", "sdk/template.cpp",
              "docs/guides/model-development.md"]
     for folder in ("engine", "runtime", "runner", "replay"):
         names += [p.relative_to(ROOT).as_posix() for p in sorted((ROOT / folder).glob('*.py'))]
@@ -40,7 +40,7 @@ def package(output):
         assert stage.is_relative_to(Path(tempfile.gettempdir()).resolve())
         files = {name: (public_document(name).encode('utf-8') if name.endswith('.md') and name != 'MODEL_TASK.md'
                         else (ROOT / name).read_bytes()) for name in names}
-        files['README.md'] = public_document('docs/guides/model-development.md').replace('../../', './').encode('utf-8')
+        files['README.md'] = files['START_HERE.md']
         qualification = {}
         with Backend() as backend:
             for name in ('random', 'safe', 'heuristic'):
