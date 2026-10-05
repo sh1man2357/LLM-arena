@@ -11,7 +11,7 @@
 | Match Runner | 初始化与逐 Tick 驱动 | 冻结配置 + Bot → Replay + 单局结果 |
 | Tournament Runner | 全配对和出生位交换 | 案例清单 + entrant 清单 → 完整结果集 |
 | Reporter | 汇总、区间与辅助统计 | 完整结果集 → JSON 与可读报告 |
-| Replay Viewer | 回放已记录状态和事件 | 文本回放与 v0.2 历史图形回放已有实现；真实直播闭环开发中 |
+| Replay Viewer | 回放已记录状态和事件 | 文本 / 图形回放与真实增量直播已有实现；完整异常恢复及体验验收待完成 |
 
 引擎不依赖 WASM 或 UI；测试可直接注入动作。运行时不修改世界；Match Runner 收齐动作后只推进一次引擎。回放器不能决定比赛规则。
 
