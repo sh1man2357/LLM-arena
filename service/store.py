@@ -44,9 +44,11 @@ class Store:
         finally:
             db.close()
 
-    def get(self, kind, identity):
-        with self.connection() as db:
-            row = db.execute("SELECT body FROM records WHERE kind=? AND id=?", (kind, identity)).fetchone()
+    def get(self, kind, identity, *, db=None):
+        if db is None:
+            with self.connection() as connection:
+                return self.get(kind, identity, db=connection)
+        row = db.execute("SELECT body FROM records WHERE kind=? AND id=?", (kind, identity)).fetchone()
         if row is None:
             raise KeyError(identity)
         return json.loads(row["body"])

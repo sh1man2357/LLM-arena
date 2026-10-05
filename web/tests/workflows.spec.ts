@@ -24,7 +24,7 @@ test('host collects and freezes source, compiles, watches live, runs and publish
   await submission.getByText('编译日志与诊断', { exact: true }).click();
   await expect(submission.locator('.compile-log')).toContainText('exit_code');
   await page.getByRole('checkbox', { name: new RegExp(name) }).check();
-  await page.getByRole('checkbox', { name: /^safe/ }).check();
+  await page.locator('[data-entrant-id="safe"]').getByRole('checkbox').check();
   await page.getByLabel('比赛标题', { exact: true }).fill(`${name} 单局`);
   const matchResponse = page.waitForResponse(r => r.url().endsWith('/api/v1/matches') && r.request().method() === 'POST');
   await page.getByRole('button', { name: '启动双人单局', exact: true }).click();
@@ -42,7 +42,7 @@ test('host collects and freezes source, compiles, watches live, runs and publish
   await expect(page.getByText('双方平局', { exact: true })).toBeVisible();
   await page.goto('/manage');
   await page.getByRole('checkbox', { name: new RegExp(name) }).check();
-  await page.getByRole('checkbox', { name: /^safe/ }).check();
+  await page.locator('[data-entrant-id="safe"]').getByRole('checkbox').check();
   await page.getByLabel('比赛标题', { exact: true }).fill(`${name} 隐藏批次`);
   await page.getByLabel('批次地图数', { exact: true }).fill('1');
   await page.getByRole('checkbox', { name: '正式隐藏批次，收卷关闭前封存地图', exact: true }).check();
@@ -54,7 +54,8 @@ test('host collects and freezes source, compiles, watches live, runs and publish
   await expect(page.locator(`[data-job-id="${batchJob.id}"]`).getByText('已完成', { exact: true })).toBeVisible({ timeout: 20000 });
   await batch.getByRole('button', { name: '校验并发布成绩', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '成绩发布记录已保存' })).toBeVisible();
-  await batch.getByRole('link').click();
+  await expect(batch.getByRole('link', { name: '下载发布清单', exact: true })).toBeVisible();
+  await batch.getByRole('link', { name: `${name} 隐藏批次`, exact: true }).click();
   await expect(page.locator('.ranking-row')).toHaveCount(2);
   await expect(page.locator('.match-row')).toHaveCount(2);
   const download = page.waitForEvent('download');

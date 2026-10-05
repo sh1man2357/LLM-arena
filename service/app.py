@@ -3,6 +3,7 @@ import asyncio
 from collections import Counter
 from contextlib import asynccontextmanager
 import json
+import hashlib
 import os
 from pathlib import Path
 import secrets
@@ -16,14 +17,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from runner.io import ROOT, read_json
 from service import APP_VERSION
-from service.imports import import_bundled, import_replay
+from service.imports import import_bundled, import_replay, MAX_ARCHIVE_BYTES
+from service.publication import close_submissions, publish_tournament, published_file, public_bytes
 from service.replays import MAX_REPLAY_BYTES, decode, project
-from service.store import Store, utc_now
+from service.store import Store
 from service.submissions import create_session, session_view, submit
 from service.jobs import Queue
 from runner.match import components
 from runner.tournament import validate_cases, schedule
-from runner.report import generate_report
 from engine.maps import generate
 
 
@@ -82,8 +83,12 @@ def public_match(row):
 
 
 def public_tournament(row):
-    return {k: row.get(k) for k in ("id", "title", "status", "disclosure", "official", "report", "expected_matches",
-                                    "completed_matches", "created", "source_sha256", "job_id", "submission_window_closed")}
+    result = {k: row.get(k) for k in ("id", "title", "status", "disclosure", "official", "report", "expected_matches",
+                                    "completed_matches", "created", "source_sha256", "job_id", "submission_window_closed",
+                                    "window_closed_at", "published_at", "publication_id", "publication_sha256", "imported", "bundled_reference",
+                                    "requires_disclosure_confirmation", "window_close_source", "window_closed_entrants")}
+    result["bundled_reference"] = bool(row.get("bundled_reference") or row["id"] == "reference-v01")
+    return result
 
 
 def public_entrant(row):
@@ -404,31 +409,36 @@ def create_app(data_root=None, *, demo=False, workers=False):
         row = await asyncio.to_thread(import_replay, store, data)
         return public_match(row)
 
+    @app.post("/api/v1/imports/archive", status_code=202)
+    async def upload_archive(file: UploadFile, request: Request, title: str = "导入的比赛批次"):
+        owner(request)
+        if not 1 <= len(title) <= 120:
+            raise APIError("invalid_title", "批次名称须为 1～120 字符。", 422)
+        data = await file.read(MAX_ARCHIVE_BYTES + 1)
+        if len(data) > MAX_ARCHIVE_BYTES:
+            raise APIError("upload_too_large", "ZIP 归档超过 16 MiB。", 413)
+        source_hash = hashlib.sha256(data).hexdigest()
+        folder = store.root / "uploads"
+        folder.mkdir(exist_ok=True)
+        path = folder / f"{source_hash}.zip"
+        if not path.exists():
+            # Atomic registration: the worker never reads a partly uploaded file.
+            temporary = folder / f"{secrets.token_hex(16)}.tmp"
+            temporary.write_bytes(data)
+            os.replace(temporary, path)
+        inputs = dict(archive=str(path), source_sha256=source_hash, title=title,
+                      tournament_id="archive-" + source_hash[:20])
+        return public_job(queue.create("import", inputs, request.headers.get("idempotency-key")))
+
     @app.post("/api/v1/tournaments/{identity}/close-submissions")
     def close_window(identity: str, request: Request):
         owner(request)
-        row = store.get("tournament", identity)
-        if not row.get("official"):
-            raise FileExistsError("Public development batch has no hidden submission window")
-        row = store.update("tournament", identity, lambda r: r.update(submission_window_closed=True, window_closed_at=utc_now(), disclosure="disclosed"))
-        for match in store.list("match"):
-            if match.get("tournament_id") == identity:
-                store.update("match", match["id"], lambda r: r.update(disclosure="disclosed"))
-        store.emit(identity, "tournament", dict(disclosure="disclosed"))
-        return public_tournament(row)
+        return public_tournament(close_submissions(store, identity))
 
     @app.post("/api/v1/tournaments/{identity}/publish")
     def publish(identity: str, request: Request):
         owner(request)
-        row = store.get("tournament", identity)
-        if row["status"] != "complete" or (row.get("official") and not row.get("submission_window_closed")):
-            raise FileExistsError("Complete validation and close submissions before publication")
-        report = generate_report(Path(row["directory"]))
-        if report["status"] != "complete":
-            raise FileExistsError("Incomplete evidence cannot be published")
-        row = store.update("tournament", identity, lambda r: r.update(disclosure="disclosed", published_at=utc_now(), report=report))
-        store.emit(identity, "tournament", dict(status="published"))
-        return public_tournament(row)
+        return public_tournament(publish_tournament(store, identity))
 
     @app.get("/api/v1/events")
     async def events(request: Request, after: int = 0):
@@ -454,17 +464,23 @@ def create_app(data_root=None, *, demo=False, workers=False):
         return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
     @app.get("/api/v1/exports/{identity}")
-    def export(identity: str, request: Request, kind: str = "replay"):
-        if kind == "report":
+    def export(identity: str, request: Request, kind: Literal["replay", "report", "publication"] = "replay"):
+        if kind in ("report", "publication"):
             row = visible(store.get("tournament", identity), request)
+            if row.get("publication_id"):
+                return FileResponse(published_file(store, row, kind), media_type="application/json", filename=f"{identity}-{kind}.json")
+            if kind == "publication":
+                raise APIError("not_published", "发布后才能导出固定的证据清单。", 409)
             if not row.get("report") or row["report"]["status"] != "complete":
                 raise APIError("incomplete_report", "不完整批次没有正式报告。", 409)
-            data = json.dumps(row["report"], ensure_ascii=False, indent=2)
+            data = public_bytes(row["report"])
         else:
             row = visible(store.get("match", identity), request)
+            if row.get("publication_id"):
+                return FileResponse(published_file(store, row, kind), media_type="application/json", filename=f"{identity}-replay.json")
             if not row.get("projection"):
                 raise APIError("running_match", "对局完成后才能导出。", 409)
-            data = json.dumps(read_json(row["projection"]), ensure_ascii=False)
+            data = public_bytes(read_json(row["projection"]))
         return Response(data, media_type="application/json", headers={"Content-Disposition": f'attachment; filename="{identity}-{kind}.json"'})
 
     @app.get("/{path:path}")

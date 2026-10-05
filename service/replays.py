@@ -1,7 +1,7 @@
 """Verified, seed-free spectator projection of schema-1 competition evidence."""
-from copy import deepcopy
 import hashlib
 import json
+import re
 
 from engine.model import Bomb, Rules, World
 from engine.rules import explode, step
@@ -29,6 +29,14 @@ def validate_shape(records):
         raise ValueError("Only 13 by 11 two-player Replay is supported")
     if h["rules"] != Rules().__dict__:
         raise ValueError("Unsupported rules; expected the frozen ruleset 1")
+    if not isinstance(h.get("match_id"), str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", h["match_id"]):
+        raise ValueError("Invalid Replay match identity")
+    for slot, entrant in enumerate(h["entrants"]):
+        if (entrant.get("slot") != slot or not isinstance(entrant.get("id"), str)
+                or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", entrant["id"])
+                or not isinstance(entrant.get("wasm_sha256"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", entrant["wasm_sha256"])):
+            raise ValueError("Invalid Replay entrant identity/hash")
     for r in records:
         s = r.get("state") or (r.get("initial_state") if r["type"] == "header" else None)
         if s is not None and (len(s["grid"]) != 143 or len(s["players"]) != 2 or len(s["bombs"]) > 8):
@@ -65,7 +73,10 @@ def project(records, *, partial=False, source_hash=None):
         raise ValueError("Incomplete Replay; missing final result")
     rules = Rules(**h["rules"])
     previous = h["initial_state"]
-    frames = [dict(seq=0, tick=None, state=deepcopy(previous), events=[], actions=[], calls=[],
+    # Initial-state extensions are not part of the schema-1 world. Rebuild the
+    # public state so an otherwise valid header cannot smuggle private fields.
+    public_initial = World.from_state(13, 11, rules, previous).state()
+    frames = [dict(seq=0, tick=None, state=public_initial, events=[], actions=[], calls=[],
                    visual=dict(coverage=[], exploded_bombs=[], blocked_moves=[]))]
     for record in records[1:]:
         if record["type"] == "result":
@@ -74,6 +85,11 @@ def project(records, *, partial=False, source_hash=None):
             raise ValueError("Nonsequential Replay")
         world = World.from_state(13, 11, rules, previous)
         calls = {c["id"]: {k: v for k, v in c.items() if k != "id"} for c in record["calls"]}
+        for call in record["calls"]:
+            if (call.get("fault") not in (None, "fuel", "invalid_action", "trap")
+                    or (call.get("raw_action") is not None and (type(call["raw_action"]) is not int or not -(2**31) <= call["raw_action"] < 2**31))
+                    or (call.get("fuel_used") is not None and (type(call["fuel_used"]) is not int or not 0 <= call["fuel_used"] <= 2**53-1))):
+                raise ValueError("Invalid public Bot call metadata")
         actions, events = step(world, calls)
         if (world.state() != record["state"] or events != record["events"] or
                 record["actions"] != [dict(id=i, action=actions[i]) for i in sorted(actions)] or
@@ -87,14 +103,42 @@ def project(records, *, partial=False, source_hash=None):
     public_result = None
     if result:
         public_result = {k: result.get(k) for k in ("valid", "reason", "ticks", "survivors", "groups", "players", "stats", "final_state_hash")}
+        if type(result.get("valid")) is not bool:
+            raise ValueError("Invalid Replay result validity")
+        if not result["valid"]:
+            from runner.match import empty_stats
+            if result.get("reason") != "infrastructure_failure" or type(result.get("ticks")) is not int or not 0 <= result["ticks"] <= 500:
+                raise ValueError("Invalid infrastructure failure result")
+            stats = result.get("stats", [])
+            if len(stats) != 2 or any(type(s.get(k)) is not int or s[k] < 0 for s in stats for k in empty_stats()):
+                raise ValueError("Invalid infrastructure statistics")
+            public_result.update(players=[], groups=[], survivors=[], final_state_hash=None,
+                                 stats=[{k: s[k] for k in empty_stats()} for s in stats])
+    public_components = {k: h["components"].get(k) for k in ("benchmark_id", "ruleset", "map_generator", "sdk", "runtime", "source_hash")}
+    if any(value is not None and (not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", value))
+           for value in public_components.values()):
+        raise ValueError("Invalid public component identifier")
+    if not re.fullmatch(r"[0-9a-f]{64}", public_components.get("source_hash") or ""):
+        raise ValueError("Invalid Replay source hash")
+    budget = {k: h["budget"][k] for k in ("init_fuel", "tick_fuel")}
+    if any(type(value) is not int or not 0 <= value <= 2**53-1 for value in budget.values()):
+        raise ValueError("Invalid Replay fuel budget")
+    initialization = [{k: v for k, v in row.items() if k in ("id", "status", "fuel_used")}
+                      for row in h["initialization"]]
+    for i, entry in enumerate(initialization):
+        if (entry.get("id") != i or entry.get("status") not in ("ok", "eliminated")
+                or ("fuel_used" in entry and (type(entry["fuel_used"]) is not int or not 0 <= entry["fuel_used"] <= 2**53-1))):
+            raise ValueError("Invalid initialization metadata")
     return dict(schema_version=1, projection_version=1, source_sha256=source_hash,
                 match_id=h["match_id"], width=13, height=11,
                 entrants=[{k: e[k] for k in ("id", "slot", "wasm_sha256")} for e in h["entrants"]], rules=h["rules"],
-                budget=h["budget"], initialization=[{k: v for k, v in row.items() if k != "diagnostic"}
-                                                    for row in h["initialization"]],
+                budget=budget, initialization=initialization,
                 verified=verified, partial=not terminal, frames=frames, result=public_result,
-                components={k: h["components"].get(k) for k in ("benchmark_id", "ruleset", "map_generator", "sdk", "runtime", "source_hash")})
+                components=public_components)
 
 
 def from_bytes(data):
-    return project(decode(data), source_hash=hashlib.sha256(data).hexdigest())
+    try:
+        return project(decode(data), source_hash=hashlib.sha256(data).hexdigest())
+    except (UnicodeDecodeError, KeyError, TypeError, IndexError, AttributeError) as exc:
+        raise ValueError(f"Malformed Replay schema: {type(exc).__name__}") from exc

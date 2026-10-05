@@ -11,7 +11,7 @@ from runner.match import components, qualify, run_match
 from runner.report import generate_report
 from runner.tournament import run_tournament
 from runtime.wasm import Backend
-from service.imports import import_replay, import_bundled
+from service.imports import import_replay, import_bundled, import_uploaded_archive
 from service.store import Store, utc_now
 
 
@@ -187,7 +187,9 @@ def main(data_root, job_id):
         elif job["kind"] == "tournament":
             result = run_batch(store, job)
         elif job["kind"] == "import":
-            row = import_bundled(store)
+            inputs = job["inputs"]
+            row = (import_uploaded_archive(store, inputs["archive"], inputs["source_sha256"], inputs["title"])
+                   if "archive" in inputs else import_bundled(store))
             result = dict(tournament_id=row["id"])
         else:
             raise ValueError("Unknown job type")
