@@ -1,6 +1,5 @@
 """Same-origin local spectator API and static application host."""
 import asyncio
-from collections import Counter
 from contextlib import asynccontextmanager
 import json
 import hashlib
@@ -17,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from runner.io import ROOT, read_json
 from service import APP_VERSION
+from service.analysis import summarize
 from service.imports import import_bundled, import_replay, MAX_ARCHIVE_BYTES
 from service.publication import close_submissions, publish_tournament, published_file, public_bytes
 from service.replays import MAX_REPLAY_BYTES, decode, project
@@ -78,9 +78,12 @@ def public_submission(row):
 
 
 def public_match(row):
-    return {k: row.get(k) for k in ("id", "title", "tournament_id", "entrants", "status", "ticks", "result", "verified",
+    response = {k: row.get(k) for k in ("id", "title", "tournament_id", "entrants", "status", "ticks", "result", "verified",
                                     "disclosure", "created", "case_index", "swapped", "source_sha256", "attempt_id",
                                     "source_format", "origin_source_sha256", "bot_rerunnable", "failure_reason")}
+    if row.get("case"):
+        response.update(case_index=row['case']['case_index'], swapped=row['case']['swapped'])
+    return response
 
 
 def public_tournament(row):
@@ -396,15 +399,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
     @app.get("/api/v1/tournaments/{identity}/analysis")
     def analysis(identity: str, request: Request):
         visible(store.get("tournament", identity), request)
-        rows = [m for m in store.list("match") if m.get("tournament_id") == identity and (m.get("result") or {}).get("valid")]
-        reasons = Counter(m["result"]["reason"] for m in rows)
-        draws = [m for m in rows if m["result"]["players"][0]["placement_score"] == .5]
-        return dict(matches=len(rows), reasons=dict(reasons), draws=len(draws),
-                    draw_reasons=dict(Counter(m["result"]["reason"] for m in draws)),
-                    bombs_placed=sum(s.get("bombs_placed", 0) for m in rows for s in m["result"]["stats"]),
-                    moves=sum(m.get("facts", {}).get("moves", 0) for m in rows),
-                    blocked_moves=sum(m.get("facts", {}).get("blocked_moves", 0) for m in rows),
-                    waits=sum(m.get("facts", {}).get("waits", 0) for m in rows))
+        return summarize([m for m in store.list("match") if m.get("tournament_id") == identity])
 
     @app.post("/api/v1/imports", status_code=202)
     async def imports(body: ImportInput, request: Request):

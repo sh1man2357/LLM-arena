@@ -40,11 +40,15 @@ class SpectatorFoundationTests(unittest.TestCase):
     def test_local_boundary_and_frozen_import(self):
         with tempfile.TemporaryDirectory() as directory:
             app = create_app(directory)
-            row = import_replay(app.state.store, self.data)
+            row = import_replay(app.state.store, self.data, case=dict(case_index=2,swapped=True,pair=['chain-a','chain-b'],entrants=['chain-b','chain-a']))
             with TestClient(app) as client:
                 response = client.get(f"/api/v1/matches/{row['id']}/frames")
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(len(response.json()["frames"]), 20)
+                listed = client.get('/api/v1/matches').json()['items'][0]
+                detailed = client.get(f"/api/v1/matches/{row['id']}").json()
+                self.assertEqual((listed['case_index'],listed['swapped']),(2,True))
+                self.assertEqual((listed['case_index'],listed['swapped']),(detailed['case_index'],detailed['swapped']))
                 self.assertEqual(client.post("/api/v1/imports").status_code, 403)
                 self.assertEqual(client.get("/health", headers={"host": "evil.example"}).status_code, 403)
                 self.assertEqual(client.post("/api/v1/admin/unlock", headers={"origin": "https://evil.example", "x-arena-local": "1"}).status_code, 403)

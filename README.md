@@ -35,6 +35,8 @@ powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 
 观赛支持实际逐帧、五档变速、鼠标 / 触控拖动、事件定位、同地图换边与全屏。检查器明确初始化淘汰、调用 fuel、运行崩溃和本 Tick 爆炸事实；四尺寸长名称、完整数据截图与操作录像已归档，见 [观赛质量验证](./docs/14-viewer-quality.md)。全部异常状态、完整可访问性、最终人工视觉与性能仍待验收。
 
+批次报告展示完整配对统计、出生位 / 地图区间和故障率，保持同分并列。平局按终局原因分类，行动、成功放弹与无在场炸弹的静止片段可由原轨迹复核并跳到对应帧；新旧参考赛的分析和样本限制见 [成绩核对与分析](./docs/15-results-analysis.md)。
+
 开发服务仍可直接运行 `python -m service --demo`；前端在 `web/` 执行 `npm run dev`。发行使用上述同源静态构建。浏览器检查使用 `npm test`，需要本机 Chrome；`ARENA_BASE_URL` 可指向另一端口的本地验收实例。
 
 ### v0.1 命令行环境

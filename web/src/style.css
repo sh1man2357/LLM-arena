@@ -22,6 +22,8 @@ select { color-scheme: dark; }
 .explosion-fact { margin-bottom: 14px; overflow-wrap: anywhere; }
 .explosion-fact strong { display: block; font-size: 12px; font-weight: 550; }
 .explosion-fact small { display: block; margin-top: 4px; }
+.analysis-examples { display: grid; gap: 8px; }
+.analysis-examples a { justify-content: flex-start; overflow-wrap: anywhere; text-align: left; }
 .tick-effects > p:last-child { margin-bottom: 0; }
 .inspector-card h2, .feature-copy h2 strong, .batch-card h2, .batch-card h3 { overflow-wrap: anywhere; }
 .feature-copy h2 span { min-width: 0; max-width: 100%; }

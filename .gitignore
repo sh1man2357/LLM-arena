@@ -24,3 +24,4 @@ artifacts/acceptance/*/visual/*.png
 artifacts/acceptance/*/visual/*.webm
 artifacts/acceptance/*/visual/viewer-quality/*.png
 artifacts/acceptance/*/visual/viewer-quality/*.webm
+artifacts/acceptance/*/visual/report-quality/*.png

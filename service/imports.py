@@ -13,6 +13,7 @@ from runner.report import generate_report
 from replay.verify import read
 from service.replays import from_bytes, MAX_REPLAY_BYTES
 from service.store import utc_now
+from service.analysis import trace_facts
 
 MAX_ARCHIVE_BYTES = 16 * 1024 * 1024
 MAX_EXPANDED_BYTES = 256 * 1024 * 1024
@@ -127,9 +128,7 @@ def import_replay(store, data, *, title=None, tournament_id=None, identity=None,
                source_sha256=ui["source_sha256"], case=mapped_case, attempt_id=attempt_id)
     row.update(source_format="public_projection" if public_only else "raw_jsonl",
                origin_source_sha256=ui.get("origin_source_sha256"), bot_rerunnable=not public_only)
-    row["facts"] = dict(moves=sum(e["type"] == "move" for f in ui["frames"] for e in f["events"]),
-                        blocked_moves=sum(len(f["visual"]["blocked_moves"]) for f in ui["frames"]),
-                        waits=sum(a["action"] == 0 for f in ui["frames"] for a in f["actions"]))
+    row["facts"] = trace_facts(ui)
     if persist:
         with store.connection() as db:
             db.execute("BEGIN IMMEDIATE")
