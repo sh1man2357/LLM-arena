@@ -19,6 +19,7 @@ class Queue:
         self.process = None
         self.workspace_lock = None
         self.process_lock = threading.Lock()
+        self.worker_tree = None
 
     def create(self, kind, inputs, key=None, *, request=None, resource=None):
         request_hash = digest(dict(kind=kind, request=request)) if request is not None else digest(dict(kind=kind, inputs=inputs))
@@ -74,12 +75,17 @@ class Queue:
         for job in self.store.list("job"):
             if job["status"] in ("running", "stop_requested"):
                 job.update(status="interrupted", diagnostic="Local service restarted; inspect evidence before resuming.")
+                for attempt in job["attempts"]:
+                    if not attempt.get("finished"):
+                        attempt.update(status="interrupted", finished=utc_now(), exit_code=None)
                 self.store.put("job", job)
+                self.store.emit(job["id"], "job", dict(status="interrupted"))
         for kind in ("match", "tournament", "submission"):
             for row in self.store.list(kind):
                 if row["status"] in ("running", "compiling"):
                     row.update(status="interrupted")
                     self.store.put(kind, row)
+                    self.store.emit(row["id"], kind, dict(status="interrupted"))
 
     def stop(self):
         self.shutdown.set()
@@ -97,10 +103,10 @@ class Queue:
             if process.poll() is not None:
                 return
             if os.name == "nt":
-                # This PID belongs to our Popen; kill its compiler descendants too.
-                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                               creationflags=subprocess.CREATE_NO_WINDOW, timeout=8)
+                if self.worker_tree:
+                    self.worker_tree.close()
+                else:
+                    process.kill()  # Startup handshake has not released this worker.
             else:
                 import signal
                 os.killpg(process.pid, signal.SIGTERM)
@@ -109,6 +115,31 @@ class Queue:
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=5)
+
+    def settle_failed_resources(self, job):
+        if job["status"] not in ("failed", "interrupted"):
+            return
+        inputs = job["inputs"]
+        if inputs.get("match_id"):
+            identities = [inputs["match_id"]]
+        elif inputs.get("tournament_id") and job["kind"] == "tournament":
+            batch = self.store.get("tournament", inputs["tournament_id"])
+            if batch["status"] in ("running", "queued"):
+                self.store.update("tournament", batch["id"], lambda r: r.update(status="incomplete"))
+            identities = [m["id"] for m in self.store.list("match") if m.get("tournament_id") == batch["id"]]
+        else:
+            identities = []
+        for identity in identities:
+            row = self.store.get("match", identity)
+            if row["status"] in ("running", "queued"):
+                self.store.update("match", identity, lambda r: r.update(status=job["status"],
+                                  failure_reason="执行进程未提交完整终局；本局没有正式胜者。"))
+                self.store.emit(identity, "match", dict(status=job["status"]))
+        if inputs.get("submission_id"):
+            row = self.store.get("submission", inputs["submission_id"])
+            if row["status"] == "compiling":
+                self.store.update("submission", row["id"], lambda r: r.update(status="interrupted",
+                                  diagnostic="编译进程已中断，请检查日志后重试冻结源码。"))
 
     def loop(self):
         while not self.shutdown.is_set():
@@ -124,7 +155,7 @@ class Queue:
                 if current["status"] == "queued":
                     claimed = True
                     current.update(status="running", started=utc_now(), attempt_id=attempt)
-                    current["attempts"].append(dict(id=attempt, started=current["started"]))
+                    current["attempts"].append(dict(id=attempt, started=current["started"], status="running"))
             job = self.store.update("job", job["id"], claim)
             if not claimed:
                 continue
@@ -133,10 +164,15 @@ class Queue:
             self.store.emit(job["id"], "job", dict(status="running"))
             with (folder / f"{attempt}.log").open("w", encoding="utf-8") as log:
                 try:
-                    self.process = subprocess.Popen([sys.executable, "-m", "service.worker", str(self.store.root), job["id"]],
-                                                    cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
+                    self.process = subprocess.Popen([sys.executable, "-m", "service.worker", str(self.store.root), job["id"], "--supervised"],
+                                                    cwd=ROOT, stdin=subprocess.PIPE, stdout=log, stderr=subprocess.STDOUT,
                                                     start_new_session=os.name != "nt",
                                                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+                    if os.name == "nt":
+                        from service.process_tree import WindowsProcessTree
+                        self.worker_tree = WindowsProcessTree(self.process)
+                    self.process.stdin.write(b"owned\n")
+                    self.process.stdin.close()
                     while self.process.poll() is None and not self.shutdown.is_set():
                         self.shutdown.wait(.1)
                     if self.shutdown.is_set() and self.process.poll() is None:
@@ -149,15 +185,33 @@ class Queue:
                                            diagnostic=f"Worker stopped before committing completion (exit {self.process.returncode}).")
                         for item in current["attempts"]:
                             if item["id"] == attempt:
-                                item.update(status=current["status"], finished=utc_now(), exit_code=self.process.returncode)
+                                if not item.get("finished"):
+                                    item.update(status=current["status"], finished=utc_now())
+                                item["exit_code"] = self.process.returncode
                     current = self.store.update("job", job["id"], finish)
+                    self.settle_failed_resources(current)
                     self.store.emit(job["id"], "job", dict(status=current["status"]))
                 except Exception as exc:
-                    current = self.store.get("job", job["id"])
-                    current.update(status="failed", diagnostic=f"{type(exc).__name__}: {exc}")
-                    self.store.put("job", current)
+                    def fail(current):
+                        if current["attempt_id"] != attempt:
+                            return
+                        if current["status"] in ("running", "stop_requested"):
+                            current.update(status="interrupted" if self.shutdown.is_set() else "failed",
+                                           diagnostic=f"{type(exc).__name__}: {exc}")
+                        for item in current["attempts"]:
+                            if item["id"] == attempt and not item.get("finished"):
+                                item.update(status=current["status"], finished=utc_now(),
+                                            exit_code=self.process.poll() if self.process else None)
+                    current = self.store.update("job", job["id"], fail)
+                    self.settle_failed_resources(current)
+                    self.store.emit(job["id"], "job", dict(status=current["status"]))
                 finally:
-                    self.process = None
+                    self.terminate_worker(self.process)
+                    with self.process_lock:
+                        if self.worker_tree:
+                            self.worker_tree.close()
+                        self.worker_tree = None
+                        self.process = None
 
     def request_stop(self, identity):
         def change(job):

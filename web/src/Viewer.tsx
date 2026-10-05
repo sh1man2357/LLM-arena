@@ -5,6 +5,7 @@ import { Board } from './Board';
 import { actionNames, BackLink, Badge, ErrorPanel, Icon, identityColor, labels, useNameLabel, State } from './ui';
 import type { Match, Replay, Row } from './types';
 import { useRevision } from './App';
+import { appendConfirmed, completeSnapshot } from './live';
 
 export function Viewer() {
   const nameLabel = useNameLabel();
@@ -12,7 +13,8 @@ export function Viewer() {
   const [params, setParams] = useSearchParams();
   const revision = useRevision();
   const match = useResource<Match>(`/api/v1/matches/${id}`, revision);
-  const initial = useResource<Replay>(`/api/v1/matches/${id}/frames`);
+  const [snapshotRetry, setSnapshotRetry] = useState(0);
+  const initial = useResource<Replay>(`/api/v1/matches/${id}/frames`, snapshotRetry);
   const [data, setData] = useState<Replay>();
   const [seq, setSeq] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -29,10 +31,12 @@ export function Viewer() {
   const wasLive = useRef(false);
   const latest = useRef<Replay | undefined>(undefined);
   latest.current = data;
+  useEffect(() => { if (initial.error) setSnapshotRetry(r => r + 1); }, [revision]);
   useEffect(() => { wasLive.current = false; setData(undefined); setPlaying(false); setFollow(!params.has('frame')); setSeq(0); }, [id]);
   useEffect(() => {
     if (initial.data) {
-      setData(initial.data);
+      if (!completeSnapshot(initial.data)) { setLiveError('状态帧存在缺口，等待完整快照。'); return; }
+      setData(initial.data); setLiveError('');
       const index = Number(params.get('frame') || 0);
       setSeq(Number.isFinite(index) ? Math.max(0, Math.min(initial.data.frames.length - 1, Math.floor(index))) : 0);
     }
@@ -45,13 +49,22 @@ export function Viewer() {
       fetching = true;
       try {
         const value = latest.current;
-        const fresh = await api<Replay>(`/api/v1/matches/${id}/frames?after_seq=${(value?.frames.length || 0) - 1}`);
+        const fresh = await api<Replay>(`/api/v1/matches/${id}/frames?after_seq=${(value?.frames.length || 0) - 1}${value ? `&attempt_id=${encodeURIComponent(value.attempt_id)}` : ''}`);
         if (cancelled) return;
         setLiveError('');
-        if (value && fresh.attempt_id !== value.attempt_id) {
-          const reset = await api<Replay>(`/api/v1/matches/${id}/frames`); setData(reset); setSeq(0); return;
+        const merged = appendConfirmed(value, fresh);
+        if (!merged) {
+          const reset = fresh.resync_required ? fresh : await api<Replay>(`/api/v1/matches/${id}/frames`);
+          if (cancelled) return;
+          if (!completeSnapshot(reset)) throw new Error('状态帧存在缺口，等待完整快照。');
+          setData(reset);
+          if (value?.frames.length && value.attempt_id !== reset.attempt_id) {
+            setSeq(0); setPlaying(false); setFollow(false);
+            setHint('比赛已开始新的执行尝试，已回到初始状态。');
+          } else setSeq(s => Math.min(s, Math.max(0, reset.frames.length - 1)));
+          return;
         }
-        if (fresh.frames.length || fresh.result) setData(old => old ? { ...old, ...fresh, frames: [...old.frames, ...fresh.frames.filter(f => f.seq >= old.frames.length)] } : fresh);
+        setData(merged);
       } catch (error) { if (!cancelled) setLiveError((error as Error).message); }
       finally { fetching = false; }
     }, 400);
@@ -60,23 +73,28 @@ export function Viewer() {
   useEffect(() => {
     if (['completed', 'failed'].includes(match.data?.status || '') && latest.current?.partial) {
       const controller = new AbortController();
-      api<Replay>(`/api/v1/matches/${id}/frames`, { signal: controller.signal }).then(setData).catch(e => { if (e.name !== 'AbortError') setLiveError(e.message); });
+      api<Replay>(`/api/v1/matches/${id}/frames`, { signal: controller.signal }).then(value => {
+        if (!completeSnapshot(value)) throw new Error('终局状态帧存在缺口，等待完整快照。');
+        setData(value); setLiveError('');
+      }).catch(e => { if (e.name !== 'AbortError') setLiveError(e.message); });
       return () => controller.abort();
     }
-  }, [id, match.data?.status]);
+  }, [id, match.data?.status, revision]);
   useEffect(() => {
     if (!data) return;
     const next = new URLSearchParams(params); next.set('frame', String(seq)); setParams(next, { replace: true });
   }, [seq]);
   useEffect(() => {
-    if (!playing || !data) return;
+    if (!playing) return;
     const timer = setInterval(() => setSeq(s => {
-      if (s < data.frames.length - 1) return s + 1;
-      if (!data.partial) setPlaying(false);
+      const value = latest.current;
+      if (!value) return s;
+      if (s < value.frames.length - 1) return s + 1;
+      if (!value.partial) setPlaying(false);
       return s;
     }), 250 / speed);
     return () => clearInterval(timer);
-  }, [playing, speed, data]);
+  }, [playing, speed, id]);
   useEffect(() => {
     if (match.data?.status === 'running') wasLive.current = true;
     if (follow && data && (match.data?.status === 'running' || (wasLive.current && ['completed', 'failed'].includes(match.data?.status || '')))) setSeq(Math.max(0, data.frames.length - 1));
@@ -104,7 +122,9 @@ export function Viewer() {
     window.addEventListener('keydown', keyboard);
     return () => window.removeEventListener('keydown', keyboard);
   }, [seq, max]);
-  if (initial.error || match.error) return <ErrorPanel message={initial.error || match.error} />;
+  if ((initial.error || match.error) && !data?.frames.length) return <ErrorPanel message={initial.error || match.error} />;
+  if (!data?.frames.length && match.data?.status === 'failed') return <State title="对局运行失败" detail="没有可播放的完整状态。该局不产生正式胜者，请到主办方工作台检查日志后重试。" />;
+  if (!data?.frames.length && match.data?.status === 'interrupted') return <State title="对局已中断" detail="主办方可以检查冻结输入后恢复；当前没有可播放的完整状态。" />;
   if (!data?.frames.length || !match.data) return <State title="正在准备观赛画面" detail="等待第一个完整状态帧…" />;
   const frame = data.frames[Math.min(seq, max)];
   const current = frame.state.players[player];
@@ -128,7 +148,7 @@ export function Viewer() {
     <button className="quiet" onClick={share}><Icon name="share" />复制帧链接</button><a className="button quiet" href={`/api/v1/exports/${id}`}><Icon name="share" />公开 Replay</a>
   </div></div><div className="match-heading"><div><p className="eyebrow">{match.data.tournament_id ? '批次对局' : '单局观赛'} · 双人规则 1</p><h1>{match.data.title}</h1></div><Badge status={match.data.status} /></div>
   {data.verification === 'public_world_only' && <p className="notice">公开副本：已重算世界轨迹，缺少 Seed，不能重跑 Bot 或纳入正式批次。原始证据哈希仅为文件声明的关联。</p>}
-  <div className="spectator-stage" ref={stage}>
+  <div className="spectator-stage" ref={stage} data-attempt-id={data.attempt_id} data-frame-count={data.frames.length}>
     <div className="versus-bar">{data.entrants.map((entrant, slot) => {
       const p = frame.state.players[slot]; const color = identityColor(entrant.id);
       return <button className={`versus-player ${player === slot && mode === 'player' ? 'selected' : ''}`} key={entrant.id}
@@ -142,7 +162,9 @@ export function Viewer() {
       <div className="board-wrap"><Board frame={frame} previous={data.frames[seq - 1]} entrants={data.entrants} overlay={overlay} selected={position}
         animate={playing} onSelect={p => { setCell(p); setMode('cell'); }} /></div>
       <div className="scene-caption"><span>13 × 11 <span className="muted">/ 地图完整公开</span></span><span>{frame.visual.coverage.length ? '正在显示本 Tick 事件叠层' : `下一结算 Tick ${frame.state.tick}`}</span></div>
-      {liveError && <div className="connection-banner" role="status">连接中断，正在恢复。{liveError}</div>}
+      {(liveError || match.error) && <div className="connection-banner" role="status">连接中断，正在恢复。{liveError || match.error}</div>}
+      {match.data.status === 'interrupted' && <div className="connection-banner" role="status">对局已中断，保留最后确认帧。等待主办方检查后恢复。</div>}
+      {match.data.status === 'failed' && !data.result && <div className="connection-banner" role="status">执行进程未提交完整终局；本局没有正式胜者。请到主办方工作台检查日志后重试。</div>}
       <div className="playback-controls">
         <div className="transport"><button aria-label="初始帧 (Home)" title="初始帧 (Home)" onClick={() => seek(0)}><Icon name="start" /></button>
           <button aria-label="上一帧 (←)" title="上一帧 (←)" onClick={() => seek(seq - 1)} disabled={seq === 0}><Icon name="previous" /></button>

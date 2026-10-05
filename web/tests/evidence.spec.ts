@@ -16,7 +16,7 @@ test('host imports full legacy archive, compares swaps and downloads immutable p
   await page.getByLabel('上传批次 ZIP', { exact: true }).setInputFiles({ name: `${title}.zip`, mimeType: 'application/zip', buffer: data });
   const response = await receipt; expect(response.status()).toBe(202);
   const job = await response.json();
-  await expect(page.locator(`[data-job-id="${job.id}"]`).getByText('已完成', { exact: true })).toBeVisible({ timeout: 60000 });
+  await expect(page.locator(`[data-job-id="${job.id}"] .job-info > .record-heading`).getByText('已完成', { exact: true })).toBeVisible({ timeout: 60000 });
   const publication = page.locator('.publication-row').filter({ hasText: title });
   await publication.getByRole('link', { name: title, exact: true }).click();
   await expect(page.getByText(new RegExp('历史证据导入'))).toBeVisible();
@@ -63,7 +63,7 @@ test('bad archive produces an actionable failed job and no batch', async ({ page
   await page.getByLabel('上传批次 ZIP', { exact: true }).setInputFiles({ name: '损坏的归档.zip', mimeType: 'application/zip', buffer: Buffer.from('invalid ZIP') });
   const job = await (await receipt).json();
   const row = page.locator(`[data-job-id="${job.id}"]`);
-  await expect(row.getByText('运行失败', { exact: true })).toBeVisible({ timeout: 10000 });
+  await expect(row.locator('.job-info > .record-heading').getByText('运行失败', { exact: true })).toBeVisible({ timeout: 10000 });
   await expect(row.getByText(/Archive cannot be read/)).toBeVisible();
   await expect(row.getByRole('button', { name: '恢复 / 重试', exact: true })).toBeVisible();
   await expect(row.getByRole('link', { name: '执行日志', exact: true })).toBeVisible();

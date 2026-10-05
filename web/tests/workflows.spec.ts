@@ -20,7 +20,7 @@ test('host collects and freezes source, compiles, watches live, runs and publish
   await submission.getByRole('button', { name: '编译并检查资格', exact: true }).click();
   const compile = await (await compileResponse).json();
   await expect(submission.getByText('资格通过', { exact: true })).toBeVisible({ timeout: 15000 });
-  await expect(page.locator(`[data-job-id="${compile.id}"]`).getByText('已完成', { exact: true })).toBeVisible();
+  await expect(page.locator(`[data-job-id="${compile.id}"] .job-info > .record-heading`).getByText('已完成', { exact: true })).toBeVisible();
   await submission.getByText('编译日志与诊断', { exact: true }).click();
   await expect(submission.locator('.compile-log')).toContainText('exit_code');
   await page.getByRole('checkbox', { name: new RegExp(name) }).check();
@@ -51,7 +51,7 @@ test('host collects and freezes source, compiles, watches live, runs and publish
   const batchJob = await (await batchResponse).json();
   const batch = page.locator('.publication-row').filter({ hasText: `${name} 隐藏批次` });
   await batch.getByRole('button', { name: '关闭收卷并开放观看', exact: true }).click();
-  await expect(page.locator(`[data-job-id="${batchJob.id}"]`).getByText('已完成', { exact: true })).toBeVisible({ timeout: 20000 });
+  await expect(page.locator(`[data-job-id="${batchJob.id}"] .job-info > .record-heading`).getByText('已完成', { exact: true })).toBeVisible({ timeout: 20000 });
   await batch.getByRole('button', { name: '校验并发布成绩', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '成绩发布记录已保存' })).toBeVisible();
   await expect(batch.getByRole('link', { name: '下载发布清单', exact: true })).toBeVisible();

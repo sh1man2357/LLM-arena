@@ -143,6 +143,37 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(interval([0, 1]*25), interval([0, 1]*25))
         self.assertIsNone(interval([1]*9))
 
+    def test_failed_match_retry_preserves_evidence_and_scores_once(self):
+        folder = self.root / "failed-retry"
+        fail_once = True
+        def observer(kind, value):
+            nonlocal fail_once
+            if kind == "record" and value["record"]["type"] == "tick" and fail_once:
+                fail_once = False
+                raise OSError("first durable write failed")
+        _, plan, results = run_tournament(self.entrants, self.cases[:1], folder, observer=observer)
+        self.assertFalse(results[0]["valid"])
+        self.assertEqual(results[0]["players"], [])
+        self.assertTrue(results[1]["valid"])
+        self.assertEqual(generate_report(folder)["status"], "incomplete")
+        failed_id, completed_id = [item["match_id"] for item in plan]
+        failed_replay = (folder / "replays" / f"{failed_id}.jsonl").read_bytes()
+        completed_hash = sha_file(folder / "replays" / f"{completed_id}.jsonl")
+        unchanged = run_tournament(self.entrants, self.cases[:1], folder, resume=True)[2]
+        self.assertEqual(unchanged, results)
+        self.assertFalse((folder / "failed_attempts").exists())
+        retried = run_tournament(self.entrants, self.cases[:1], folder, resume=True, retry_failures=True)[2]
+        archived = folder / "failed_attempts" / failed_id
+        self.assertEqual((archived / "0.replay.jsonl").read_bytes(), failed_replay)
+        self.assertEqual(read_json(archived / "0.result.json"), results[0])
+        self.assertEqual(sha_file(folder / "replays" / f"{completed_id}.jsonl"), completed_hash)
+        self.assertEqual(len(retried), 2)
+        self.assertEqual(len({result["match_id"] for result in retried}), 2)
+        self.assertTrue(all(result["valid"] for result in retried))
+        self.assertEqual(generate_report(folder)["status"], "complete")
+        run_tournament(self.entrants, self.cases[:1], folder, resume=True, retry_failures=True)
+        self.assertEqual(len(list(archived.glob("*.result.json"))), 1)
+
     def test_frozen_manifest_bound_to_replay(self):
         folder = self.root / "bound"
         manifest, plan, _ = run_tournament(self.entrants, self.cases[:1], folder)

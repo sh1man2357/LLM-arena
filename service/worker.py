@@ -49,7 +49,13 @@ class LiveSink:
 
 
 def update_job(store, identity, **changes):
-    job = store.update("job", identity, lambda r: r.update(changes))
+    def change(row):
+        row.update(changes)
+        if changes.get("status") in ("succeeded", "failed", "stopped"):
+            for attempt in row["attempts"]:
+                if attempt["id"] == row["attempt_id"]:
+                    attempt.update(status=row["status"], finished=row.get("finished") or utc_now())
+    job = store.update("job", identity, change)
     store.emit(identity, "job", dict(status=job["status"], progress=job["progress"]))
     return job
 
@@ -146,10 +152,16 @@ def run_batch(store, job):
                 sink = None
             else:
                 try:
-                    store.get("match", mid)
+                    previous = store.get("match", mid)
                 except KeyError:
-                    import_replay(store, Path(value["replay"]).read_bytes(), tournament_id=identity, identity=mid, case=item,
-                                  disclosure=store.get("tournament", identity)["disclosure"])
+                    previous = {}
+                if (previous.get("status") != "completed" or not previous.get("verified") or
+                        previous.get("source_sha256") != sha_file(value["replay"])):
+                    restored = import_replay(store, Path(value["replay"]).read_bytes(), tournament_id=identity,
+                                             identity=mid, case=item, title=previous.get("title"),
+                                             attempt_id=previous.get("attempt_id", job["attempt_id"]),
+                                             disclosure=store.get("tournament", identity)["disclosure"])
+                    store.emit(mid, "match", dict(status=restored["status"], attempt_id=restored["attempt_id"]))
             store.update("tournament", identity, lambda r: r.update(completed_matches=value["index"]+1))
             update_job(store, job["id"], progress=value["index"]+1, total=row["expected_matches"])
 
@@ -207,4 +219,6 @@ def main(data_root, job_id):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 3 and sys.argv[3] == "--supervised" and sys.stdin.readline().strip() != "owned":
+        raise SystemExit("Owner vanished before releasing the worker")
     main(sys.argv[1], sys.argv[2])

@@ -80,7 +80,7 @@ def public_submission(row):
 def public_match(row):
     return {k: row.get(k) for k in ("id", "title", "tournament_id", "entrants", "status", "ticks", "result", "verified",
                                     "disclosure", "created", "case_index", "swapped", "source_sha256", "attempt_id",
-                                    "source_format", "origin_source_sha256", "bot_rerunnable")}
+                                    "source_format", "origin_source_sha256", "bot_rerunnable", "failure_reason")}
 
 
 def public_tournament(row):
@@ -308,10 +308,12 @@ def create_app(data_root=None, *, demo=False, workers=False):
         return public_job(store.get("job", identity))
 
     @app.get("/api/v1/jobs/{identity}/log")
-    def job_log(identity: str, request: Request):
+    def job_log(identity: str, request: Request, attempt_id: str | None = None):
         owner(request)
         row = store.get("job", identity)
-        attempt = row.get("attempt_id")
+        attempt = attempt_id or row.get("attempt_id")
+        if attempt_id and attempt_id not in [a["id"] for a in row["attempts"]]:
+            raise APIError("unknown_attempt", "该作业没有此执行尝试。", 404)
         path = store.root / "jobs" / identity / f"{attempt}.log"
         content = path.read_text(encoding="utf-8", errors="replace")[-1024*1024:] if path.is_file() else "尚无执行日志。"
         return Response(content, media_type="text/plain")
@@ -354,18 +356,25 @@ def create_app(data_root=None, *, demo=False, workers=False):
         return response
 
     @app.get("/api/v1/matches/{identity}/frames")
-    def frames(identity: str, request: Request, after_seq: int = -1):
+    def frames(identity: str, request: Request, after_seq: int = -1, attempt_id: str | None = None):
         row = visible(store.get("match", identity), request)
         if row.get("projection") and Path(row["projection"]).exists():
             ui = read_json(row["projection"])
         else:
             path = Path(row.get("live_path", ""))
             if not path.is_file():
-                return dict(frames=[], partial=True, attempt_id=row["attempt_id"])
+                return dict(frames=[], partial=True, attempt_id=row["attempt_id"], last_seq=-1,
+                            resync_required=bool(attempt_id and attempt_id != row["attempt_id"]))
             data = path.read_bytes()
             last = data.rfind(b"\n")
             ui = project(decode(data[:last+1]), partial=True) if last >= 0 else dict(frames=[])
         response = dict(ui)
+        if not row.get("replay") and row["status"] != "completed" and (response.get("result") or {}).get("valid"):
+            response.update(partial=True, result=None, verified=False)
+        response["last_seq"] = len(ui["frames"])-1
+        response["resync_required"] = bool((attempt_id and attempt_id != row["attempt_id"]) or after_seq > response["last_seq"])
+        if response["resync_required"]:
+            after_seq = -1
         response["frames"] = [f for f in ui["frames"] if f["seq"] > after_seq]
         response["attempt_id"] = row["attempt_id"]
         return response

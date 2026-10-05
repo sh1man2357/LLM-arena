@@ -31,6 +31,8 @@ powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 
 公开 Replay `.json` 可上传再导入，服务重新验证世界轨迹；没有 Seed 的副本仅用于观赛，不能重跑 Bot。工作台可创建并下载完整私有备份，包含源码、隐藏 Seed、收卷与发布记录；恢复命令校验后创建新目录，更新凭据，未完成作业等待手动恢复。具体步骤、限制与阶段证据见 [数据恢复说明](./docs/12-data-recovery.md)。
 
+直播断连保留已确认棋盘，恢复连接后补齐缺帧并去重；新执行尝试从初始帧重新展示。服务退出和 worker 失败后，可在工作台检查“执行尝试与旧日志”再手动恢复，已完成对局保留，未完成单局使用冻结输入从 Tick 0 重跑。实际强制退出、活动变速与批次恢复证据见 [直播与作业恢复](./docs/13-live-and-job-recovery.md)。
+
 开发服务仍可直接运行 `python -m service --demo`；前端在 `web/` 执行 `npm run dev`。发行使用上述同源静态构建。浏览器检查使用 `npm test`，需要本机 Chrome；`ARENA_BASE_URL` 可指向另一端口的本地验收实例。
 
 ### v0.1 命令行环境

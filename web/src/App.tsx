@@ -19,7 +19,7 @@ export function App() {
     const events = new EventSource('/api/v1/events');
     let last = 0;
     let trailing: ReturnType<typeof setTimeout> | undefined;
-    events.onopen = () => setConnected(true);
+    events.onopen = () => { setConnected(true); setRevision(r => r + 1); };
     events.onerror = () => setConnected(false);
     events.onmessage = event => {
       const notice = JSON.parse(event.data);

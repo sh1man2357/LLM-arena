@@ -29,7 +29,7 @@ test('public Replay roundtrip and complete private backup download use real curr
   expect((await page.request.get('/health')).status()).toBe(200);
   expect((await page.request.get(`/api/v1/matches/${imported.id}/frames`)).status()).toBe(200);
   expect((await page.request.post('/api/v1/sessions', { data: { name: '备份期间不会创建此记录' } })).status()).toBe(423);
-  await expect(page.locator(`[data-job-id="${job.id}"]`).getByText('已完成', { exact: true })).toBeVisible({ timeout: 90000 });
+  await expect(page.locator(`[data-job-id="${job.id}"] .job-info > .record-heading`).getByText('已完成', { exact: true })).toBeVisible({ timeout: 90000 });
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('link', { name: '下载私有备份', exact: true }).first().click();
   const download = await downloadEvent;

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:protocol": "node --test protocol-tests/live.test.mjs"
   },
   "dependencies": {
     "react": "19.3.0",
