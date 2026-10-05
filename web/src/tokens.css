@@ -7,5 +7,10 @@
   --gold: #EFB95B;
   --red: #E97975;
   --border: #30404B;
+  --field-border: #647580;
+  --tile-hard: #5F707C;
+  --tile-hard-edge: #8496A2;
+  --tile-soft: #64796C;
+  --tile-soft-edge: #7B9181;
   color-scheme: dark;
 }

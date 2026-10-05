@@ -32,7 +32,7 @@ export function App() {
     return () => { clearTimeout(trailing); events.close(); };
   }, []);
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
-  return <IdentityNames.Provider value={names}><Revision.Provider value={revision}><div className="app-shell">
+  return <IdentityNames.Provider value={names}><Revision.Provider value={revision}><a className="skip-link" href="#main-content">跳到主要内容</a><div className="app-shell">
     <aside className="rail"><Link to="/" className="brand" aria-label="LLM Arena 比赛大厅"><span /><span /><span /><span /></Link>
       <nav aria-label="主要页面">
         <NavLink to="/" end title="比赛大厅"><Icon name="grid" /><span>大厅</span></NavLink>
@@ -45,7 +45,7 @@ export function App() {
       <span className="topbar-center">策略竞技 · 确定性实验</span><span className="topbar-status"><span className={`connection-dot ${connected ? 'online' : ''}`} />{connected ? '本地服务已连接' : '正在恢复连接'}</span>
     </header>
     {!connected && !health.loading && <div className="connection-banner" role="status">事件连接暂时中断，正在重连。已加载的回放仍可操作。</div>}
-    <main><Routes>
+    <main id="main-content" tabIndex={-1}><Routes>
       <Route path="/" element={<Hall />} /><Route path="/matches/:id" element={<Viewer />} />
       <Route path="/tournaments" element={<Batches />} /><Route path="/tournaments/:id" element={<Batch />} />
       <Route path="/entrants" element={<Entrants />} /><Route path="/entrants/:id" element={<EntrantPage />} />

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api, useResource } from './api';
 import { Board } from './Board';
-import { actionNames, BackLink, Badge, ErrorPanel, Icon, identityColor, labels, useNameLabel, State } from './ui';
+import { actionNames, BackLink, Badge, ErrorPanel, Icon, identityColor, labels, useNameLabel, State, playerStateLabel, eventLabel } from './ui';
 import type { Match, Replay, Row } from './types';
 import { useRevision } from './App';
 import { appendConfirmed, completeSnapshot } from './live';
@@ -27,12 +27,13 @@ export function Viewer() {
   const [cell, setCell] = useState<[number, number]>([1, 1]);
   const [hint, setHint] = useState('');
   const [liveError, setLiveError] = useState('');
+  const [full, setFull] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
   const wasLive = useRef(false);
   const latest = useRef<Replay | undefined>(undefined);
   latest.current = data;
   useEffect(() => { if (initial.error) setSnapshotRetry(r => r + 1); }, [revision]);
-  useEffect(() => { wasLive.current = false; setData(undefined); setPlaying(false); setFollow(!params.has('frame')); setSeq(0); }, [id]);
+  useEffect(() => { wasLive.current = false; setData(undefined); setPlaying(false); setFollow(!params.has('frame')); setSeq(0); setPlayer(0); setMode('player'); setCell([1, 1]); setHint(''); setLiveError(''); }, [id]);
   useEffect(() => {
     if (initial.data) {
       if (!completeSnapshot(initial.data)) { setLiveError('状态帧存在缺口，等待完整快照。'); return; }
@@ -110,7 +111,13 @@ export function Viewer() {
     catch { setHint('当前浏览器不支持全屏，请使用窗口最大化。'); }
   }
   useEffect(() => {
+    const changed = () => setFull(document.fullscreenElement === stage.current && !!stage.current);
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
+  useEffect(() => {
     function keyboard(e: KeyboardEvent) {
+      if (e.key === 'Escape' && document.fullscreenElement) { e.preventDefault(); void document.exitFullscreen(); return; }
       if (e.ctrlKey || e.metaKey || e.altKey || (e.target as HTMLElement).closest('input,textarea,select,button,[contenteditable=true]')) return;
       const keys = [' ', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'f', 'F'];
       if (!keys.includes(e.key)) return;
@@ -128,6 +135,8 @@ export function Viewer() {
   if (!data?.frames.length || !match.data) return <State title="正在准备观赛画面" detail="等待第一个完整状态帧…" />;
   const frame = data.frames[Math.min(seq, max)];
   const current = frame.state.players[player];
+  const currentCall = frame.calls.find(c => c.id === player);
+  const fuel = frame.tick === null ? data.initialization[player]?.fuel_used : currentCall?.fuel_used;
   const position: [number, number] = mode === 'player' ? [current.x, current.y] : cell;
   const bomb = frame.state.bombs.find(b => b.x === position[0] && b.y === position[1]);
   const events: Row[] = data.frames.flatMap(f => f.events.filter(e => e.type !== 'move' && e.type !== 'destroy').map((e, i) => ({ ...e, seq: f.seq, tick: f.tick, key: `${f.seq}-${i}` })));
@@ -152,16 +161,17 @@ export function Viewer() {
     <div className="versus-bar">{data.entrants.map((entrant, slot) => {
       const p = frame.state.players[slot]; const color = identityColor(entrant.id);
       return <button className={`versus-player ${player === slot && mode === 'player' ? 'selected' : ''}`} key={entrant.id}
+        aria-pressed={player === slot && mode === 'player'}
         onClick={() => { setPlayer(slot); setMode('player'); }} style={{ '--player': color } as React.CSSProperties}>
-        <span className={`player-marker p${slot}`}>{slot}</span><span><strong>{nameLabel(entrant.id)}</strong><small>槽位 {slot} · {p.alive ? '存活' : `淘汰于 Tick ${p.death_tick}`}</small></span>
-        <span className="player-action">{actionNames[frame.actions.find(a => a.id === slot)?.action ?? 0]}<small>{p.x}, {p.y}</small></span>
+        <span className={`player-marker p${slot}`}>{slot}</span><span><strong>{nameLabel(entrant.id)}</strong><small>槽位 {slot} · {playerStateLabel(p)}</small></span>
+        <span className="player-action">{frame.actions.find(a => a.id === slot) ? actionNames[frame.actions.find(a => a.id === slot)!.action] : '未调用'}<small>{p.x}, {p.y}</small></span>
       </button>;
     })}<span className="versus-divider">VS</span></div>
     <div className={`arena-layout ${details ? '' : 'details-hidden'}`}><section className="arena-scene">
       <div className="scene-meta"><span className="mono">{phase}</span><span>{data.verified ? '世界回放已验证' : data.partial ? '已确认的直播帧' : '未验证记录'}</span></div>
       <div className="board-wrap"><Board frame={frame} previous={data.frames[seq - 1]} entrants={data.entrants} overlay={overlay} selected={position}
         animate={playing} onSelect={p => { setCell(p); setMode('cell'); }} /></div>
-      <div className="scene-caption"><span>13 × 11 <span className="muted">/ 地图完整公开</span></span><span>{frame.visual.coverage.length ? '正在显示本 Tick 事件叠层' : `下一结算 Tick ${frame.state.tick}`}</span></div>
+      <div className="scene-caption"><span>13 × 11 <span className="muted">/ 地图完整公开</span></span><span>{frame.visual.coverage.length ? '正在显示本 Tick 事件叠层' : done ? `对局已结束 · ${data.result!.ticks} 次结算` : `下一结算 Tick ${frame.state.tick}`}</span></div>
       {(liveError || match.error) && <div className="connection-banner" role="status">连接中断，正在恢复。{liveError || match.error}</div>}
       {match.data.status === 'interrupted' && <div className="connection-banner" role="status">对局已中断，保留最后确认帧。等待主办方检查后恢复。</div>}
       {match.data.status === 'failed' && !data.result && <div className="connection-banner" role="status">执行进程未提交完整终局；本局没有正式胜者。请到主办方工作台检查日志后重试。</div>}
@@ -173,33 +183,39 @@ export function Viewer() {
           <button aria-label="最后已接收帧 (End)" title="最后已接收帧 (End)" onClick={() => seek(max)}><Icon name="end" /></button>
         </div><label className="speed-control">速度<select aria-label="播放速度" value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[.25, .5, 1, 2, 4].map(v => <option key={v} value={v}>{v}×</option>)}</select></label>
         <span className="frame-counter mono">{seq.toString().padStart(3, '0')} <span>/ {max}</span></span>
-        <button className="quiet" aria-label="全屏 (F)" title="全屏 (F)" onClick={fullscreen}><Icon name="full" /></button>
+        <button className="quiet" aria-label={full ? '退出全屏 (F)' : '全屏 (F)'} title={full ? '退出全屏 (F)' : '全屏 (F)'} onClick={fullscreen}><Icon name={full ? 'close' : 'full'} /></button>
       </div>
       <div className="timeline"><input aria-label="回放帧" type="range" min="0" max={max || 1} value={seq} onChange={e => seek(Number(e.target.value))} disabled={max === 0} />
         <div className="event-marks" aria-hidden="true">{events.filter(e => e.type === 'death' || e.type === 'fault' || e.type === 'explode').map(e => <span key={e.key} className={e.type} style={{ left: `${e.seq / (max || 1) * 100}%` }} />)}</div>
         <div className="timeline-labels"><span>初始</span><span>{match.data.status === 'running' ? '实时进度' : '结束'}</span></div>
       </div>
       <div className="viewer-options"><label><input type="checkbox" checked={overlay} onChange={e => setOverlay(e.target.checked)} />当前事件叠层</label>
-        <button className="text-button" onClick={() => setDetails(d => !d)}>{details ? '收起详情' : '展开详情'}</button>
+        <button className="text-button" aria-expanded={details} onClick={() => setDetails(d => !d)}>{details ? '收起详情' : '展开详情'}</button>
         {match.data.status === 'running' && <button className="text-button" onClick={() => { setFollow(true); setSeq(max); }}>{follow ? '正在跟随最新' : '回到最新'}</button>}
         <button className="text-button" onClick={image}><Icon name="image" />PNG</button>
       </div>
       {done && <div className={`result-banner ${data.result?.valid ? '' : 'failure'}`}><div><p className="eyebrow">对局结果</p><h2>{outcome}</h2><p>{labels[data.result!.reason]} · {data.result!.ticks} 次结算{data.result?.valid && !winner ? ' · 并列不额外破同分' : ''}</p></div><button onClick={() => seek(0)}><Icon name="refresh" />重新查看</button></div>}
     </section>
-    {details && <aside className="inspector"><div className="inspector-tabs"><button className={mode === 'player' ? 'active' : ''} onClick={() => setMode('player')}>玩家</button><button className={mode === 'cell' ? 'active' : ''} onClick={() => setMode('cell')}>格子</button></div>
+    {details && <aside className="inspector"><div className="inspector-tabs"><button aria-pressed={mode === 'player'} className={mode === 'player' ? 'active' : ''} onClick={() => setMode('player')}>玩家</button><button aria-pressed={mode === 'cell'} className={mode === 'cell' ? 'active' : ''} onClick={() => setMode('cell')}>格子</button></div>
       <section className="inspector-card"><p className="eyebrow">{mode === 'player' ? '当前玩家状态' : '选中格子'}</p>
         {mode === 'player' ? <><h2 style={{ color: identityColor(data.entrants[player].id) }}>{nameLabel(data.entrants[player].id)}</h2>
-          <dl><div><dt>坐标</dt><dd className="mono">{current.x}, {current.y}</dd></div><div><dt>状态</dt><dd>{current.alive ? '存活' : `Tick ${current.death_tick} 淘汰`}</dd></div>
+          <dl><div><dt>坐标</dt><dd className="mono">{current.x}, {current.y}</dd></div><div><dt>状态</dt><dd>{playerStateLabel(current)}</dd></div>
             <div><dt>当前动作</dt><dd>{frame.actions.find(a => a.id === player) ? actionNames[frame.actions.find(a => a.id === player)!.action] : '未调用'}</dd></div>
-            <div><dt>fuel 用量</dt><dd className="mono">{(frame.calls.find(c => c.id === player)?.fuel_used ?? data.initialization[player]?.fuel_used ?? 0).toLocaleString()}</dd></div>
+            <div><dt>fuel 用量</dt><dd className="mono">{fuel === undefined ? frame.tick === null ? '初始化未完成' : '本 Tick 未调用' : fuel.toLocaleString()}</dd></div>
             <div><dt>连续 / 累计故障</dt><dd className="mono">{frame.state.fault_counters[player].consecutive} / {frame.state.fault_counters[player].total}</dd></div>
             <div><dt>仍在场的炸弹</dt><dd>{frame.state.bombs.filter(b => b.owner_id === player).length} / {data.rules.bomb_capacity}</dd></div></dl>
-          {frame.calls.find(c => c.id === player)?.fault && <Badge status="failed">{labels[frame.calls.find(c => c.id === player)!.fault]}</Badge>}
-        </> : <><h2 className="mono">{position[0]}, {position[1]}</h2><div className="coordinate-inputs"><label>x<input aria-label="格子 x" type="number" min="0" max="12" value={cell[0]} onChange={e => setCell([Math.max(0, Math.min(12, Number(e.target.value) || 0)), cell[1]])} /></label><label>y<input aria-label="格子 y" type="number" min="0" max="10" value={cell[1]} onChange={e => setCell([cell[0], Math.max(0, Math.min(10, Number(e.target.value) || 0))])} /></label></div><dl><div><dt>地形</dt><dd>{['道路', '硬墙', '软墙'][frame.state.grid[position[1] * 13 + position[0]]]}</dd></div><div><dt>玩家</dt><dd>{frame.state.players.filter(p => p.alive && p.x === position[0] && p.y === position[1]).map(p => nameLabel(data.entrants[p.id].id)).join(', ') || '无'}</dd></div></dl></>}
+          {frame.tick === null && data.initialization[player]?.status === 'eliminated' && <Badge status="failed">初始化失败，结算前淘汰</Badge>}
+          {currentCall?.fault && <Badge status="failed">{labels[currentCall.fault]}</Badge>}
+        </> : <><h2 className="mono">{position[0]}, {position[1]}</h2><div className="coordinate-inputs"><label>x<input aria-label="格子 x" type="number" min="0" max="12" value={cell[0]} onChange={e => setCell([Math.max(0, Math.min(12, Math.trunc(Number(e.target.value) || 0))), cell[1]])} /></label><label>y<input aria-label="格子 y" type="number" min="0" max="10" value={cell[1]} onChange={e => setCell([cell[0], Math.max(0, Math.min(10, Math.trunc(Number(e.target.value) || 0)))])} /></label></div><dl><div><dt>地形</dt><dd>{['道路', '硬墙', '软墙'][frame.state.grid[position[1] * 13 + position[0]]]}</dd></div><div><dt>玩家</dt><dd>{frame.state.players.filter(p => p.alive && p.x === position[0] && p.y === position[1]).map(p => nameLabel(data.entrants[p.id].id)).join(', ') || '无'}</dd></div></dl></>}
         {bomb && <div className="bomb-info"><Icon name="bolt" /><div>炸弹 #{bomb.id}<small>{nameLabel(data.entrants[bomb.owner_id].id)} · Tick {bomb.explode_at_tick} 到期<br />剩余 {Math.max(0, bomb.explode_at_tick - frame.state.tick)} Tick · 范围 {bomb.range}</small></div></div>}
         {frame.visual.blocked_moves.includes(player) && mode === 'player' && <p className="muted">本 Tick 移动未成功；合法受阻动作不算故障。</p>}
       </section>
-      <section className="events-panel"><div className="section-heading"><h3>关键事件</h3><span className="mono muted">{events.length}</span></div><div className="event-list">{events.length ? events.map(e => <button key={e.key} className={`event-row ${e.seq === seq ? 'selected' : ''}`} onClick={() => seek(e.seq)}><span className={`event-symbol ${e.type}`} /><span><strong>{labels[e.type]}</strong><small>{e.player !== undefined ? nameLabel(data.entrants[e.player].id) : e.bomb !== undefined ? `炸弹 #${e.bomb}` : ''}{e.fault ? ` · ${labels[e.fault]}` : ''}{e.cause === 'explosion' ? ' · 爆炸' : e.cause === 'runtime' ? ' · 运行故障' : ''}</small></span><span className="mono event-tick">{e.tick}</span></button>) : <p className="muted empty-note">本局尚无放弹、爆炸或淘汰事件。</p>}</div></section>
+      {!!frame.visual.exploded_bombs.length && <section className="tick-effects" aria-label="当前 Tick 爆炸事实"><p className="eyebrow">当前 Tick 爆炸事实</p>
+        {frame.visual.exploded_bombs.map(b => <div className="explosion-fact" key={b.id} data-bomb-id={b.id}><strong>炸弹 #{b.id} · {b.x}, {b.y}</strong><small>owner：{nameLabel(data.entrants[b.owner_id].id)}{!frame.state.players[b.owner_id].alive ? '（已淘汰，炸弹仍然有效）' : ''}</small><small>原定 Tick {b.explode_at_tick} 到期 · {b.chain ? '连锁提前引爆' : '到期引爆'}</small></div>)}
+        <p className="small muted">覆盖 {frame.visual.coverage.length} 格；事件叠层表示本 Tick 事实。</p>
+        {!!frame.events.filter(e => e.type === 'destroy').length && <p className="small muted">软墙销毁：{frame.events.filter(e => e.type === 'destroy').map(e => `${e.x}, ${e.y}`).join('；')}。传播使用结算前的墙体快照。</p>}
+      </section>}
+      <section className="events-panel"><div className="section-heading"><h3>关键事件</h3><span className="mono muted">{events.length}</span></div><div className="event-list">{events.length ? events.map(e => <button key={e.key} className={`event-row ${e.seq === seq ? 'selected' : ''}`} onClick={() => seek(e.seq)}><span className={`event-symbol ${e.type}`} /><span><strong>{eventLabel({ type: e.type, fault: e.fault })}</strong><small>{e.player !== undefined ? nameLabel(data.entrants[e.player].id) : e.bomb !== undefined ? `炸弹 #${e.bomb}` : ''}{e.fault ? ` · ${labels[e.fault]}` : ''}{e.cause === 'explosion' ? ' · 爆炸' : e.cause === 'runtime' ? ' · 运行故障' : ''}</small></span><span className="mono event-tick">{e.tick}</span></button>) : <p className="muted empty-note">本局尚无放弹、爆炸或淘汰事件。</p>}</div></section>
       <section className="inspector-footer"><p><Icon name="check" />{data.verified ? '已校验世界轨迹' : '结果尚未完成校验'}</p><span className="mono">{data.source_sha256?.slice(0, 16) || '直播记录'}</span><small>事件叠层用于检查当前 Tick，下一 Tick 不保留火焰。</small></section>
     </aside>}
     </div>

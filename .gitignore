@@ -22,3 +22,5 @@ web/*.tsbuildinfo
 artifacts/local/
 artifacts/acceptance/*/visual/*.png
 artifacts/acceptance/*/visual/*.webm
+artifacts/acceptance/*/visual/viewer-quality/*.png
+artifacts/acceptance/*/visual/viewer-quality/*.webm

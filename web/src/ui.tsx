@@ -36,6 +36,9 @@ export const labels: Record<string, string> = {
   last_survivor: '最后存活者', all_eliminated: '全部淘汰', tick_limit: '时间上限', initialization_end: '初始化结束', infrastructure_failure: '基础设施失败',
   fuel: 'fuel 耗尽', invalid_action: '非法动作', trap: '运行崩溃', move: '移动', place: '放置炸弹', explode: '爆炸', destroy: '软墙销毁', death: '淘汰', fault: '动作故障',
 };
+export function eventLabel(event: { type: string; fault?: string }) {
+  return event.type === 'fault' && event.fault === 'trap' ? '运行崩溃' : labels[event.type];
+}
 export function Badge({ status, children }: {status?: string; children?: ReactNode}) {
   return <span className={`badge ${status || ''}`}><span className="status-dot" />{children || labels[status || ''] || status}</span>;
 }
@@ -50,6 +53,9 @@ export function PageTitle({ eyebrow, title, children, detail }: {eyebrow: string
 }
 export function BackLink() { return <Link className="back-link" to="/"><Icon name="back" />比赛大厅</Link>; }
 export const actionNames = ['等待', '向上', '向右', '向下', '向左', '放弹'];
+export function playerStateLabel(player: { alive: boolean; death_tick: number | null }) {
+  return player.alive ? '存活' : player.death_tick === -1 ? '初始化淘汰' : `淘汰于 Tick ${player.death_tick}`;
+}
 export function identityColor(id: string) {
   const colors = ['#69DCC9', '#EFB95B', '#A9ACF2', '#EFA7BE', '#91BDEB', '#BACE8B'];
   const known: Record<string, number> = { heuristic: 0, safe: 1, random: 2 };

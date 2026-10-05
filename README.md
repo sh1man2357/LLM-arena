@@ -33,6 +33,8 @@ powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 
 直播断连保留已确认棋盘，恢复连接后补齐缺帧并去重；新执行尝试从初始帧重新展示。服务退出和 worker 失败后，可在工作台检查“执行尝试与旧日志”再手动恢复，已完成对局保留，未完成单局使用冻结输入从 Tick 0 重跑。实际强制退出、活动变速与批次恢复证据见 [直播与作业恢复](./docs/13-live-and-job-recovery.md)。
 
+观赛支持实际逐帧、五档变速、鼠标 / 触控拖动、事件定位、同地图换边与全屏。检查器明确初始化淘汰、调用 fuel、运行崩溃和本 Tick 爆炸事实；四尺寸长名称、完整数据截图与操作录像已归档，见 [观赛质量验证](./docs/14-viewer-quality.md)。全部异常状态、完整可访问性、最终人工视觉与性能仍待验收。
+
 开发服务仍可直接运行 `python -m service --demo`；前端在 `web/` 执行 `npm run dev`。发行使用上述同源静态构建。浏览器检查使用 `npm test`，需要本机 Chrome；`ARENA_BASE_URL` 可指向另一端口的本地验收实例。
 
 ### v0.1 命令行环境

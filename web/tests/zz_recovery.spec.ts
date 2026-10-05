@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 
 test('public Replay roundtrip and complete private backup download use real current data', async ({ page }) => {
-  test.setTimeout(180000);
+  test.setTimeout(240000);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const original = await page.request.get('/api/v1/exports/reference-chain');
   expect(original.ok()).toBeTruthy();
@@ -18,7 +18,7 @@ test('public Replay roundtrip and complete private backup download use real curr
   await expect(page.getByText('世界回放已验证', { exact: true })).toBeVisible();
   await expect(page.getByText(/公开副本：已重算世界轨迹/)).toBeVisible();
   await expect(page.getByRole('slider', { name: '回放帧' })).toHaveValue('19');
-  await expect(page.getByText('淘汰于 Tick 18')).toHaveCount(2);
+  await expect(page.locator('.versus-player').getByText(/淘汰于 Tick 18/)).toHaveCount(2);
   await expect(page.getByText('双方平局', { exact: true })).toBeVisible();
   await page.goto('/manage');
   const backupResponse = page.waitForResponse(r => r.url().endsWith('/api/v1/backups') && r.request().method() === 'POST');
@@ -29,7 +29,10 @@ test('public Replay roundtrip and complete private backup download use real curr
   expect((await page.request.get('/health')).status()).toBe(200);
   expect((await page.request.get(`/api/v1/matches/${imported.id}/frames`)).status()).toBe(200);
   expect((await page.request.post('/api/v1/sessions', { data: { name: '备份期间不会创建此记录' } })).status()).toBe(423);
-  await expect(page.locator(`[data-job-id="${job.id}"] .job-info > .record-heading`).getByText('已完成', { exact: true })).toBeVisible({ timeout: 90000 });
+  // Backup size grows with persisted test data; it has no 90-second product deadline.
+  await expect.poll(async () => (await (await page.request.get(`/api/v1/jobs/${job.id}`)).json()).status,
+    { timeout: 180000 }).toBe('succeeded');
+  await expect(page.locator(`[data-job-id="${job.id}"] .job-info > .record-heading`).getByText('已完成', { exact: true })).toBeVisible();
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('link', { name: '下载私有备份', exact: true }).first().click();
   const download = await downloadEvent;

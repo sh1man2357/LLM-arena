@@ -10,7 +10,7 @@ test('real chained-explosion replay supports exact seeking, events, keyboard and
   await page.keyboard.press('End');
   await expect(page.getByRole('slider', { name: '回放帧' })).toHaveValue('19');
   await expect(page.getByText('双方平局', { exact: true })).toBeVisible();
-  await expect(page.getByText('淘汰于 Tick 18')).toHaveCount(2);
+  await expect(page.locator('.versus-player').getByText(/淘汰于 Tick 18/)).toHaveCount(2);
   await page.getByRole('button', { name: '初始帧 (Home)', exact: true }).click();
   await page.getByRole('button', { name: /爆炸.*炸弹 #/ }).first().click();
   await expect(page.getByRole('slider', { name: '回放帧' })).toHaveValue('19');

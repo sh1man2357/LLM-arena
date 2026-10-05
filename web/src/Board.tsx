@@ -10,7 +10,10 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
   useEffect(() => {
     const canvas = canvasRef.current!;
     const context = canvas.getContext('2d')!;
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const style = getComputedStyle(canvas);
+    const hard = style.getPropertyValue('--tile-hard').trim(), hardEdge = style.getPropertyValue('--tile-hard-edge').trim();
+    const soft = style.getPropertyValue('--tile-soft').trim(), softEdge = style.getPropertyValue('--tile-soft-edge').trim();
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
     let raf = 0;
     const started = performance.now();
     function draw() {
@@ -22,7 +25,7 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
       const w = canvas.width, h = canvas.height, cell = w / 13;
       context.clearRect(0, 0, w, h);
       context.fillStyle = '#0E161C'; context.fillRect(0, 0, w, h);
-      const progress = reduced || !animate ? 1 : Math.min(1, (performance.now() - started) / 160);
+      const progress = motion.matches || !animate ? 1 : Math.min(1, (performance.now() - started) / 160);
       for (let y = 0; y < 11; y++) for (let x = 0; x < 13; x++) {
         const type = frame.state.grid[y * 13 + x];
         const px = x * cell, py = y * cell, gap = cell * .075;
@@ -31,13 +34,13 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
           context.fillStyle = '#22313A'; context.fillRect(px + cell / 2 - 1, py + cell / 2 - 1, 2, 2);
         } else if (type === 1) {
           context.fillStyle = '#0A1116'; context.fillRect(px + gap, py + gap + cell * .055, cell - gap * 2, cell - gap * 2);
-          context.fillStyle = '#35414B'; context.fillRect(px + gap, py + gap, cell - gap * 2, cell - gap * 2 - cell * .055);
-          context.fillStyle = '#48545C'; context.fillRect(px + gap, py + gap, cell - gap * 2, cell * .06);
+          context.fillStyle = hard; context.fillRect(px + gap, py + gap, cell - gap * 2, cell - gap * 2 - cell * .055);
+          context.fillStyle = hardEdge; context.fillRect(px + gap, py + gap, cell - gap * 2, cell * .06);
           context.strokeStyle = '#28353D'; context.lineWidth = cell * .035;
           context.strokeRect(px + gap * 2, py + gap * 2, cell - gap * 4, cell - gap * 4);
         } else {
-          context.fillStyle = '#546760'; context.fillRect(px + gap, py + gap, cell - gap * 2, cell - gap * 2);
-          context.fillStyle = '#697D70'; context.fillRect(px + gap, py + gap, cell - gap * 2, cell * .08);
+          context.fillStyle = soft; context.fillRect(px + gap, py + gap, cell - gap * 2, cell - gap * 2);
+          context.fillStyle = softEdge; context.fillRect(px + gap, py + gap, cell - gap * 2, cell * .08);
           context.strokeStyle = '#344B43'; context.lineWidth = cell * .055;
           context.beginPath(); context.moveTo(px + gap, py + cell * .5); context.lineTo(px + cell - gap, py + cell * .5);
           context.moveTo(px + cell * .5, py + gap); context.lineTo(px + cell * .5, py + cell * .5);
@@ -81,11 +84,13 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
         context.strokeStyle = '#F3F1E9'; context.lineWidth = Math.max(2, cell * .045);
         context.strokeRect(selected[0] * cell + 2, selected[1] * cell + 2, cell - 4, cell - 4);
       }
-      if (animate) raf = requestAnimationFrame(draw);
+      if (animate && !motion.matches && progress < 1) raf = requestAnimationFrame(draw);
     }
     draw();
-    const observer = new ResizeObserver(() => { cancelAnimationFrame(raf); draw(); }); observer.observe(canvas);
-    return () => { cancelAnimationFrame(raf); observer.disconnect(); };
+    const redraw = () => { cancelAnimationFrame(raf); draw(); };
+    const observer = new ResizeObserver(redraw); observer.observe(canvas);
+    motion.addEventListener('change', redraw);
+    return () => { cancelAnimationFrame(raf); observer.disconnect(); motion.removeEventListener('change', redraw); };
   }, [frame, previous, entrants, overlay, selected, animate]);
   return <canvas ref={canvasRef} className={`board ${compact ? 'compact' : ''}`} aria-label={`比赛棋盘，${frame.tick === null ? '初始状态' : `Tick ${frame.tick} 已结算`}。玩家及格子信息见下方检查器。`}
     onClick={onSelect ? event => { const r = event.currentTarget.getBoundingClientRect(); onSelect([Math.min(12, Math.floor((event.clientX - r.left) / r.width * 13)), Math.min(10, Math.floor((event.clientY - r.top) / r.height * 11))]); } : undefined} />;
