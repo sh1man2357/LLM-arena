@@ -1,7 +1,7 @@
 @import './tokens.css';
 
 * { box-sizing: border-box; }
-html { scroll-padding-top: 24px; }
+html { --topbar-height: 88px; scroll-padding-top: calc(var(--topbar-height) + 24px); }
 body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 a { color: inherit; text-decoration: none; }
 a:hover { color: var(--accent); }
@@ -24,7 +24,7 @@ h1 { font-size: clamp(28px, 4vw, 36px); line-height: 1.3; font-weight: 500; over
 h2 { font-size: 21px; line-height: 1.4; font-weight: 500; }
 strong { font-weight: 500; overflow-wrap: anywhere; }
 .muted { color: var(--muted); }
-.topbar { max-width: 1440px; min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: auto; padding: 16px 48px; }
+.topbar { position: sticky; top: 0; z-index: 5; min-height: var(--topbar-height); display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px max(48px, calc((100% - 1344px) / 2)); background: rgb(13 13 13 / .85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; letter-spacing: .02em; }
 .brand .lucide { width: 24px; height: 24px; color: var(--accent); }
 .topbar nav { display: flex; gap: 4px; border: 1px solid var(--line); border-radius: 28px; padding: 4px; }
@@ -128,7 +128,8 @@ tbody tr:hover { background: var(--surface); }
 .skip-link:focus { width: auto; height: auto; padding: 12px; clip-path: none; }
 
 @media (max-width: 700px) {
-  .topbar { min-height: 80px; padding: 14px 20px; gap: 12px; }
+  html { --topbar-height: 84px; }
+  .topbar { padding: 14px 20px; gap: 12px; }
   .brand { font-size: 14px; gap: 6px; }
   .brand .lucide { width: 20px; height: 20px; }
   .topbar nav a { padding: 8px 12px; }
