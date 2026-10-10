@@ -90,12 +90,38 @@ class CoreServiceTests(unittest.TestCase):
         self.assertEqual(large.status_code, 413)
         self.assertFalse(self.store.list('task'))
 
-    def test_only_two_ready_distinct_bots_can_run(self):
-        self.assertEqual(self.start_run(ids=['a', 'a']).status_code, 422)
+    def test_only_two_ready_slots_can_run(self):
+        for ids in ([], ['a'], ['a', 'b', 'a']):
+            response = self.client.post('/api/v1/matches', headers=HEADERS, json={'bot_ids': ids})
+            self.assertEqual(response.status_code, 422)
         self.assertEqual(self.start_run(ids=['a', 'missing']).status_code, 404)
         self.store.update('bot', 'b', lambda b: b.update(status='failed'))
         self.assertEqual(self.start_run().status_code, 409)
         self.assertFalse(self.store.list('run'))
+
+    def test_same_bot_can_play_both_slots_and_rerun(self):
+        response = self.start_run(ids=['a', 'a'], seed=1)
+        self.assertEqual(response.status_code, 202)
+        run = response.json()
+        self.assertEqual([(e['id'], e['slot']) for e in run['entrants']], [('a', 0), ('a', 1)])
+        self.assertTrue(self.finish(run)['verified'])
+        frames = self.client.get(f"/api/v1/matches/{run['id']}/frames").json()
+        self.assertTrue(frames['verified'])
+        self.assertEqual(len(frames['frames']), 501)
+        scores = self.client.get('/api/v1/leaderboard').json()
+        self.assertEqual(scores['valid_matches'], 1)
+        self.assertEqual(len(scores['items']), 1)
+        row = scores['items'][0]
+        self.assertEqual((row['id'], row['matches'], row['draws'], row['mean_score']), ('a', 2, 2, .5))
+        response = self.client.post(f"/api/v1/matches/{run['id']}/rerun", headers=HEADERS)
+        self.assertEqual(response.status_code, 202)
+        rerun = response.json()
+        self.assertNotEqual(rerun['id'], run['id'])
+        self.assertEqual(rerun['entrants'], run['entrants'])
+        inputs = [self.store.get('task', self.store.get('run', r['id'])['task_id'])['inputs']
+                  for r in (run, rerun)]
+        self.assertEqual(inputs[0]['bot_seeds'], inputs[1]['bot_seeds'])
+        self.assertTrue(self.finish(rerun)['verified'])
 
     def test_handoff_retries_do_not_duplicate_or_reseed(self):
         first = self.start_run().json()

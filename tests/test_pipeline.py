@@ -36,6 +36,21 @@ class PipelineTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     verify_world(changed)
 
+    def test_same_bot_instances_keep_separate_memory_and_seed(self):
+        path = self.root / 'self-play.wasm'
+        path.write_bytes(module('''i32.const 65536 i32.const 65536 i32.load
+            i32.const 1 i32.add i32.const 5 i32.rem_u i32.store
+            i32.const 65536 i32.load''', 'i32.const 65536 local.get 1 i32.store'))
+        entrants = [dict(id='same', wasm=str(path))] * 2
+        with Backend() as backend:
+            result, records = run_match(backend, entrants, 1, [0, 1 << 32], rules=Rules(max_ticks=8))
+            self.assertTrue(result['valid'])
+            ticks = [r for r in records if r['type'] == 'tick']
+            self.assertEqual([[c['raw_action'] for c in r['calls']] for r in ticks],
+                             [[(t + 1) % 5, (t + 2) % 5] for t in range(8)])
+            verify_world(records)
+            verify_bot(backend, records, [str(path), str(path)])
+
     def test_record_sink_is_a_snapshot_and_failure_is_not_a_win(self):
         with Backend() as backend:
             expected, raw = run_match(backend, self.entrants, 1, [1, 2], rules=Rules(max_ticks=8))

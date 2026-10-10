@@ -130,8 +130,6 @@ def create_app(data_root=None, *, demo=False, workers=False):
         return public_bot(row)
 
     def frozen_bots(ids):
-        if len(set(ids)) != 2:
-            raise ValueError("请选择两个不同的 Bot。")
         result = []
         for identity in ids:  # Preserve the user's spawn order.
             bot = store.get("bot", identity)

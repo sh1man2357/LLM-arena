@@ -117,7 +117,7 @@ export function Viewer() {
       <div className="versus-bar">{run.entrants.map(entrant => {
         const player = frame.state.players[entrant.slot], faults = frame.state.fault_counters[entrant.slot];
         const fault = frame.calls.find(call => call.id === entrant.slot)?.fault;
-        return <div className="player-card" key={entrant.id} style={{borderColor: slotColor(entrant.slot)}}><span className="player-number" style={{color: slotColor(entrant.slot)}}>{entrant.slot}</span>
+        return <div className="player-card" key={entrant.slot} style={{borderColor: slotColor(entrant.slot)}}><span className="player-number" style={{color: slotColor(entrant.slot)}}>{entrant.slot}</span>
           <strong>{entrant.name}</strong><span className="player-state">{playerStateLabel(player)}{fault ? ` · ${labels[fault] || fault}` : faults.total ? ` · 故障 ${faults.total} 次` : ''}</span></div>;
       })}</div>
       <div className="board-wrap"><Board frame={frame} previous={seq > 0 ? data!.frames[seq - 1] : undefined} entrants={run.entrants} animate={playing || (follow && running)} /></div>

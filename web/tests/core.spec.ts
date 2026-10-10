@@ -2,6 +2,34 @@ import { test, expect } from '@playwright/test';
 
 const source = Buffer.from('#include "arena.hpp"\nnamespace bot { void init(uint64_t){} Action tick(const GameState&){return Action::WAIT;} }');
 
+test('仅一个可运行 Bot 时可默认自对战并查看录像', async ({ page, request }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const bots = await (await request.get('/api/v1/bots')).json();
+  const bot = bots.items.find((b: any) => b.status === 'ready');
+  expect(bot).toBeTruthy();
+  await page.route('**/api/v1/bots', route => route.fulfill({json: {items: [bot]}}));
+  await page.goto('/');
+  await expect(page.getByRole('combobox', {name: 'Bot 0', exact: true})).toHaveValue(bot.id);
+  await expect(page.getByRole('combobox', {name: 'Bot 1', exact: true})).toHaveValue(bot.id);
+  await expect(page.getByRole('button', {name: '开始对战', exact: true})).toBeEnabled();
+  const created = page.waitForResponse(r => r.url().endsWith('/api/v1/matches') && r.request().method() === 'POST');
+  await page.getByRole('button', {name: '开始对战', exact: true}).click();
+  const response = await created;
+  expect(response.status()).toBe(202);
+  const run = await response.json();
+  expect(run.entrants.map((e: any) => [e.id, e.slot])).toEqual([[bot.id, 0], [bot.id, 1]]);
+  await expect(page.locator('.player-card')).toHaveCount(2);
+  for (const card of await page.locator('.player-card').all()) await expect(card).toContainText(bot.name);
+  await expect.poll(async () => (await request.get(`/api/v1/matches/${run.id}`)).json().then(r => r.status), {timeout: 40000}).toBe('completed');
+  await page.reload();
+  await expect(page.locator('.player-card')).toHaveCount(2);
+  const recording = await (await request.get(`/api/v1/matches/${run.id}/frames`)).json();
+  expect(recording.verified).toBe(true);
+  expect(recording.frames.length).toBeGreaterThan(1);
+  expect(errors).toEqual([]);
+});
+
 test('导入、真实运行、暂停回看、保存录像和榜单', async ({ page, request }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -36,8 +64,7 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   }
   await page.getByRole('combobox', {name: 'Bot 0', exact: true}).selectOption(ids[0]);
   await page.getByRole('combobox', {name: 'Bot 1', exact: true}).selectOption(ids[0]);
-  await expect(page.getByRole('button', {name: '开始对战', exact: true})).toBeDisabled();
-  await expect(page.getByText('请选择两个不同的 Bot。')).toBeVisible();
+  await expect(page.getByRole('button', {name: '开始对战', exact: true})).toBeEnabled();
   await page.getByRole('combobox', {name: 'Bot 1', exact: true}).selectOption(ids[1]);
   await page.getByText('地图设置', {exact: true}).click();
   await page.getByLabel('地图 Seed', {exact: true}).fill('1');

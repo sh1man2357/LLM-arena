@@ -44,7 +44,7 @@ worker 将 header、每个完整 tick 与 result 写入同一 `runs/<id>/frames.
 | GET `/api/v1/leaderboard` | 已验证有效单局的本地统计 |
 | GET `/api/v1/events` | SSE 状态通知，重新连接后读取快照 |
 
-POST 单局使用 `bot_ids` 和可选 `map_seed`；不存在批次、比赛类型、案例数量、收卷或发布字段。具体输入验证以 OpenAPI 为准。
+POST 单局使用两个 `bot_ids` 和可选 `map_seed`；两个 ID 可以相同，执行时按槽位建立独立实例。不存在批次、比赛类型、案例数量、收卷或发布字段。具体输入验证以 OpenAPI 为准。
 
 写请求要求 `X-Arena-Local: 1`，使用 `Idempotency-Key` 防止请求重发重复导入 / 开赛。服务仅接受本机 Host，拒绝跨站 Origin 与 Sec-Fetch-Site。没有主办方 / 观众权限切换，但仍保留本机写入意图和同源边界。参数不拼接 shell 命令，浏览器不能读取任意宿主路径。
 

@@ -20,7 +20,7 @@ export function Home() {
   const ready = bots.data?.items.filter(b => b.status === 'ready') || [];
   useEffect(() => {
     if (!first && ready.length) setFirst(ready[0].id);
-    if (!second && ready.length > 1) setSecond(ready[1].id);
+    if (!second && ready.length) setSecond(ready[Math.min(1, ready.length - 1)].id);
   }, [bots.data]);
   useEffect(() => { importKey.current = crypto.randomUUID(); }, [file, name]);
   useEffect(() => { runKey.current = crypto.randomUUID(); }, [first, second, seed]);
@@ -44,9 +44,8 @@ export function Home() {
       navigate(`/matches/${match.id}`);
     }); }}><div className="match-picker"><label><span className="slot-label"><i className="slot-dot slot-zero" aria-hidden="true" />Bot 0</span><select value={first} onChange={e => setFirst(e.target.value)}><option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
       <span className="versus" aria-hidden="true">VS</span><label><span className="slot-label"><i className="slot-dot slot-one" aria-hidden="true" />Bot 1</span><select value={second} onChange={e => setSecond(e.target.value)}><option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label></div>
-      <div className="run-actions"><details><summary>地图设置<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary><label>地图 Seed<input type="number" min="0" max="4294967295" step="1" value={seed} onChange={e => setSeed(e.target.value)} placeholder="随机" /></label></details><button className="primary" disabled={busy || !first || !second || first === second}><Play aria-hidden="true" />开始对战</button></div>
-      {first && first === second && <p className="form-hint" role="status">请选择两个不同的 Bot。</p>}
-      {bots.data && ready.length < 2 && <p className="form-hint">至少需要两个可运行的 Bot。<a href="#bots">导入 Bot</a></p>}
+      <div className="run-actions"><details><summary>地图设置<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary><label>地图 Seed<input type="number" min="0" max="4294967295" step="1" value={seed} onChange={e => setSeed(e.target.value)} placeholder="随机" /></label></details><button className="primary" disabled={busy || !first || !second}><Play aria-hidden="true" />开始对战</button></div>
+      {bots.data && !ready.length && <p className="form-hint">请先<a href="#bots">导入 Bot</a>。</p>}
     </form></div></section>
     <section className="content-section" id="bots" aria-labelledby="bots-title"><div className="section-heading"><h2 id="bots-title">Bot</h2></div><div className="section-body">
       <details className="import-disclosure"><summary><Upload aria-hidden="true" />导入 Bot<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary><form className="import-form" onSubmit={e => { e.preventDefault(); void act(async () => {
