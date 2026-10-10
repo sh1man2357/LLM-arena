@@ -41,6 +41,7 @@ class LiveSink:
         self.path = self.folder / "frames.jsonl"
         self.stream = self.path.open("w", encoding="utf-8", newline="\n")
         store.update("run", identity, lambda r: r.update(status="running", live_path=str(self.path)))
+        store.emit(identity, "run", dict(status="running"))
         self.last_notice = 0
 
     def __call__(self, record):

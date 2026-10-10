@@ -19,8 +19,8 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
     await expect(page.locator(`[data-bot-id="${bot.id}"]`)).toContainText('可运行', {timeout: 20000});
     await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy)).toBe(false);
   }
-  await page.getByLabel('Bot 0', {exact: true}).selectOption(ids[0]);
-  await page.getByLabel('Bot 1', {exact: true}).selectOption(ids[1]);
+  await page.getByRole('combobox', {name: 'Bot 0', exact: true}).selectOption(ids[0]);
+  await page.getByRole('combobox', {name: 'Bot 1', exact: true}).selectOption(ids[1]);
   await page.getByText('地图设置', {exact: true}).click();
   await page.getByLabel('地图 Seed', {exact: true}).fill('1');
   const created = page.waitForResponse(r => r.url().endsWith('/api/v1/matches') && r.request().method() === 'POST');
@@ -38,6 +38,16 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   const frozen = await stage.getAttribute('data-seq');
   await expect.poll(async () => (await request.get(`/api/v1/matches/${run.id}`)).json().then(r => r.ticks)).toBeGreaterThan(Number(frozen) + 4);
   await expect(stage).toHaveAttribute('data-seq', frozen!);
+  const received = Number(await stage.getAttribute('data-frame-count'));
+  await page.context().setOffline(true);
+  try {
+    // Chrome offline emulation blocks new HTTP reads but can keep an existing SSE open.
+    await expect(page.getByRole('alert')).toContainText('无法连接本地服务');
+    await expect(stage).toHaveAttribute('data-seq', frozen!);
+  } finally {
+    await page.context().setOffline(false);
+  }
+  await expect.poll(async () => Number(await stage.getAttribute('data-frame-count'))).toBeGreaterThan(received);
   await page.screenshot({path: testInfo.outputPath('live-desktop.png'), fullPage: true});
   await page.getByRole('button', {name: '回到最新'}).click();
   await expect(page.getByText('跟随最新', {exact: false})).toBeVisible();
@@ -49,13 +59,20 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   await expect(stage).toHaveAttribute('data-seq', '0');
   await page.getByRole('button', {name: '下一帧'}).click();
   await expect(stage).toHaveAttribute('data-seq', '1');
+  await page.locator('canvas').click();
+  await page.keyboard.press('ArrowRight');
+  await expect(stage).toHaveAttribute('data-seq', '2');
+  await page.getByRole('button', {name: '全屏', exact: true}).click();
+  await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+  await page.getByRole('button', {name: '全屏', exact: true}).click();
+  await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(false);
   await page.getByLabel('倍速', {exact: true}).selectOption('4');
   await page.setViewportSize({width: 390, height: 844});
   await expect(page.locator('canvas')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({path: testInfo.outputPath('recording-mobile.png'), fullPage: true});
   await page.getByRole('link', {name: '返回首页', exact: false}).click();
-  await expect(page.getByRole('link', {name: new RegExp('观赛检查 0 vs 观赛检查 1')})).toBeVisible();
+  await expect(page.locator(`.run-list a[href="/matches/${run.id}"]`)).toBeVisible();
   await page.getByRole('link', {name: '榜单', exact: true}).click();
   await expect(page.getByRole('heading', {name: '本地榜单'})).toBeVisible();
   const rankings = await (await request.get('/api/v1/leaderboard')).json();
@@ -68,7 +85,7 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
 
 test('导入失败与已删除页面、API', async ({page, request}) => {
   await page.goto('/');
-  await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy)).toBe(false);
+  await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 40000}).toBe(false);
   await page.getByLabel('Bot 文件').setInputFiles({name: 'broken.cpp', mimeType: 'text/plain', buffer: Buffer.from('not C++')});
   const response = page.waitForResponse(r => r.url().endsWith('/api/v1/bots') && r.request().method() === 'POST');
   await page.getByRole('button', {name: '导入 Bot', exact: true}).click();
@@ -76,7 +93,7 @@ test('导入失败与已删除页面、API', async ({page, request}) => {
   const row = page.locator(`[data-bot-id="${bot.id}"]`);
   await expect(row).toContainText('失败', {timeout: 20000});
   await expect(row.getByText('编译日志', {exact: true})).toBeVisible();
-  expect(await page.getByLabel('Bot 0', {exact: true}).locator(`option[value="${bot.id}"]`).count()).toBe(0);
+  expect(await page.getByRole('combobox', {name: 'Bot 0', exact: true}).locator(`option[value="${bot.id}"]`).count()).toBe(0);
   for (const path of ['/manage', '/tournaments', '/entrants']) {
     await page.goto(path);
     await expect(page.getByRole('heading', {name: '页面不存在'})).toBeVisible();

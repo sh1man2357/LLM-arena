@@ -211,7 +211,7 @@ Action tick(const GameState&) { return Action::WAIT; }
 .\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --output artifacts/work/practice-01
 ```
 
-默认每个基准使用同一份 10 张公开地图，各进行两局出生位交换，共 60 局。输出 `summary.md` / `summary.json`，以及 `replays/` 下每局的逐 Tick Replay。每轮使用新的输出目录；也可加 `--opponent random --maps 1` 做快速检查。练习仍使用正式比赛的规则与资源限制，但公开练习成绩不算隐藏评测成绩；不要按公开地图或特定基准硬编码答案。
+默认每个基准使用同一份 10 张公开地图，各进行两局出生位交换，共 60 局。输出 `summary.md` / `summary.json`，以及 `replays/` 下每局的逐 Tick Replay。每轮使用新的输出目录；也可加 `--opponent random --maps 1` 做快速检查。练习与应用使用相同规则和资源限制，练习记录不进入应用榜单；不要按公开地图或特定基准硬编码答案。
 
 ---
 

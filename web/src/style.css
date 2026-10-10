@@ -80,8 +80,8 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflo
 table { border-collapse: collapse; width: 100%; text-align: left; }
 th, td { border-bottom: 1px solid var(--line); padding: 12px 16px; white-space: nowrap; }
 tbody th { white-space: normal; overflow-wrap: anywhere; min-width: 120px; max-width: 300px; }
-.skip-link { position: fixed; top: -100px; left: 16px; padding: 12px; background: var(--surface); z-index: 10; }
-.skip-link:focus { top: 8px; }
+.skip-link { position: fixed; top: 8px; left: 16px; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); background: var(--surface); z-index: 10; }
+.skip-link:focus { width: auto; height: auto; padding: 12px; clip-path: none; }
 @media (max-width: 700px) {
   .topbar { padding: 12px 16px; gap: 12px; flex-wrap: wrap; }
   .connection { display: none; }

@@ -149,6 +149,8 @@ class CoreServiceTests(unittest.TestCase):
         with Backend() as backend:
             _, records = run_match(backend, inputs['entrants'], 1, [1, 2], run['id'])
         sink = LiveSink(self.store, run['id'])
+        self.assertTrue(any(e['resource_id'] == run['id'] and e['payload'].get('status') == 'running'
+                            for e in self.store.events()))
         try:
             sink(records[0])
             sink.stream.write('{"type": "tick"'); sink.stream.flush()
