@@ -7,12 +7,12 @@ FastAPI 提供同源 API 和已构建的 React 静态文件，Canvas 绘制棋�
 | 对象 | 内容 |
 | --- | --- |
 | Bot（`bot`） | ID、名称、源码快照与哈希、WASM 与哈希、处理中 / 可运行 / 失败、诊断 |
-| 运行（`run`） | 双方及槽位、名称快照、地图 Seed、初始 / 运行 / 结束 / 失败 / 中断、帧文件、验证结果 |
+| 运行（`run`） | 参赛 Bot 及槽位、名称快照、地图 Seed、初始 / 运行 / 结束 / 失败 / 中断、帧文件、验证结果 |
 | 内部任务（`task`） | 编译 / 单局 / 基准准备、请求去重键、固定输入、进程执行状态 |
 
 旧数据库沿用现有表结构，新增记录类型，与旧 `session/submission/entrant/match/tournament/job/backup` 隔离。不开启自动迁移，不改写旧记录和文件，不创建新的主办方凭据。
 
-名称只用于展示；ID 唯一标识快照。选择双方的顺序就是槽位顺序。64 位 Bot Seed 用 16 位十六进制字符串存储，不转为 JavaScript Number。
+名称只用于展示；ID 唯一标识快照。选择参赛 Bot 的顺序就是槽位顺序。64 位 Bot Seed 用 16 位十六进制字符串存储，不转为 JavaScript Number。
 
 ## 编译与单局执行
 
@@ -46,7 +46,7 @@ worker 将 header、每个完整 tick 与 result 写入同一 `runs/<id>/frames.
 | GET `/api/v1/leaderboard` | 已验证有效单局的本地统计 |
 | GET `/api/v1/events` | SSE 状态通知，重新连接后读取快照 |
 
-POST 单局使用两个 `bot_ids` 和可选 `map_seed`；两个 ID 可以相同，执行时按槽位建立独立实例。不存在批次、比赛类型、案例数量、收卷或发布字段。具体输入验证以 OpenAPI 为准。
+POST 单局使用 2～8 个 `bot_ids` 和可选 `map_seed`；允许重复 ID，执行时按槽位建立独立实例，各自为战。人数决定地图出生点和清空区域；重跑保存全部槽位和种子。不存在批次、比赛类型、案例数量、收卷或发布字段。具体输入验证以 OpenAPI 为准。
 
 写请求要求 `X-Arena-Local: 1`，使用 `Idempotency-Key` 防止请求重发重复导入 / 开赛。服务仅接受本机 Host，拒绝跨站 Origin 与 Sec-Fetch-Site。没有主办方 / 观众权限切换，但仍保留本机写入意图和同源边界。参数不拼接 shell 命令，浏览器不能读取任意宿主路径。
 

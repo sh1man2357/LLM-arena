@@ -90,14 +90,41 @@ class CoreServiceTests(unittest.TestCase):
         self.assertEqual(large.status_code, 413)
         self.assertFalse(self.store.list('task'))
 
-    def test_only_two_ready_slots_can_run(self):
-        for ids in ([], ['a'], ['a', 'b', 'a']):
+    def test_only_two_to_eight_ready_slots_can_run(self):
+        for ids in ([], ['a'], ['a'] * 9):
             response = self.client.post('/api/v1/matches', headers=HEADERS, json={'bot_ids': ids})
             self.assertEqual(response.status_code, 422)
         self.assertEqual(self.start_run(ids=['a', 'missing']).status_code, 404)
         self.store.update('bot', 'b', lambda b: b.update(status='failed'))
         self.assertEqual(self.start_run().status_code, 409)
         self.assertFalse(self.store.list('run'))
+
+    def test_multiplayer_frames_leaderboard_and_rerun_keep_all_slots(self):
+        for count in (3, 8):
+            with self.subTest(count=count):
+                ids = ['a', 'b'] + ['a'] * (count - 2)
+                response = self.start_run(key=f'multi-{count}', ids=ids, seed=1)
+                self.assertEqual(response.status_code, 202)
+                run = response.json()
+                self.assertEqual([e['slot'] for e in run['entrants']], list(range(count)))
+                task = self.store.get('task', self.store.get('run', run['id'])['task_id'])
+                self.assertEqual(len(task['inputs']['bot_seeds']), count)
+                self.assertTrue(self.finish(run)['verified'])
+                replay = self.client.get(f"/api/v1/matches/{run['id']}/frames").json()
+                self.assertTrue(replay['verified'])
+                self.assertEqual(len(replay['frames'][0]['state']['players']), count)
+                self.assertEqual(replay['result']['groups'], [list(range(count))])
+                response = self.client.post(f"/api/v1/matches/{run['id']}/rerun", headers=HEADERS)
+                self.assertEqual(response.status_code, 202)
+                rerun = response.json()
+                self.assertEqual(run['entrants'], rerun['entrants'])
+                next_task = self.store.get('task', self.store.get('run', rerun['id'])['task_id'])
+                self.assertEqual(task['inputs']['bot_seeds'], next_task['inputs']['bot_seeds'])
+                self.assertTrue(self.finish(rerun)['verified'])
+        scores = self.client.get('/api/v1/leaderboard').json()
+        self.assertEqual(scores['valid_matches'], 4)
+        self.assertEqual(sum(r['matches'] for r in scores['items']), 22)
+        self.assertTrue(all(r['mean_score'] == .5 for r in scores['items']))
 
     def test_same_bot_can_play_both_slots_and_rerun(self):
         response = self.start_run(ids=['a', 'a'], seed=1)
@@ -336,6 +363,29 @@ class CoreServiceTests(unittest.TestCase):
 
 
 class LeaderboardTests(unittest.TestCase):
+    def test_multiplayer_scores_top_ties_and_exact_fractions(self):
+        bots = [dict(id=name, name=name) for name in ('a', 'b', 'c', 'd')]
+        def run(scores, ids=('a', 'b', 'c', 'd')):
+            return dict(status='completed', verified=True,
+                        entrants=[dict(id=name, slot=i) for i, name in enumerate(ids)],
+                        result=dict(valid=True, players=[dict(id=i, placement_score=s) for i, s in enumerate(scores)]))
+        rows = leaderboard(bots, [run([1, 2/3, 1/3, 0]), run([5/6, 5/6, 1/3, 0])])
+        self.assertEqual(rows['valid_matches'], 2)
+        a, b, c, d = rows['items']
+        self.assertEqual((a['wins'], a['draws'], a['losses']), (1, 1, 0))
+        self.assertEqual((b['wins'], b['draws'], b['losses']), (0, 1, 1))
+        self.assertEqual((c['wins'], c['draws'], c['losses']), (0, 0, 2))
+        self.assertEqual(c['mean_score'], 1/3)
+        self.assertEqual(d['points'], 0)
+        self.assertEqual(a['points'], 11/6)
+        # The same Bot may occupy every slot; count one match and four appearances.
+        repeated = leaderboard(bots, [run([1, 2/3, 1/3, 0], ids=('a',) * 4)])
+        self.assertEqual(repeated['valid_matches'], 1)
+        self.assertEqual(repeated['items'][0]['matches'], 4)
+        self.assertEqual(repeated['items'][0]['mean_score'], .5)
+        invalid = [run([1, 1, 1, 1]), run([1, .6, .4, 0]), run([float('nan'), 1, 1, 0])]
+        self.assertEqual(leaderboard(bots, invalid)['valid_matches'], 0)
+
     def test_scores_ties_spawn_mapping_and_failure_exclusion(self):
         bots = [dict(id=i, name=i) for i in ('a', 'b', 'idle')]
         def run(status='completed', verified=True, score=.5, swapped=False):

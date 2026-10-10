@@ -2,6 +2,52 @@ import { test, expect } from '@playwright/test';
 
 const source = Buffer.from('#include "arena.hpp"\nnamespace bot { void init(uint64_t){} Action tick(const GameState&){return Action::WAIT;} }');
 
+test('八人各自为战：增减槽位、直播、排名与录像', async ({page, request}, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 40000}).toBe(false);
+  const bots = await (await request.get('/api/v1/bots')).json();
+  const safe = bots.items.find((b: any) => b.name === 'Safe' && b.baseline && b.status === 'ready');
+  expect(safe).toBeTruthy();
+  await page.goto('/');
+  await expect(page.getByRole('button', {name: '移除 Bot 0'})).toBeDisabled();
+  await page.getByRole('button', {name: '增加 Bot', exact: true}).click();
+  await expect(page.getByRole('combobox', {name: 'Bot 2', exact: true})).toBeVisible();
+  await page.getByRole('button', {name: '移除 Bot 1', exact: true}).click();
+  await expect(page.locator('.slot-picker')).toHaveCount(2);
+  for (let count = 2; count < 8; count++) await page.getByRole('button', {name: '增加 Bot', exact: true}).click();
+  await expect(page.getByRole('button', {name: '增加 Bot', exact: true})).toBeDisabled();
+  for (let slot = 0; slot < 8; slot++) await page.getByRole('combobox', {name: `Bot ${slot}`, exact: true}).selectOption(safe.id);
+  await page.setViewportSize({width: 390, height: 844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path: testInfo.outputPath('eight-player-picker-mobile.png'), fullPage: true});
+  const created = page.waitForResponse(r => r.url().endsWith('/api/v1/matches') && r.request().method() === 'POST');
+  await page.getByRole('button', {name: '开始对战', exact: true}).click();
+  const response = await created;
+  expect(response.status()).toBe(202);
+  const run = await response.json();
+  expect(run.entrants.map((e: any) => e.slot)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+  await expect(page.locator('.player-card')).toHaveCount(8);
+  await page.setViewportSize({width: 1280, height: 1000});
+  await page.screenshot({path: testInfo.outputPath('eight-player-live-desktop.png'), fullPage: true});
+  expect(await page.locator('.player-card').evaluateAll(cards => new Set(cards.map(card => getComputedStyle(card).borderColor)).size)).toBe(8);
+  await expect.poll(async () => (await request.get(`/api/v1/matches/${run.id}`)).json().then(r => r.status), {timeout: 40000}).toBe('completed');
+  await expect(page.getByRole('heading', {name: '平局', exact: true})).toBeVisible();
+  await expect(page.getByRole('list', {name: '本局排名'}).locator('li')).toHaveCount(8);
+  const recording = await (await request.get(`/api/v1/matches/${run.id}/frames`)).json();
+  expect(recording.verified).toBe(true);
+  expect(recording.frames[0].state.players).toHaveLength(8);
+  expect(recording.result.groups).toEqual([[0, 1, 2, 3, 4, 5, 6, 7]]);
+  await page.reload();
+  await expect(page.locator('.player-card')).toHaveCount(8);
+  await page.getByRole('button', {name: '最后一帧', exact: true}).click();
+  await page.screenshot({path: testInfo.outputPath('eight-player-recording-desktop.png'), fullPage: true});
+  await page.setViewportSize({width: 390, height: 844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path: testInfo.outputPath('eight-player-recording-mobile.png'), fullPage: true});
+  expect(errors).toEqual([]);
+});
+
 test('仅一个可运行 Bot 时可默认自对战并查看录像', async ({ page, request }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));

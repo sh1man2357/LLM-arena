@@ -25,8 +25,13 @@ def validate_shape(records):
     if h.get("type") != "header" or h.get("schema_version") != 1:
         raise ValueError("Unsupported Replay schema; expected version 1")
     m = h["map"]
-    if (m["width"], m["height"]) != (13, 11) or len(h["entrants"]) != 2:
-        raise ValueError("Only 13 by 11 two-player Replay is supported")
+    count = len(h["entrants"])
+    if (m["width"], m["height"]) != (13, 11) or not 2 <= count <= 8:
+        raise ValueError("Only 13 by 11 Replay with 2..8 players is supported")
+    failed = records[-1].get("type") == "result" and records[-1].get("valid") is False
+    if (len(h["bot_seeds"]) != count or len(m["spawns"]) != count
+            or len(h["initialization"]) > count or (not failed and len(h["initialization"]) != count)):
+        raise ValueError("Replay slot counts differ")
     if h["rules"] != Rules().__dict__:
         raise ValueError("Unsupported rules; expected the frozen ruleset 1")
     if not isinstance(h.get("match_id"), str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", h["match_id"]):
@@ -39,7 +44,7 @@ def validate_shape(records):
             raise ValueError("Invalid Replay entrant identity/hash")
     for r in records:
         s = r.get("state") or (r.get("initial_state") if r["type"] == "header" else None)
-        if s is not None and (len(s["grid"]) != 143 or len(s["players"]) != 2 or len(s["bombs"]) > 8):
+        if s is not None and (len(s["grid"]) != 143 or len(s["players"]) != count or len(s["bombs"]) > 8):
             raise ValueError("Invalid Replay state dimensions")
 
 
@@ -110,7 +115,7 @@ def project(records, *, partial=False, source_hash=None):
             if result.get("reason") != "infrastructure_failure" or type(result.get("ticks")) is not int or not 0 <= result["ticks"] <= 500:
                 raise ValueError("Invalid infrastructure failure result")
             stats = result.get("stats", [])
-            if len(stats) != 2 or any(type(s.get(k)) is not int or s[k] < 0 for s in stats for k in empty_stats()):
+            if len(stats) != len(h["entrants"]) or any(type(s.get(k)) is not int or s[k] < 0 for s in stats for k in empty_stats()):
                 raise ValueError("Invalid infrastructure statistics")
             public_result.update(players=[], groups=[], survivors=[], final_state_hash=None,
                                  stats=[{k: s[k] for k in empty_stats()} for s in stats])

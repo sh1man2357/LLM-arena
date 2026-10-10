@@ -24,6 +24,68 @@ class PipelineTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_multiplayer_all_counts_replay_and_bot_rerun(self):
+        with Backend() as backend:
+            for count in range(3, 9):
+                with self.subTest(count=count):
+                    entrants = [self.entrants[i % 2] for i in range(count)]
+                    paths = [e['wasm'] for e in entrants]
+                    result, records = run_match(backend, entrants, 1, list(range(count)), rules=Rules(max_ticks=2))
+                    self.assertTrue(result['valid'])
+                    self.assertEqual(result['groups'], [list(range(count))])
+                    self.assertEqual([p['placement_score'] for p in result['players']], [.5] * count)
+                    self.assertEqual(len(result['stats']), count)
+                    verify_world(records)
+                    verify_bot(backend, records, paths)
+
+    def test_multiplayer_initialization_and_runtime_eliminations_rank_individually(self):
+        failed = self.root / 'init-failed.wasm'; failed.write_bytes(module(init='unreachable'))
+        trapped = self.root / 'trapped.wasm'; trapped.write_bytes(module('unreachable'))
+        fuel = self.root / 'fuel.wasm'; fuel.write_bytes(module('(loop $l br $l) i32.const 0'))
+        paths = [str(failed), str(trapped), str(fuel), self.paths[0]]
+        with Backend() as backend:
+            result, records = run_match(backend, [dict(id=str(i), wasm=p) for i, p in enumerate(paths)], 1, [1, 2, 3, 4])
+            self.assertEqual(result['reason'], 'last_survivor')
+            self.assertEqual(result['groups'], [[3], [2], [1], [0]])
+            self.assertEqual([p['placement_score'] for p in result['players']], [0, 1/3, 2/3, 1])
+            verify_world(records); verify_bot(backend, records, paths)
+            changed = copy.deepcopy(records); changed[0]['entrants'].pop()
+            with self.assertRaises(ValueError): verify_world(changed)
+
+    def test_match_rejects_mismatched_seeds_and_out_of_range_counts(self):
+        with Backend() as backend:
+            for count, seeds in ((1, [1]), (9, list(range(9))), (3, [1, 2])):
+                with self.assertRaises(ValueError):
+                    run_match(backend, [self.entrants[0]] * count, 1, seeds)
+
+    def test_multiplayer_infrastructure_failure_projects_without_scores(self):
+        from unittest.mock import patch
+        from runtime.wasm import InfrastructureError
+        from service.replays import project
+        with Backend() as backend, patch.object(backend, 'instance', side_effect=InfrastructureError('watchdog')):
+            result, records = run_match(backend, [self.entrants[0]] * 8, 1, list(range(8)))
+        ui = project(records)
+        self.assertFalse(result['valid'])
+        self.assertFalse(ui['verified'])
+        self.assertEqual(ui['result']['players'], [])
+        self.assertEqual(len(ui['result']['stats']), 8)
+
+    def test_cli_multiplayer_default_seeds_and_map_count(self):
+        from runner.cli import execute, parser
+        map_path = self.root / 'map.json'
+        execute(parser().parse_args(['map', '1', '--players', '3', '--output', str(map_path)]))
+        self.assertEqual(len(read_json(map_path)['spawns']), 3)
+        folder = self.root / 'cli-match'
+        args = ['match', '--map-seed', '1', '--output', str(folder)]
+        for i in range(3):
+            args += ['--bot', f'bot-{i}={self.paths[i % 2]}']
+        result = execute(parser().parse_args(args))
+        from replay.verify import read
+        records = read(folder / 'replay.jsonl')
+        self.assertTrue(result['valid'])
+        self.assertEqual(records[0]['bot_seeds'], [f'{i:016x}' for i in (1, 2, 3)])
+        verify_world(records)
+
     def test_match_replay_rerun_and_tamper(self):
         with Backend() as backend:
             result, records = run_match(backend, self.entrants, 1, [1, 2])

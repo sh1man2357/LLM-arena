@@ -3,6 +3,20 @@ from engine.model import FLOOR, HARD_WALL, SOFT_WALL, digest
 
 WIDTH, HEIGHT = 13, 11
 SPAWNS = [(1, 1), (11, 9)]
+# Slots are added in rotational pairs; the first two preserve existing duels.
+SPAWN_SLOTS = SPAWNS + [(11, 1), (1, 9), (5, 1), (7, 9), (11, 5), (1, 5)]
+
+
+def spawn_slots(player_count):
+    if type(player_count) is not int or not 2 <= player_count <= 8:
+        raise ValueError("Expected 2..8 players")
+    return SPAWN_SLOTS[:player_count]
+
+
+def clear_spawns(player_count):
+    # Clear the mirrored area too for odd counts, keeping terrain symmetric.
+    selected = spawn_slots(player_count)
+    return set(selected) | {(WIDTH - 1 - x, HEIGHT - 1 - y) for x, y in selected}
 
 
 class XorShift32:
@@ -35,7 +49,8 @@ def reachable(grid, start, soft=False):
     return seen
 
 
-def validate(grid):
+def validate(grid, player_count=2):
+    spawns = clear_spawns(player_count)
     if len(grid) != WIDTH * HEIGHT or any(v not in (0, 1, 2) for v in grid):
         return False
     if grid != grid[::-1]:
@@ -45,17 +60,17 @@ def validate(grid):
             hard = x in (0, WIDTH - 1) or y in (0, HEIGHT - 1) or (x % 2 == y % 2 == 0)
             if hard != (grid[y * WIDTH + x] == HARD_WALL):
                 return False
-            if not hard and any(abs(x - sx) + abs(y - sy) <= 2 for sx, sy in SPAWNS):
+            if not hard and any(abs(x - sx) + abs(y - sy) <= 2 for sx, sy in spawns):
                 if grid[y * WIDTH + x] != FLOOR:
                     return False
-    regions = [reachable(grid, p) for p in SPAWNS]
-    if len(regions[0]) < 5 or len(regions[0]) != len(regions[1]):
+    if any(len(reachable(grid, p)) < 5 for p in spawns):
         return False
     all_floor = sum(v != HARD_WALL for v in grid)
     return len(reachable(grid, SPAWNS[0], soft=True)) == all_floor
 
 
-def generate(seed):
+def generate(seed, player_count=2):
+    selected, spawns = spawn_slots(player_count), clear_spawns(player_count)
     rng = XorShift32(seed)
     for attempt in range(1, 257):
         grid = [FLOOR] * (WIDTH * HEIGHT)
@@ -65,7 +80,7 @@ def generate(seed):
                 i = y * WIDTH + x
                 if x in (0, WIDTH - 1) or y in (0, HEIGHT - 1) or (x % 2 == y % 2 == 0):
                     grid[i] = HARD_WALL
-                elif any(abs(x - sx) + abs(y - sy) <= 2 for sx, sy in SPAWNS):
+                elif any(abs(x - sx) + abs(y - sy) <= 2 for sx, sy in spawns):
                     clear.add(i)
         for i in range(len(grid)):
             partner = len(grid) - 1 - i
@@ -73,7 +88,7 @@ def generate(seed):
                 continue
             value = SOFT_WALL if rng.next() < 2362232012 else FLOOR
             grid[i] = grid[partner] = value
-        if validate(grid):
+        if validate(grid, player_count):
             return dict(seed=seed, width=WIDTH, height=HEIGHT, grid=grid,
-                        spawns=[list(p) for p in SPAWNS], attempts=attempt, map_hash=digest(grid))
+                        spawns=[list(p) for p in selected], attempts=attempt, map_hash=digest(grid))
     raise ValueError("Map generator exhausted 256 attempts")

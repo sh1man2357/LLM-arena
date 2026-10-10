@@ -20,6 +20,7 @@ def parser():
     base = sub.add_parser("baselines"); base.add_argument("--output", default="artifacts/work/baselines")
     q = sub.add_parser("qualify"); q.add_argument("wasm")
     map_cmd = sub.add_parser("map"); map_cmd.add_argument("seed", type=int); map_cmd.add_argument("--output", required=True)
+    map_cmd.add_argument("--players", type=int, choices=range(2, 9), default=2)
     m = sub.add_parser("match"); m.add_argument("--bot", action="append", required=True, help="id=wasm_path, in spawn order")
     m.add_argument("--map-seed", type=int, default=1); m.add_argument("--bot-seed", action="append", help="16-digit hex seed, in spawn order")
     m.add_argument("--output", required=True)
@@ -47,7 +48,7 @@ def execute(args):
         with Backend() as backend:
             return qualify(backend, args.wasm)
     if args.command == "map":
-        m = generate(args.seed); write_json(args.output, m)
+        m = generate(args.seed, args.players); write_json(args.output, m)
         return dict(map_hash=m["map_hash"], output=args.output)
     if args.command == "match":
         folder = Path(args.output).resolve()
@@ -57,7 +58,9 @@ def execute(args):
         for item in args.bot:
             name, path = item.split("=", 1)
             entrants.append(dict(id=name, wasm=str(Path(path).resolve())))
-        seeds = [int(s, 16) for s in (args.bot_seed or ["0000000000000001", "0000000000000002"])]
+        seeds = [int(s, 16) for s in args.bot_seed] if args.bot_seed else list(range(1, len(entrants) + 1))
+        if not 2 <= len(entrants) <= 8 or len(seeds) != len(entrants):
+            raise ValueError("Use 2..8 Bots and one Bot seed per slot")
         with Backend() as backend:
             for entrant in entrants:
                 qualify(backend, entrant["wasm"])

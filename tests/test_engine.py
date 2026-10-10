@@ -1,7 +1,7 @@
 import unittest
 from engine.model import *
 from engine.rules import step, explode
-from engine.maps import XorShift32, generate, validate
+from engine.maps import XorShift32, generate, validate, spawn_slots
 
 
 def arena(positions, width=9, height=7, **rule_args):
@@ -165,6 +165,28 @@ class FaultAndRankingTests(unittest.TestCase):
 
 
 class MapTests(unittest.TestCase):
+    def test_multiplayer_maps_clear_every_spawn_and_preserve_symmetry(self):
+        for count in range(2, 9):
+            for seed in range(20):
+                with self.subTest(count=count, seed=seed):
+                    m = generate(seed, count)
+                    self.assertEqual(m, generate(seed, count))
+                    self.assertTrue(validate(m['grid'], count))
+                    self.assertEqual(m['grid'], m['grid'][::-1])
+                    self.assertEqual(m['spawns'], [list(p) for p in spawn_slots(count)])
+                    self.assertEqual(len(set(map(tuple, m['spawns']))), count)
+                    World(13, 11, m['grid'], [Player(i, *p) for i, p in enumerate(m['spawns'])])
+                    for sx, sy in m['spawns']:
+                        for y in range(11):
+                            for x in range(13):
+                                if abs(x - sx) + abs(y - sy) <= 2 and m['grid'][y * 13 + x] != HARD_WALL:
+                                    self.assertEqual(m['grid'][y * 13 + x], FLOOR)
+
+    def test_invalid_player_counts(self):
+        for count in (0, 1, 9, 2.0, True):
+            with self.assertRaises(ValueError):
+                generate(1, count)
+
     def test_frozen_map_and_state_vectors(self):
         import json
         from pathlib import Path

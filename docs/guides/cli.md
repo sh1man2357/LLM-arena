@@ -23,7 +23,7 @@
 .\.venv\Scripts\python.exe arena.py view artifacts/work/single-01/replay.jsonl --output artifacts/work/single-01/view.txt
 ```
 
-两个 `--bot` 按槽位顺序提供。可分别传两个 `--bot-seed`，用 16 位十六进制字符串；默认使用 1、2。世界校验核对记录事实，Bot 校验另需原程序及相同版本。
+提供 2～8 个 `--bot`，按槽位顺序各自为战。可为每个槽位传一个 `--bot-seed`，用 16 位十六进制字符串；默认依次使用 1 到参赛人数。`map` 命令可用 `--players N` 生成相应人数的地图，默认 2。世界校验核对记录事实，Bot 校验另需原程序及相同版本。
 
 ```powershell
 .\.venv\Scripts\python.exe arena.py map 1 --output artifacts/work/map-1.json

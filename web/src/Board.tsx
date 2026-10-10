@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Frame, Entrant } from './types';
+import { playerTokens } from './ui';
 
 type Props = { frame: Frame; previous?: Frame; entrants: Entrant[]; overlay?: boolean; selected?: [number, number];
   onSelect?: (position: [number, number]) => void; animate?: boolean; compact?: boolean };
@@ -16,7 +17,7 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
     const color = (token: string) => style.getPropertyValue(token).trim();
     const background = color('--board-bg'), grid = color('--board-grid'), hard = color('--tile-hard');
     const soft = style.getPropertyValue('--tile-soft').trim(), softEdge = style.getPropertyValue('--tile-soft-edge').trim();
-    const playerColors = [color('--player-zero'), color('--player-one')];
+    const playerColors = playerTokens.map(token => color(`--player-${token}`));
     const ink = color('--bg'), text = color('--text'), muted = color('--muted'), accent = color('--accent'), blast = color('--blast-fill');
     const motion = matchMedia('(prefers-reduced-motion: reduce)');
     let raf = 0;
@@ -81,7 +82,7 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
         context.globalAlpha = p.alive ? 1 : .45;
         context.fillStyle = p.alive ? playerColor : muted; context.strokeStyle = background; context.lineWidth = cell * .04;
         context.beginPath();
-        if (p.id === 0) { context.arc(px, py, cell * (footBomb ? .23 : .29), 0, Math.PI * 2); }
+        if (p.id % 2 === 0) { context.arc(px, py, cell * (footBomb ? .23 : .29), 0, Math.PI * 2); }
         else {
           const radius = cell * (footBomb ? .25 : .34);
           context.moveTo(px, py - radius); context.lineTo(px + radius, py); context.lineTo(px, py + radius); context.lineTo(px - radius, py); context.closePath();
@@ -103,6 +104,6 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
     motion.addEventListener('change', redraw);
     return () => { cancelAnimationFrame(raf); observer.disconnect(); motion.removeEventListener('change', redraw); };
   }, [frame, previous, entrantIds, overlay, selectedX, selectedY, animate]);
-  return <canvas ref={canvasRef} role="img" className={`board ${compact ? 'compact' : ''}`} aria-label={`棋盘，${frame.tick === null ? '初始状态' : `回合 ${frame.tick}`}。双方状态见棋盘上方。`}
+  return <canvas ref={canvasRef} role="img" className={`board ${compact ? 'compact' : ''}`} aria-label={`棋盘，${frame.tick === null ? '初始状态' : `回合 ${frame.tick}`}。各 Bot 状态见棋盘上方。`}
     onClick={onSelect ? event => { const r = event.currentTarget.getBoundingClientRect(); onSelect([Math.min(12, Math.floor((event.clientX - r.left) / r.width * 13)), Math.min(10, Math.floor((event.clientY - r.top) / r.height * 11))]); } : undefined} />;
 }

@@ -51,6 +51,26 @@ class CompilerTests(unittest.TestCase):
             self.assertEqual(instance.call(encode(w, 0))["raw_action"], 2)
         finally: instance.close()
 
+    def test_sdk_decodes_eight_players_and_eight_bombs(self):
+        path = self.compile_text('multiplayer', '''#include "arena.hpp"
+            namespace bot { void init(uint64_t){} Action tick(const GameState& s){
+                if(s.player_count!=8 || s.bomb_count!=8 || s.self().id!=7) return Action(99);
+                for(uint32_t i=0;i<8;++i) {
+                    if(s.players[i].id!=i || s.bombs[i].owner_id!=i ||
+                       s.bombs[i].x!=s.players[i].x || s.bombs[i].y!=s.players[i].y) return Action(99);
+                }
+                return Action::WAIT;
+            }}''')
+        m = generate(1, 8)
+        w = World(13, 11, m['grid'], [Player(i, *p) for i, p in enumerate(m['spawns'])])
+        w.bombs = [Bomb(i, i, p.x, p.y, 4, 3) for i, p in enumerate(w.players)]
+        instance = self.backend.instance(self.backend.load(path), 1)
+        try:
+            call = instance.call(encode(w, 7))
+            self.assertIsNone(call['fault'])
+            self.assertEqual(call['raw_action'], 0)
+        finally: instance.close()
+
     def test_compile_failure_and_host_import(self):
         source = self.folder / "broken.cpp"; source.write_text("not valid C++", encoding="utf-8")
         with self.assertRaises(ValueError): compile_bot(source, self.folder / "broken.wasm")

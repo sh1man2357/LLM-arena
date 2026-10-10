@@ -37,16 +37,18 @@ main { max-width: 1024px; margin: 0 auto; padding: 24px 32px 64px; }
 .content-section { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 40px; padding: 32px 0; border-top: 1px solid var(--line); }
 .section-heading h2 { margin: 0; }
 .section-body { min-width: 0; }
-.match-picker { display: grid; grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr); gap: 16px; align-items: end; }
+.match-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: end; }
+.slot-picker { display: flex; align-items: end; gap: 4px; min-width: 0; }
+.slot-picker label { flex: 1; min-width: 0; }
+.slot-picker .icon-button { flex-shrink: 0; }
+.add-slot { margin: 16px 0; }
 .slot-label { display: flex; align-items: center; gap: 8px; }
 .slot-dot { width: 7px; height: 7px; display: inline-block; }
-.slot-zero { background: var(--player-zero); border-radius: 50%; }
-.slot-one { background: var(--player-one); transform: rotate(45deg); }
-.versus { text-align: center; font: 12px/48px ui-monospace, Consolas, monospace; color: var(--muted); }
 .run-actions { display: flex; align-items: start; justify-content: space-between; gap: 20px; margin-top: 20px; }
 .run-actions > details { min-width: 0; max-width: 240px; margin: 0; flex: 1; }
 .run-actions > button { min-width: 140px; }
 .form-hint { font-size: 14px; color: var(--muted); margin: 16px 0 0; }
+.run-form > .form-hint:first-child { margin: 0 0 16px; }
 .form-hint a { color: var(--accent); }
 .import-disclosure { margin: 0; }
 .import-disclosure > summary { color: var(--text); }
@@ -92,7 +94,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflo
 .spectator-stage { background: var(--bg); max-width: 660px; margin: 24px auto 0; }
 .spectator-stage:fullscreen { max-width: none; padding: 24px; overflow: auto; }
 .spectator-stage:fullscreen .board-wrap { max-width: 700px; margin: auto; }
-.versus-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 16px; }
+.versus-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
 .player-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; border-left: 2px solid; padding: 2px 12px; min-width: 0; }
 .player-card strong { min-width: 0; }
 .player-state { grid-column: 2; color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
@@ -110,6 +112,10 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflo
 .result { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
 .result h2 { color: var(--accent); margin-bottom: 0; }
 .result p { margin-bottom: 0; color: var(--muted); font-size: 14px; }
+.result-standings { list-style: none; padding: 0; margin: 16px 0 0; }
+.result-standings li { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; border-left: 2px solid; padding: 8px 12px; margin: 8px 0; }
+.result-standings strong { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.result-standings span { font-size: 14px; color: var(--muted); }
 .state-panel { text-align: center; padding: 60px 20px; color: var(--muted); }
 .table-scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; text-align: left; font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -136,11 +142,11 @@ tbody tr:hover { background: var(--surface); }
   .topbar nav .lucide { display: none; }
   main { padding: 24px 20px 48px; }
   .content-section { grid-template-columns: 1fr; gap: 20px; padding: 28px 0; }
-  .match-picker { grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr); gap: 8px; }
+  .match-picker { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .run-actions > button { min-width: 132px; padding-inline: 12px; }
   .import-form { grid-template-columns: 1fr; }
   .player-card { padding: 2px 8px; gap: 2px 8px; }
-  .versus-bar { gap: 16px; }
+  .versus-bar { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .row-heading { flex-wrap: wrap; }
   .viewer-title { align-items: start; }
   .run-list a { gap: 12px; flex-wrap: wrap; }

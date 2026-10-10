@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, ChevronDown, Play, Upload } from 'lucide-react';
+import { ArrowRight, ChevronDown, Play, Plus, Upload, X } from 'lucide-react';
 import { api, useResource } from './api';
 import { useRevision } from './App';
-import { Badge, ErrorPanel, outcome } from './ui';
+import { Badge, ErrorPanel, outcome, slotColor } from './ui';
 import type { Bot, Match } from './types';
 
 export function Home() {
@@ -13,17 +13,16 @@ export function Home() {
   const runs = useResource<{items: Match[]; total: number}>(`/api/v1/matches?offset=${offset}&limit=20`, revision + refresh);
   const status = useResource<{busy: boolean; operation: string | null}>('/api/v1/status', revision + refresh);
   const [file, setFile] = useState<File>(), [name, setName] = useState('');
-  const [first, setFirst] = useState(''), [second, setSecond] = useState(''), [seed, setSeed] = useState('');
+  const [slots, setSlots] = useState(['', '']), [seed, setSeed] = useState('');
   const [working, setWorking] = useState(false), [message, setMessage] = useState('');
   const guard = useRef(false);
   const importKey = useRef(crypto.randomUUID()), runKey = useRef(crypto.randomUUID());
   const ready = bots.data?.items.filter(b => b.status === 'ready') || [];
   useEffect(() => {
-    if (!first && ready.length) setFirst(ready[0].id);
-    if (!second && ready.length) setSecond(ready[Math.min(1, ready.length - 1)].id);
+    if (ready.length) setSlots(current => current.map((id, i) => id || ready[i % ready.length].id));
   }, [bots.data]);
   useEffect(() => { importKey.current = crypto.randomUUID(); }, [file, name]);
-  useEffect(() => { runKey.current = crypto.randomUUID(); }, [first, second, seed]);
+  useEffect(() => { runKey.current = crypto.randomUUID(); }, [slots, seed]);
   const busy = working || status.data?.busy || !status.data;
   async function act(work: () => Promise<void>) {
     if (guard.current) return;
@@ -40,11 +39,17 @@ export function Home() {
     {status.data?.busy && <p className="notice" role="status">{status.data.operation === 'match' ? '对局运行中。' : '正在编译 Bot。'}</p>}
     <section className="content-section" id="new-match" aria-labelledby="run-title"><div className="section-heading"><h2 id="run-title">新对局</h2></div><div className="section-body"><form className="run-form" onSubmit={e => { e.preventDefault(); void act(async () => {
       const match = await api<Match>('/api/v1/matches', {method: 'POST', headers: {'X-Arena-Local': '1', 'Idempotency-Key': runKey.current},
-        body: JSON.stringify({bot_ids: [first, second], ...(seed === '' ? {} : {map_seed: Number(seed)})})});
+        body: JSON.stringify({bot_ids: slots, ...(seed === '' ? {} : {map_seed: Number(seed)})})});
       navigate(`/matches/${match.id}`);
-    }); }}><div className="match-picker"><label><span className="slot-label"><i className="slot-dot slot-zero" aria-hidden="true" />Bot 0</span><select value={first} onChange={e => setFirst(e.target.value)}><option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-      <span className="versus" aria-hidden="true">VS</span><label><span className="slot-label"><i className="slot-dot slot-one" aria-hidden="true" />Bot 1</span><select value={second} onChange={e => setSecond(e.target.value)}><option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label></div>
-      <div className="run-actions"><details><summary>地图设置<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary><label>地图 Seed<input type="number" min="0" max="4294967295" step="1" value={seed} onChange={e => setSeed(e.target.value)} placeholder="随机" /></label></details><button className="primary" disabled={busy || !first || !second}><Play aria-hidden="true" />开始对战</button></div>
+    }); }}><p className="form-hint">{slots.length} 个 Bot 各自为战 · 支持 2～8 人，同一个 Bot 可重复参赛。</p>
+      <div className="match-picker">{slots.map((id, slot) => <div className="slot-picker" key={slot}>
+        <label><span className="slot-label"><i className="slot-dot" style={{background: slotColor(slot)}} aria-hidden="true" />Bot {slot}</span>
+          <select value={id} onChange={e => setSlots(current => current.map((value, i) => i === slot ? e.target.value : value))}>
+            <option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+        <button type="button" className="icon-button" aria-label={`移除 Bot ${slot}`} disabled={slots.length <= 2} onClick={() => setSlots(current => current.filter((_, i) => i !== slot))}><X aria-hidden="true" /></button>
+      </div>)}</div>
+      <button type="button" className="add-slot" disabled={slots.length >= 8} onClick={() => setSlots(current => [...current, (ready.find(b => !current.includes(b.id)) || ready[0])?.id || ''])}><Plus aria-hidden="true" />增加 Bot</button>
+      <div className="run-actions"><details><summary>地图设置<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary><label>地图 Seed<input type="number" min="0" max="4294967295" step="1" value={seed} onChange={e => setSeed(e.target.value)} placeholder="随机" /></label></details><button className="primary" disabled={busy || slots.some(id => !id)}><Play aria-hidden="true" />开始对战</button></div>
       {bots.data && !ready.length && <p className="form-hint">请先<a href="#bots">导入 Bot</a>。</p>}
     </form></div></section>
     <section className="content-section" id="bots" aria-labelledby="bots-title"><div className="section-heading"><h2 id="bots-title">Bot</h2></div><div className="section-body">

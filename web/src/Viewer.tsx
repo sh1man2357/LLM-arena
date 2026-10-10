@@ -128,6 +128,11 @@ export function Viewer() {
           <select className="speed" aria-label="倍速" title="播放速度" value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[.25, .5, 1, 2, 4].map(value => <option key={value} value={value}>{value}×</option>)}</select>
           {running && <button className="icon-button" aria-label="回到最新" title="回到最新" aria-pressed={follow} onClick={() => { setPlaying(false); setFollow(true); setSeq(max); }}><Radio aria-hidden="true" /></button>}<button className="icon-button" aria-label="全屏" title="全屏" onClick={() => void fullscreen()}><Maximize aria-hidden="true" /></button></div></div>
         {!running && run.result?.valid && <div className="result" role="status"><h2>{outcome(run)}</h2><p>{run.result.ticks} 回合 · {labels[run.result.reason] || run.result.reason}</p></div>}
+        {!running && run.result?.valid && <ol className="result-standings" aria-label="本局排名">{run.result.groups.map((group: number[], index: number) => {
+          const placement = 1 + run.result!.groups.slice(0, index).reduce((total: number, previous: number[]) => total + previous.length, 0);
+          return group.map(slot => <li key={slot} style={{borderColor: slotColor(slot)}}><span>第 {placement} 名{group.length > 1 ? '（并列）' : ''}</span>
+            <strong>Bot {slot} · {run.entrants.find(e => e.slot === slot)?.name}</strong><span>{run.result!.players.find((p: any) => p.id === slot).placement_score.toFixed(3)} 分</span></li>);
+        })}</ol>}
       </div>
     </section>}
   </>;

@@ -22,9 +22,13 @@ def verify_world(records):
     header, result = records[0], records[-1]
     require(header.get("type") == "header" and header.get("schema_version") == 1, "Invalid Replay header")
     require(result.get("type") == "result" and result.get("valid"), "Replay has no valid final result")
-    require(header["map"] == generate(header["map_seed"]), "Replay map differs from generator")
+    count = len(header["entrants"])
+    require(2 <= count <= 8 and len(header["bot_seeds"]) == count, "Invalid Replay slot/seed count")
+    require([e["slot"] for e in header["entrants"]] == list(range(count)), "Invalid Replay slots")
+    require(header["map"] == generate(header["map_seed"], count), "Replay map differs from generator")
     m, state = header["map"], header["initial_state"]
     world = World.from_state(m["width"], m["height"], Rules(**header["rules"]), state)
+    require(len(world.players) == count, "Replay player count differs from entrants")
     expected = World(m["width"], m["height"], m["grid"], world.players, world.rules)
     # Validate initialization transitions separately from the recorded world.
     require(len(header["initialization"]) == len(world.players), "Missing initialization records")

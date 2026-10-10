@@ -17,7 +17,7 @@ def components():
         for path in sorted((ROOT / folder).rglob("*")):
             if path.is_file() and path.suffix in (".py", ".hpp", ".cpp", ".json") and "__pycache__" not in path.parts:
                 files[path.relative_to(ROOT).as_posix()] = sha_file(path)
-    return dict(benchmark_id="bomber-v0.2-rules1", ruleset="1", map_generator="1", sdk="1", baseline_set="1",
+    return dict(benchmark_id="bomber-v0.2-rules1", ruleset="1", map_generator="2", sdk="1", baseline_set="1",
                 reporter="1", runtime="wasmtime-49.0.0", toolchain=read_json(ROOT / "configs/toolchain.json"),
                 python=sys.version.split()[0], platform=dict(system=platform.system(), machine=platform.machine()),
                 source_hash=digest(files), source_files=files)
@@ -80,13 +80,13 @@ def make_result(world, stats, match_id, reason=None):
 
 def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=None,
               replay_path=None, init_fuel=INIT_FUEL, tick_fuel=TICK_FUEL, version=None, record_sink=None):
-    if len(entrants) != 2 or len(bot_seeds) != 2:
-        raise ValueError("Matches require two entrants and two seeds")
+    if not 2 <= len(entrants) <= 8 or len(bot_seeds) != len(entrants):
+        raise ValueError("Matches require 2..8 entrants and one seed per slot")
     rules = rules or Rules()
-    m = generate(map_seed)
+    m = generate(map_seed, len(entrants))
     world = World(m["width"], m["height"], m["grid"], [Player(i, *p) for i, p in enumerate(m["spawns"])], rules)
     modules = [backend.load(e["wasm"]) for e in entrants]  # Qualification errors are not match losses.
-    stats = [empty_stats(), empty_stats()]
+    stats = [empty_stats() for _ in entrants]
     init_records, instances = [], {}
     header = dict(type="header", schema_version=1, match_id=match_id, components=version or components(),
                   rules=asdict(rules), map=m, map_seed=map_seed,

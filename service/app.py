@@ -29,7 +29,7 @@ class APIError(Exception):
 
 class MatchInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    bot_ids: list[str] = Field(min_length=2, max_length=2)
+    bot_ids: list[str] = Field(min_length=2, max_length=8)
     map_seed: int | None = Field(default=None, ge=0, le=4294967295)
 
 
@@ -145,7 +145,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
         identity = "run-" + secrets.token_hex(8)
         seed = secrets.randbits(32) if map_seed is None else map_seed
         inputs = dict(match_id=identity, entrants=entrants, map_seed=seed,
-                      bot_seeds=bot_seeds or [f"{secrets.randbits(64):016x}" for _ in range(2)], components=components())
+                      bot_seeds=bot_seeds or [f"{secrets.randbits(64):016x}" for _ in entrants], components=components())
         def resource(task, db):
             store.put("run", dict(id=identity, title=" vs ".join(e["name"] for e in entrants),
                                   entrants=[dict(id=e["id"], name=e["name"], slot=i, wasm_sha256=e["wasm_sha256"])
