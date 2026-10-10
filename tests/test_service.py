@@ -258,7 +258,7 @@ class CoreServiceTests(unittest.TestCase):
         self.assertEqual(len(changed['inputs']['bot_ids']), 3)
         self.assertFalse(set(changed['inputs']['bot_ids']) & set(legacy_ids))
 
-    def test_bot_list_collapses_only_identical_ready_baselines(self):
+    def test_bot_list_shows_latest_baseline_and_preserves_imports_and_history(self):
         row = self.store.get('bot', 'a')
         row.update(baseline=True, source_sha256='source')
         self.store.put('bot', row)
@@ -266,15 +266,14 @@ class CoreServiceTests(unittest.TestCase):
         self.store.put('bot', duplicate)
         imported = {**row, 'id': 'imported', 'baseline': False}
         self.store.put('bot', imported)
-        different = {**row, 'id': 'different', 'wasm_sha256': 'other-wasm'}
+        different = {**row, 'id': 'different', 'wasm_sha256': 'other-wasm', 'created': '2027-01-01T00:00:00+00:00'}
         self.store.put('bot', different)
-        failed = {**row, 'id': 'failed-baseline', 'status': 'failed'}
+        failed = {**row, 'id': 'failed-baseline', 'status': 'failed', 'created': '2020-01-01T00:00:00+00:00'}
         self.store.put('bot', failed)
         before = self.store.list('bot')
         listed = self.client.get('/api/v1/bots').json()['items']
         ids = {bot['id'] for bot in listed}
-        self.assertEqual(len(ids & {'a', 'duplicate'}), 1)
-        self.assertTrue({'imported', 'different', 'failed-baseline', 'b'} <= ids)
+        self.assertEqual(ids, {'imported', 'different', 'b'})
         self.assertEqual(self.store.list('bot'), before)
         # Both aliases remain valid for old matches and reruns.
         run = self.start_run(ids=['a', 'duplicate']).json()

@@ -61,17 +61,29 @@ inline bool player_at(const GameState& s,int x,int y) {
 }
 
 inline int objective(const GameState& s,int x,int y) {
-    int nearest=100;
-    for(int yy=0;yy<int(s.height);++yy) for(int xx=0;xx<int(s.width);++xx)
-        if(s.cell(xx,yy)==arena::SOFT_WALL) {
-            int a=x-xx,b=y-yy; if(a<0)a=-a;if(b<0)b=-b;
-            if(a+b<nearest)nearest=a+b;
+    // Search through walkable cells. A target behind a wall may require moving
+    // away from it first; geometric distance cannot recognize that detour.
+    int distance[CELLS],queue[CELLS],head=0,tail=0;
+    bool blocked[CELLS]{};
+    for(int i=0;i<int(s.width*s.height);++i)distance[i]=-1;
+    for(uint32_t i=0;i<s.bomb_count;++i)
+        blocked[s.bombs[i].y*s.width+s.bombs[i].x]=true;
+    int start=y*s.width+x;
+    distance[start]=0;queue[tail++]=start;
+    while(head<tail) {
+        int pos=queue[head++],cx=pos%int(s.width),cy=pos/int(s.width);
+        for(int d=1;d<=4;++d) {
+            int nx=cx+dx[d],ny=cy+dy[d];
+            if(!s.inside(nx,ny))continue;
+            int next=ny*s.width+nx;
+            if(s.cell(nx,ny)==arena::HARD_WALL||blocked[next])continue;
+            if(s.cell(nx,ny)==arena::SOFT_WALL||player_at(s,nx,ny))
+                return -(distance[pos]+1);
+            if(distance[next]>=0)continue;
+            distance[next]=distance[pos]+1;queue[tail++]=next;
         }
-    for(uint32_t i=0;i<s.player_count;++i) if(i!=s.self_id&&s.players[i].alive) {
-        int a=x-int(s.players[i].x),b=y-int(s.players[i].y);if(a<0)a=-a;if(b<0)b=-b;
-        if(a+b<nearest)nearest=a+b;
     }
-    return -nearest;
+    return -CELLS;
 }
 
 inline int plan(const GameState& s,const Forecast& f,bool aggressive,arena::Rng& rng) {

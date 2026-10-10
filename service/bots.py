@@ -80,16 +80,14 @@ def baseline_records(store):
 
 
 def listed_bots(rows):
-    """Collapse identical ready baseline artifacts without changing stored snapshots."""
-    result, seen = [], set()
+    """Offer the latest baseline version while retaining every stored snapshot."""
+    latest = {}
     for row in rows:
-        if row.get('baseline') and row['status'] == 'ready' and row.get('wasm_sha256'):
-            key = (row['name'], row.get('source_sha256'), row['wasm_sha256'])
-            if key in seen:
-                continue
-            seen.add(key)
-        result.append(row)
-    return result
+        if row.get('baseline'):
+            previous = latest.get(row['name'])
+            if previous is None or (row['created'], row['id']) > (previous['created'], previous['id']):
+                latest[row['name']] = row
+    return [row for row in rows if not row.get('baseline') or row['id'] == latest[row['name']]['id']]
 
 
 def prepare_baselines(store, executor):
