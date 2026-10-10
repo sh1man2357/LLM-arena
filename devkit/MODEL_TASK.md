@@ -14,7 +14,7 @@
 
 ## 2. 你的任务与目标
 
-这是一场顶级大语言模型之间的策略与编程对决。你的 Bot 将代表你，与其他顶级模型编写的 Bot 轮番进行一对一比赛。所有参赛程序遵守相同规则和运行资源限制；请用你的策略设计与编程能力争取胜利。
+这是一场顶级大语言模型之间的策略与编程对决。你的 Bot 将代表你，参与 2～8 个 Bot 各自为战的对局，与其他模型编写的 Bot 同场竞争。没有队伍，除自己以外的所有槽位都是对手；相同 Bot 的重复参赛槽位也独立竞争。所有参赛程序遵守相同规则和运行资源限制；请用你的策略设计与编程能力争取胜利。
 
 请编写一个用于 2～8 人各自为战的炸弹人比赛的 C++20 Bot。你负责生成源码；宿主负责用固定 SDK 编译为 WebAssembly、提供游戏观察并执行比赛。运行期间不再调用模型。
 
@@ -25,7 +25,7 @@
 ## 3. 游戏观察与地图
 
 - 坐标原点在左上角，x 向右、y 向下；地图为 13 × 11。槽位 ID 为 `0..player_count-1`，出生点依次是 `(1,1)`、`(11,9)`、`(11,1)`、`(1,9)`、`(5,1)`、`(7,9)`、`(11,5)`、`(1,5)` 的前 N 个；双人仍使用前两个。不要假设只有一个对手。
-- 初始地图关于中心旋转 180° 对称。外边界及内部 x、y 均为偶数的格子是硬墙。出生点曼哈顿距离不超过 2 的非硬墙格是道路。其余候选格按对称轨道约以 55% 概率放软墙，并通过合法性检查。
+- 初始地图关于中心旋转 180° 对称。外边界及内部 x、y 均为偶数的格子是硬墙。出生点及其旋转对应点曼哈顿距离不超过 2 的非硬墙格是道路；奇数人数时未使用的对应出生区也清空。其余候选格按对称轨道约以 55% 概率放软墙，并通过合法性检查。相同地图 Seed 在不同人数下可产生不同地形。
 - 地形只有道路、不可破坏硬墙、可破坏软墙；玩家与炸弹是独立实体。地形数组不会用玩家或炸弹覆盖道路值。
 - 每次观察包含全部地形、全部玩家、全部炸弹和游戏参数，没有视野遮挡。死亡玩家仍有记录并保留最后坐标，但不占格。
 - 炸弹公开 ID、owner、位置、爆炸 Tick 与范围。当前游戏状态完全公开，对手本 Tick 动作尚不可见。
@@ -205,13 +205,17 @@ Action tick(const GameState&) { return Action::WAIT; }
 
 标准开发包包含真实规则引擎、固定 SDK / 编译器配置、受限 WASM 执行器、10 张公开地图，以及 Random、Safe、Heuristic 三个基准 Bot 的源码和冻结 WASM。公开地图清单是 `configs/public-dev.json`；基准源码位于 `bots/baselines/`，Safe 与 Heuristic 共用 `planner.hpp`。拿到这些实际文件后，可以阅读基准策略、查看公开测试日志和 Replay，并修改自己的源码。若复用基准辅助实现，将其合并进单个 `bot.cpp`，不要让最终提交依赖 `planner.hpp`。
 
-对三个基准进行完整练习：
+对三个基准进行练习，可指定实际参赛人数：
 
 ```powershell
 .\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --output artifacts/work/practice-01
+.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 3 --maps 1 --output artifacts/work/practice-3p
+.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 8 --opponent heuristic --maps 1 --output artifacts/work/practice-8p
 ```
 
-默认每个基准使用同一份 10 张公开地图，各进行两局出生位交换，共 60 局。输出 `summary.md` / `summary.json`，以及 `replays/` 下每局的逐 Tick Replay。每轮使用新的输出目录；也可加 `--opponent random --maps 1` 做快速检查。练习与应用使用相同规则和资源限制，练习记录不进入应用榜单；不要按公开地图或特定基准硬编码答案。
+`--players` 支持 2～8，默认 2；每局一个候选 Bot 和所选基准的 N−1 个独立实例各自为战。每张地图让候选 Bot 依次占据全部 N 个出生位，Seed 跟随实例一起轮换。默认三个基准、十张公开地图、双人换边，共 60 局；例如 `--players 3 --maps 1` 为 9 局，`--players 8 --opponent heuristic --maps 1` 为 8 局。根目录启动脚本默认进行三人环境检查，也可用 `-Players 2` 或 `-Players 8` 指定人数。
+
+输出 `summary.md` / `summary.json`，以及 `replays/` 下每局的逐 Tick Replay。平均得分按第 2 节名次分计算；独占第一记胜、并列第一记平、其余记负，不能在多人模式下用胜 / 平次数推算平均分。每轮使用新的输出目录。练习与应用使用相同规则和资源限制，练习记录不进入应用榜单；不要按公开地图或特定基准硬编码答案。
 
 ---
 

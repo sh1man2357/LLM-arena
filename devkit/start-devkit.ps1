@@ -1,4 +1,4 @@
-param([string]$Python = '', [string]$CompilerArchive = '', [string]$WheelDirectory = '')
+param([string]$Python = '', [string]$CompilerArchive = '', [string]$WheelDirectory = '', [ValidateRange(2,8)][int]$Players = 3)
 $ErrorActionPreference = 'Stop'
 $taskRoot = if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'arena.py')) { $PSScriptRoot } else { Split-Path -Parent $PSScriptRoot }
 Push-Location -LiteralPath $taskRoot
@@ -13,7 +13,7 @@ try {
         & (Join-Path $taskRoot 'tools\setup.ps1') -Python $Python -CompilerArchive $CompilerArchive -WheelDirectory $WheelDirectory
     }
     $taskPreflight = 'artifacts/work/preflight-' + [guid]::NewGuid().ToString('N')
-    & $taskEnvironment tools\practice.py --source sdk/template.cpp --maps 1 --output $taskPreflight
+    & $taskEnvironment tools\practice.py --source sdk/template.cpp --maps 1 --players $Players --output $taskPreflight
     if ($LASTEXITCODE -ne 0) { throw 'Arena preflight failed. Resolve the environment before starting development.' }
     Write-Output ('Environment ready at ' + [DateTime]::UtcNow.ToString('o'))
     Write-Output ('Preflight report: ' + $taskPreflight + '/summary.md')

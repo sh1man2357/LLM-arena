@@ -3,70 +3,130 @@
     "map_seed": 3116326589,
     "bot_seeds": [
       "759abbb4bddb58b8",
-      "a5d434e4b15aad4d"
+      "a5d434e4b15aad4d",
+      "1f1675603faa2afc",
+      "ba79edea4967a457",
+      "7968b58a1abeba63",
+      "786b75ec70450fbd",
+      "032b968b35245279",
+      "a29af90927fa170b"
     ]
   },
   {
     "map_seed": 3698307203,
     "bot_seeds": [
       "af88ff5da9f77034",
-      "a4194ead07a06201"
+      "a4194ead07a06201",
+      "93de58a38f8cecec",
+      "e539347b779e6ba3",
+      "5010ce9bdca2d613",
+      "8d19d12ba317431f",
+      "0473688e7776eb1b",
+      "09706014cef84392"
     ]
   },
   {
     "map_seed": 1779043416,
     "bot_seeds": [
       "a669895259176b7a",
-      "3388c8bd2c3c4689"
+      "3388c8bd2c3c4689",
+      "3374d3418bf3abbe",
+      "097943a2950dae70",
+      "e75bedda9ec6b18e",
+      "1674d350a6a7f8a2",
+      "47777528f37d5dce",
+      "12f327fa0e0e6c1e"
     ]
   },
   {
     "map_seed": 3001910303,
     "bot_seeds": [
       "a1c6edc06b7dad13",
-      "f1d5817780182d84"
+      "f1d5817780182d84",
+      "f12e99f73e94290a",
+      "1227b67d8547c054",
+      "d5c25670dadd52f1",
+      "d5e5ad81ce9b6d47",
+      "bd8cf53f9f7e325c",
+      "b871eb3cb689aae9"
     ]
   },
   {
     "map_seed": 255932343,
     "bot_seeds": [
       "b92caaf566468421",
-      "e115b5d89c851809"
+      "e115b5d89c851809",
+      "48bc459588c210de",
+      "fcafc9b2178ae73a",
+      "34f3740d3ef0697a",
+      "122fe22802084266",
+      "b237ae65c5a12e6f",
+      "8d9942c01af2601d"
     ]
   },
   {
     "map_seed": 1656302016,
     "bot_seeds": [
       "e14c6798689802a2",
-      "af64fcecfda1b6ce"
+      "af64fcecfda1b6ce",
+      "5e85cd4babb7a218",
+      "31b421112f526ee2",
+      "d9b5c91a032b8833",
+      "2b42c00c6c47fef6",
+      "0c992ef97df78e1e",
+      "60ed3c574e2c49cf"
     ]
   },
   {
     "map_seed": 4150784106,
     "bot_seeds": [
       "a5c08130e736de8e",
-      "7402e7e4056c038f"
+      "7402e7e4056c038f",
+      "cf93944df0f2de39",
+      "21040aee7fd030a2",
+      "dc157fcd10b70906",
+      "8f5f9ceac751df07",
+      "869dfeaf370c0206",
+      "29bfe495ba7dd858"
     ]
   },
   {
     "map_seed": 1605702243,
     "bot_seeds": [
       "973d1f60c5a1dd40",
-      "4f443658e7d60d36"
+      "4f443658e7d60d36",
+      "406d6eca028b01e1",
+      "755a2959ed865f34",
+      "df97c6d45bf7a615",
+      "56f6fe9e27700da7",
+      "3ae0254fd96864bd",
+      "090d0d00050554d0"
     ]
   },
   {
     "map_seed": 4133119868,
     "bot_seeds": [
       "a22b3741815168f7",
-      "ef36f1ec894bbe89"
+      "ef36f1ec894bbe89",
+      "7408b0afc03fffb5",
+      "f591e01784af4647",
+      "55f746e6dbb3a6f5",
+      "b918f25df9c14e46",
+      "fe0da81a6eca6f95",
+      "43ce0c89348899a4"
     ]
   },
   {
     "map_seed": 3682369788,
     "bot_seeds": [
       "d3f7983b388f76dd",
-      "529b25e287e8db15"
+      "529b25e287e8db15",
+      "3a6fc4628e6b9a49",
+      "5e062d6e055ff653",
+      "8cfa73fa2b5ed9ae",
+      "4017a6b30791d808",
+      "d2a1e950c015ec8b",
+      "90003879050617d9"
     ]
   }
 ]

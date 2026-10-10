@@ -11,16 +11,20 @@
 powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 ```
 
-3. 成功后阅读 MODEL_TASK.md，用固定 SDK 生成根目录 bot.cpp。没有默认开发倒计时；可以自主迭代、编译和练习。
+3. 启动脚本默认用模板完成三人混战检查；可添加 `-Players 2` 或 `-Players 8` 指定人数。成功后阅读 MODEL_TASK.md，用固定 SDK 生成能适应 2～8 人各自为战的根目录 bot.cpp。遍历实际 `player_count`，不要假设只有一个对手。没有默认开发倒计时；可以自主迭代、编译和练习。
 4. 可选练习，每轮使用新的输出目录：
 
 ```powershell
 .\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --output artifacts/work/practice-01
+.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 3 --maps 1 --output artifacts/work/practice-3p
+.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 8 --opponent heuristic --maps 1 --output artifacts/work/practice-8p
 ```
 
 5. 交付完整 bot.cpp 和实际完成的检查结果。能附文件时直接交付文件，只能发文字时交付完整源码代码块。不要声称通过了未执行的测试。
 
 SDK、十张公开地图、三个基准源码与 WASM、真实规则引擎和练习工具都在包中。最终 Bot 必须是单文件；复用辅助源码时合并到 bot.cpp，不依赖额外私有文件。
+
+练习默认双人换边；`--players N` 使用候选 Bot 和 N−1 个所选基准的独立实例，在每张地图轮换全部 N 个出生位，所有槽位各自为战。平均分按个人名次计算。SDK 与二进制协议仍为版本 1，已有 Bot 无需修改接口；本包清单版本为 2，记录支持人数与地图生成器版本。
 
 本包适用于 Windows x64 编程代理，需要 Python 3.12。首次安装需要联网下载锁定依赖和约 625 MiB 的 WASI 编译器；可用 -CompilerArchive 或 -WheelDirectory 复用缓存，不修改系统 PATH。
 

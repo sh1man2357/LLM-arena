@@ -27,13 +27,17 @@ def baseline_wasm(name, output):
     return target
 
 
-def practice(source, wasm, output, opponents, maps):
+def practice(source, wasm, output, opponents, maps, players=2):
     output = Path(output).resolve()
     if output.exists():
         raise ValueError("Output directory already exists; choose a new practice directory")
     if not 1 <= maps <= 10 or not opponents or any(name not in BASELINES for name in opponents):
         raise ValueError("Use 1..10 public maps and known baseline opponents")
+    if type(players) is not int or not 2 <= players <= 8:
+        raise ValueError("Use 2..8 players, each fighting independently")
     cases = read_json(ROOT / "configs/public-dev.json")[:maps]
+    if any(len(case['bot_seeds']) < players for case in cases):
+        raise ValueError("Public cases require one seed per player")
     candidate = Path(wasm).resolve() if wasm else output / "candidate.wasm"
     if source:
         source = Path(source).resolve()
@@ -51,27 +55,36 @@ def practice(source, wasm, output, opponents, maps):
             baseline = baseline_wasm(name, output)
             qualify(backend, baseline)
             wins = draws = losses = 0
+            scores = []
             for index, case in enumerate(cases):
-                for swapped in (False, True):
-                    entrants = [dict(id="candidate", wasm=str(candidate)), dict(id=name, wasm=str(baseline))]
-                    seeds = [int(s, 16) for s in case["bot_seeds"]]
-                    if swapped:
-                        entrants.reverse(); seeds.reverse()
-                    mid = f"{name}-{index:02d}-{'swap' if swapped else 'first'}"
+                base = [dict(id="candidate", wasm=str(candidate))] + [dict(id=name, wasm=str(baseline)) for _ in range(players - 1)]
+                base_seeds = [int(s, 16) for s in case["bot_seeds"][:players]]
+                for slot in range(players):
+                    # Seeds follow their independent instances through every spawn slot.
+                    entrants = base[-slot:] + base[:-slot] if slot else base
+                    seeds = base_seeds[-slot:] + base_seeds[:-slot] if slot else base_seeds
+                    suffix = ('swap' if slot else 'first') if players == 2 else f'slot-{slot}'
+                    mid = f"{name}-{index:02d}-{suffix}"
                     result, records = run_match(backend, entrants, case["map_seed"], seeds, mid,
                                                 replay_path=output / "replays" / f"{mid}.jsonl")
                     verify_world(records)
-                    score = result["players"][int(swapped)]["placement_score"]
-                    wins += score == 1; draws += score == .5; losses += score == 0
+                    scores.append(result["players"][slot]["placement_score"])
+                    top = result['groups'][0]
+                    wins += slot in top and len(top) == 1
+                    draws += slot in top and len(top) > 1
+                    losses += slot not in top
             count = wins + draws + losses
             rows.append(dict(opponent=name, matches=count, wins=wins, draws=draws, losses=losses,
-                             mean_placement=(wins + .5 * draws) / count))
+                             mean_placement=statistics.mean(scores)))
             print(f"{name}: W/L/D {wins}/{losses}/{draws}", flush=True)
     summary = dict(status="complete", purpose="public_development_only", maps=len(cases),
+                   player_count=players, game_mode='free_for_all',
                    matches=sum(r["matches"] for r in rows), mean_placement=statistics.mean(r["mean_placement"] for r in rows),
                    source_sha256=sha_file(source) if source else None, wasm_sha256=sha_file(candidate), opponents=rows)
     write_json(output / "summary.json", summary)
     lines = ["# Public practice", "", "Public development results, separate from the local application leaderboard.", "",
+             f"{players} players, free for all. One candidate and {players - 1} independent copies of each baseline, rotating through every spawn slot.", "",
+             "Wins: sole first; draws: tied first; losses: all other placements. Mean score uses normalized placement points.", "",
              "| Opponent | W / L / D | Mean score |", "| --- | --- | --- |"]
     lines += [f"| {r['opponent']} | {r['wins']} / {r['losses']} / {r['draws']} | {r['mean_placement']:.3f} |" for r in rows]
     (output / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -85,10 +98,11 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--opponent", choices=("all", *BASELINES), default="all")
     parser.add_argument("--maps", type=int, choices=range(1, 11), default=10)
+    parser.add_argument("--players", type=int, choices=range(2, 9), default=2)
     args = parser.parse_args()
     try:
         result = practice(args.source, args.wasm, args.output,
-                          BASELINES if args.opponent == "all" else (args.opponent,), args.maps)
+                          BASELINES if args.opponent == "all" else (args.opponent,), args.maps, args.players)
         print(f"Complete: {result['matches']} matches. Read {Path(args.output).resolve() / 'summary.md'}")
     except (ValueError, OSError) as exc:
         print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
