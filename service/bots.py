@@ -1,10 +1,11 @@
 """Bot snapshots imported directly, without receipts or participant identities."""
 import hashlib
 import secrets
+from pathlib import Path
 
 from engine.model import digest
-from runner.io import ROOT
-from runner.match import components
+from runner.compiler import FLAGS, compiler_path
+from runner.io import ROOT, read_json, sha_file
 from service.store import utc_now
 
 MAX_SOURCE_BYTES = 1024 * 1024
@@ -40,11 +41,34 @@ def import_bot(store, executor, source, name, key=None):
 
 def baseline_records(store):
     rows = []
-    version = components()
+    version = dict(flags=FLAGS, compiler_sha256=sha_file(compiler_path()),
+                   sdk_sha256={name: sha_file(ROOT / 'sdk' / name) for name in ('arena.hpp', 'wrapper.cpp')},
+                   toolchain=read_json(ROOT / 'configs/toolchain.json'))
+    planner_sha = sha_file(ROOT / 'bots/baselines/planner.hpp')
+    existing = store.list('bot')
     for name in BASELINES:
         source = ROOT / f"bots/baselines/{name}.cpp"
-        sha = hashlib.sha256(source.read_bytes()).hexdigest()
-        identity = f"baseline-{name}-" + digest(dict(source=sha, components=version))[:16]
+        sha = sha_file(source)
+        identity = f"baseline-{name}-" + digest(dict(source=sha, planner=planner_sha, **version))[:16]
+        # Reuse intact legacy snapshots whose build inputs match, regardless of their old ID.
+        reusable = False
+        for candidate in existing:
+            if not (candidate.get('baseline') and candidate['name'] == name.title()
+                    and candidate['status'] == 'ready' and candidate.get('source_sha256') == sha):
+                continue
+            try:
+                wasm = Path(candidate['wasm'])
+                metadata = read_json(wasm.with_suffix('.metadata.json'))
+                if (all(metadata.get(k) == v for k, v in version.items())
+                        and sha_file(candidate['source']) == sha
+                        and sha_file(Path(candidate['source']).with_name('planner.hpp')) == planner_sha
+                        and sha_file(wasm) == candidate['wasm_sha256']):
+                    reusable = True
+                    break
+            except (OSError, ValueError, KeyError):
+                continue
+        if reusable:
+            continue
         try:
             row = store.get("bot", identity)
         except KeyError:
@@ -53,6 +77,19 @@ def baseline_records(store):
         if row["status"] != "ready":
             rows.append(row)
     return rows
+
+
+def listed_bots(rows):
+    """Collapse identical ready baseline artifacts without changing stored snapshots."""
+    result, seen = [], set()
+    for row in rows:
+        if row.get('baseline') and row['status'] == 'ready' and row.get('wasm_sha256'):
+            key = (row['name'], row.get('source_sha256'), row['wasm_sha256'])
+            if key in seen:
+                continue
+            seen.add(key)
+        result.append(row)
+    return result
 
 
 def prepare_baselines(store, executor):

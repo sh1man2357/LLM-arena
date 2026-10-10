@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from runner.io import ROOT, sha_file
 from runner.match import components
 from service import APP_VERSION
-from service.bots import MAX_SOURCE_BYTES, import_bot, prepare_baselines, public_bot
+from service.bots import MAX_SOURCE_BYTES, import_bot, listed_bots, prepare_baselines, public_bot
 from service.jobs import BusyError, Executor
 from service.leaderboard import leaderboard
 from service.replays import decode, project
@@ -113,7 +113,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
 
     @app.get("/api/v1/bots")
     def bots():
-        return dict(items=[public_bot(row) for row in store.list("bot")])
+        return dict(items=[public_bot(row) for row in listed_bots(store.list("bot"))])
 
     @app.post("/api/v1/bots", status_code=202)
     async def upload_bot(request: Request, file: UploadFile, name: str = Form(default="")):

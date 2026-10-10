@@ -238,6 +238,48 @@ class CoreServiceTests(unittest.TestCase):
         self.assertIsNone(prepare_baselines(self.store, self.executor))
         self.assertFalse(self.store.list('run'))
 
+    def test_baseline_startup_reuses_legacy_ids_but_tracks_build_changes(self):
+        task = prepare_baselines(self.store, self.executor)
+        execute(self.root, task['id'])
+        legacy_ids = []
+        with self.store.connection() as db:
+            for identity in task['inputs']['bot_ids']:
+                row = self.store.get('bot', identity, db=db)
+                row['id'] = 'legacy-' + identity
+                legacy_ids.append(row['id'])
+                self.store.put('bot', row, create=True, db=db)
+                db.execute("DELETE FROM records WHERE kind='bot' AND id=?", (identity,))
+        before = self.store.list('bot')
+        self.assertIsNone(prepare_baselines(self.store, self.executor))
+        self.assertEqual(self.store.list('bot'), before)
+        from runner.compiler import FLAGS
+        with patch('service.bots.FLAGS', [*FLAGS, '-g0']):
+            changed = prepare_baselines(self.store, self.executor)
+        self.assertEqual(len(changed['inputs']['bot_ids']), 3)
+        self.assertFalse(set(changed['inputs']['bot_ids']) & set(legacy_ids))
+
+    def test_bot_list_collapses_only_identical_ready_baselines(self):
+        row = self.store.get('bot', 'a')
+        row.update(baseline=True, source_sha256='source')
+        self.store.put('bot', row)
+        duplicate = {**row, 'id': 'duplicate'}
+        self.store.put('bot', duplicate)
+        imported = {**row, 'id': 'imported', 'baseline': False}
+        self.store.put('bot', imported)
+        different = {**row, 'id': 'different', 'wasm_sha256': 'other-wasm'}
+        self.store.put('bot', different)
+        failed = {**row, 'id': 'failed-baseline', 'status': 'failed'}
+        self.store.put('bot', failed)
+        before = self.store.list('bot')
+        listed = self.client.get('/api/v1/bots').json()['items']
+        ids = {bot['id'] for bot in listed}
+        self.assertEqual(len(ids & {'a', 'duplicate'}), 1)
+        self.assertTrue({'imported', 'different', 'failed-baseline', 'b'} <= ids)
+        self.assertEqual(self.store.list('bot'), before)
+        # Both aliases remain valid for old matches and reruns.
+        run = self.start_run(ids=['a', 'duplicate']).json()
+        self.assertTrue(self.finish(run)['verified'])
+
     def test_interrupted_run_retains_frames_and_has_no_score(self):
         run = self.start_run().json()
         task = self.store.list('task')[0]
