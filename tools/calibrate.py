@@ -5,8 +5,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from engine.maps import generate
 from engine.model import Player, Bomb, Rules, World, SOFT_WALL, FLOOR
-from runner.tournament import load_entrants
-from runner.io import write_json, sha_file
+from runner.io import read_json, write_json, sha_file
 from runtime.wasm import Backend, INIT_FUEL, TICK_FUEL
 from runtime.protocol import encode
 
@@ -33,7 +32,7 @@ def main():
     p = argparse.ArgumentParser(); p.add_argument("--entrants", required=True); p.add_argument("--output", required=True)
     args = p.parse_args(); rows = []
     with Backend() as backend:
-        for entrant in load_entrants(args.entrants):
+        for entrant in read_json(args.entrants):
             module = backend.load(entrant["wasm"])
             for name, world in scenarios():
                 for slot in range(len(world.players)):

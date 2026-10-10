@@ -18,7 +18,7 @@ try {
     Write-Output ('Environment ready at ' + [DateTime]::UtcNow.ToString('o'))
     Write-Output ('Preflight report: ' + $taskPreflight + '/summary.md')
     $taskBrief = if (Test-Path -LiteralPath 'MODEL_TASK.md') { 'MODEL_TASK.md' } else { 'devkit/MODEL_TASK.md' }
-    Write-Output ('Now record your 60-minute deadline, read ' + $taskBrief + ', and submit bot.cpp in this directory.')
+    Write-Output ('Now read ' + $taskBrief + ', and submit bot.cpp in this directory.')
 } finally {
     Pop-Location
 }

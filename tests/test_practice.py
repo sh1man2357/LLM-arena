@@ -6,6 +6,7 @@ from unittest.mock import patch
 from runner.io import ROOT, read_json, sha_file, write_json
 from tests.test_runtime import module
 from tools.practice import practice
+from replay.verify import read, verify_world
 
 
 class PracticeTests(unittest.TestCase):
@@ -35,14 +36,13 @@ class PracticeTests(unittest.TestCase):
         self.assertEqual(result['mean_placement'], .5)
         case = read_json(ROOT / 'configs/public-dev.json')[0]
         for name in ('random', 'safe', 'heuristic'):
-            folder = output / f'vs-{name}'
-            plan = read_json(folder / 'schedule.json')
-            self.assertEqual([row['map_seed'] for row in plan], [case['map_seed']] * 2)
-            self.assertEqual(plan[1]['entrants'], plan[0]['entrants'][::-1])
-            self.assertEqual(plan[1]['bot_seeds'], plan[0]['bot_seeds'][::-1])
-            self.assertEqual(read_json(folder / 'manifest.json')['budget'],
-                             {'init_fuel': 10_000_000, 'tick_fuel': 1_000_000})
-            self.assertEqual(read_json(folder / 'report.json')['status'], 'complete')
+            first = read(output / 'replays' / f'{name}-00-first.jsonl')
+            swapped = read(output / 'replays' / f'{name}-00-swap.jsonl')
+            self.assertEqual(first[0]['map_seed'], case['map_seed'])
+            self.assertEqual([e['id'] for e in swapped[0]['entrants']], [e['id'] for e in first[0]['entrants']][::-1])
+            self.assertEqual(swapped[0]['bot_seeds'], first[0]['bot_seeds'][::-1])
+            self.assertEqual(first[0]['budget'], {'init_fuel': 10_000_000, 'tick_fuel': 1_000_000})
+            verify_world(first); verify_world(swapped)
 
     def test_changed_frozen_baseline_cannot_run(self):
         baseline = self.root / 'bots/baselines/random.wasm'

@@ -3,10 +3,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 import json
 from pathlib import Path
-import secrets
 import sqlite3
 
-from runner.io import write_json
 
 
 def utc_now():
@@ -29,10 +27,6 @@ class Store:
                     type TEXT NOT NULL, body TEXT NOT NULL, created TEXT NOT NULL);
                 PRAGMA user_version=1;
             """)
-        token = self.root / "owner.token"
-        if not token.exists():
-            token.write_text(secrets.token_urlsafe(32), encoding="utf-8")
-        self.token = token.read_text(encoding="utf-8")
 
     @contextmanager
     def connection(self):
@@ -95,10 +89,3 @@ class Store:
     def event_watermark(self):
         with self.connection() as db:
             return db.execute('SELECT COALESCE(MAX(id),0) FROM events').fetchone()[0]
-
-    def backup_metadata(self, output):
-        with self.connection() as db:
-            rows = db.execute("SELECT kind,id,body FROM records ORDER BY kind,id").fetchall()
-        value = dict(schema_version=1, created=utc_now(), records=[dict(kind=r["kind"], value=json.loads(r["body"])) for r in rows])
-        write_json(output, value)
-        return value

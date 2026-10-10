@@ -72,19 +72,3 @@ def verify_bot(backend, records, wasm_paths):
                          init_fuel=header["budget"]["init_fuel"], tick_fuel=header["budget"]["tick_fuel"])
     require(rerun == records, "Bot rerun differs from recorded calls/state/result")
     return dict(status="bot_verified", match_id=header["match_id"])
-
-
-def verify_scheduled(records, item, manifest):
-    """Bind a valid trace to the frozen schedule, artifacts, rules and budgets."""
-    proof = verify_world(records)
-    header = records[0]
-    require(header["match_id"] == item["match_id"], "Replay match ID differs from schedule")
-    require(header["components"] == manifest["components"], "Replay components differ from manifest")
-    require(header["rules"] == manifest["rules"] and header["budget"] == manifest["budget"],
-            "Replay rules/budget differ from manifest")
-    require(header["map_seed"] == item["map_seed"] and header["bot_seeds"] == item["bot_seeds"],
-            "Replay seeds differ from schedule")
-    artifacts = {e["id"]: e["wasm_sha256"] for e in manifest["entrants"]}
-    expected = [dict(id=eid, slot=slot, wasm_sha256=artifacts[eid]) for slot, eid in enumerate(item["entrants"])]
-    require(header["entrants"] == expected, "Replay entrants/artifacts differ from manifest")
-    return proof

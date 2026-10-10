@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { identityColor } from './ui';
+import { slotColor } from './ui';
 import type { Frame, Entrant } from './types';
 
 type Props = { frame: Frame; previous?: Frame; entrants: Entrant[]; overlay?: boolean; selected?: [number, number];
@@ -23,7 +23,6 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
       animation.current = { frame, started: performance.now() - (animate ? 0 : 160) };
     }
     const started = animation.current.started;
-    const identities = entrantIds.split('\n');
     function draw() {
       const cssWidth = canvas.clientWidth;
       const dpr = Math.min(devicePixelRatio || 1, 2);
@@ -63,7 +62,7 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
       }
       for (const b of frame.state.bombs) {
         const px = (b.x + .5) * cell, py = (b.y + .5) * cell;
-        const color = identityColor(identities[b.owner_id] || String(b.owner_id));
+        const color = slotColor(b.owner_id);
         context.fillStyle = '#091015'; context.strokeStyle = color; context.lineWidth = cell * .055;
         context.beginPath(); context.arc(px, py, cell * .29, 0, Math.PI * 2); context.fill(); context.stroke();
         context.beginPath(); context.moveTo(px + cell * .13, py - cell * .25); context.lineTo(px + cell * .23, py - cell * .39); context.stroke();
@@ -71,7 +70,7 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
         context.fillText(String(Math.max(0, b.explode_at_tick - frame.state.tick)), px, py);
       }
       for (const p of frame.state.players) {
-        const color = identityColor(identities[p.id] || String(p.id));
+        const color = slotColor(p.id);
         let x = p.x, y = p.y;
         const move = frame.events.find(e => e.type === 'move' && e.player === p.id);
         if (move && previous && progress < 1) { x = move.origin[0] + (p.x - move.origin[0]) * progress; y = move.origin[1] + (p.y - move.origin[1]) * progress; }
@@ -100,6 +99,6 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
     motion.addEventListener('change', redraw);
     return () => { cancelAnimationFrame(raf); observer.disconnect(); motion.removeEventListener('change', redraw); };
   }, [frame, previous, entrantIds, overlay, selectedX, selectedY, animate]);
-  return <canvas ref={canvasRef} role="img" className={`board ${compact ? 'compact' : ''}`} aria-label={`比赛棋盘，${frame.tick === null ? '初始状态' : `Tick ${frame.tick} 已结算`}。玩家及格子信息见下方检查器。`}
+  return <canvas ref={canvasRef} role="img" className={`board ${compact ? 'compact' : ''}`} aria-label={`比赛棋盘，${frame.tick === null ? '初始状态' : `Tick ${frame.tick} 已结算`}。双方状态见棋盘上方。`}
     onClick={onSelect ? event => { const r = event.currentTarget.getBoundingClientRect(); onSelect([Math.min(12, Math.floor((event.clientX - r.left) / r.width * 13)), Math.min(10, Math.floor((event.clientY - r.top) / r.height * 11))]); } : undefined} />;
 }
