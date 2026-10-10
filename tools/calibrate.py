@@ -26,7 +26,7 @@ def scenarios():
     w = World(13, 11, cleared, [Player(i, *p) for i, p in enumerate(positions)])
     w.bombs = [Bomb(i, i, *p, i % 5, 3) for i, p in enumerate(positions)]
     w.next_bomb_id = 8
-    yield "protocol-stress-eight-players-not-formal-v0.1", w
+    yield "protocol-stress-eight-players", w
 
 
 def main():

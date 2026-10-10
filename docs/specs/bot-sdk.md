@@ -1,6 +1,6 @@
-# Bot SDK 与运行契约 v0.1
+# Bot SDK 与运行契约
 
-C++20 → WebAssembly 已实现：WASI SDK 33.0 / Clang 22.1.0 编译，Wasmtime 49.0.0 执行。版本与验证依据见[实现决策](../architecture/decisions.md)，交付状态见[版本清单](../releases/v0.2.md)。
+C++20 → WebAssembly 已实现：WASI SDK 33.0 / Clang 22.1.0 编译，Wasmtime 49.0.0 执行。版本与验证依据见[架构总览](../architecture/overview.md)。
 
 ## 面向模型的接口
 
@@ -71,7 +71,7 @@ arena_init 完成后，宿主调用 arena_input_ptr，检查缓冲区完整落�
 
 每个炸弹记录 24 字节：`id, owner_id, x, y, explode_at_tick, range`。记录按炸弹 id 升序。炸弹 id 从 0 开始，每次放置递增，同 Tick 按玩家 id 升序分配。
 
-总长度必须恰为 `48 + width*height + 16*player_count + 24*bomb_count`。v0.1 输入约束为地图尺寸各不超过 31、最多 8 个玩家、最多 8 枚炸弹；任何违反协议的宿主状态都是竞技场错误，不算 Bot 故障。
+总长度必须恰为 `48 + width*height + 16*player_count + 24*bomb_count`。 输入约束为地图尺寸各不超过 31、最多 8 个玩家、最多 8 枚炸弹；任何违反协议的宿主状态都是竞技场错误，不算 Bot 故障。
 
 ## 计算预算与内存
 

@@ -2,14 +2,14 @@
 import {chromium, expect} from '@playwright/test';
 import {mkdirSync, writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-const [base='http://127.0.0.1:8861',out='../artifacts/acceptance/v0.2-development/final'] = process.argv.slice(2);
+const [base='http://127.0.0.1:8861',out='../artifacts/work/checks/final'] = process.argv.slice(2);
 const output=resolve(out); mkdirSync(resolve(output,'checks'),{recursive:true});mkdirSync(resolve(output,'visual'),{recursive:true});
 const browser=await chromium.launch({channel:'chrome'}),context=await browser.newContext({baseURL:base});
 const page=await context.newPage(), reports=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
 try {
   for(const width of [390,768,1280,1440])for(const [name,path,ready] of [
     ['hall','/','.feature-board canvas'],['viewer','/matches/reference-chain?frame=13','canvas'],
-    ['batch','/tournaments/reference-v01','.ranking-row'],['entrants','/entrants','.entrant-card'],
+    ['batch','/tournaments/reference','.ranking-row'],['entrants','/entrants','.entrant-card'],
     ['entrant','/entrants/safe','.identity-panel'],['manage','/manage','.workflow-grid input']]) {
     await page.setViewportSize({width,height:1000});await page.goto(path);await expect(page.locator(ready).first()).toBeVisible();
     await expect(page.getByText('本地服务已连接',{exact:true})).toBeVisible();

@@ -275,17 +275,13 @@ def import_uploaded_archive(store, path, source_hash, title):
 
 def import_bundled(store):
     try:
-        return store.get("tournament", "reference-v01")
+        return store.get("tournament", "reference")
     except KeyError:
         pass
-    archive = ROOT / "artifacts/acceptance/v0.1-release/evidence.zip"
-    expected = read_json(archive.with_name("evidence.index.json"))["sha256"]
-    if sha_file(archive) != expected:
-        raise ValueError("Bundled evidence checksum differs")
-    folder = store.root / "imports/reference-v01"
-    extract_archive(archive, folder)
-    row = import_tournament(store, folder, "reference-v01", title="工程参考赛 · v0.1", source_hash=expected, bundled=True)
-    path = folder / "examples/chain/replay.jsonl"
-    if path.exists():
-        import_replay(store, path.read_bytes(), title="连锁爆炸 · 同 Tick 平局", identity="reference-chain")
+    from service.reference import build_reference, reference_key
+    folder = store.root / "imports/reference"
+    build_reference(folder)
+    row = import_tournament(store, folder, "reference", title="工程参考赛", source_hash=reference_key(), bundled=True)
+    import_replay(store, (folder / "examples/chain/replay.jsonl").read_bytes(),
+                  title="连锁爆炸 · 同 Tick 平局", identity="reference-chain")
     return row

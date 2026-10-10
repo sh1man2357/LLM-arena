@@ -81,7 +81,7 @@ def make_result(world, stats, match_id, reason=None):
 def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=None,
               replay_path=None, init_fuel=INIT_FUEL, tick_fuel=TICK_FUEL, version=None, record_sink=None):
     if len(entrants) != 2 or len(bot_seeds) != 2 or len({e["id"] for e in entrants}) != 2:
-        raise ValueError("v0.1 matches require two distinct entrants and two seeds")
+        raise ValueError("Matches require two distinct entrants and two seeds")
     rules = rules or Rules()
     m = generate(map_seed)
     world = World(m["width"], m["height"], m["grid"], [Player(i, *p) for i, p in enumerate(m["spawns"])], rules)

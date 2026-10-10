@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 import {chromium, expect} from '@playwright/test';
 import {instrumentation, summary, animationStats} from './performance-instrumentation.mjs';
 
-const [base='http://127.0.0.1:8801', outArg='../artifacts/acceptance/v0.2-development', run='initial']=process.argv.slice(2);
+const [base='http://127.0.0.1:8801', outArg='../artifacts/work/checks', run='initial']=process.argv.slice(2);
 const out=resolve(outArg), checks=resolve(out,'checks');mkdirSync(checks,{recursive:true});
 const fixture=JSON.parse(readFileSync(resolve(checks,'performance-fixture.json'),'utf8'));
 const machine=JSON.parse(readFileSync(resolve(checks,'performance-machine.json'),'utf8'));

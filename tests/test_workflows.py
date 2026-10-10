@@ -1,4 +1,5 @@
 """Submission fairness, durable job races, and actual compiler/live runner integration."""
+from service.reference import reference_archive
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 import json
@@ -105,7 +106,7 @@ class RealWorkflowTests(unittest.TestCase):
             app = create_app(folder, workers=True)
             store = app.state.store
             safe = Path(folder) / "safe.wasm"
-            with zipfile.ZipFile(ROOT / "artifacts/acceptance/v0.1-release/evidence.zip") as archive:
+            with zipfile.ZipFile(reference_archive()) as archive:
                 safe.write_bytes(archive.read("build/safe.wasm"))
             store.put("entrant", dict(id="safe", name="Safe", status="qualified", wasm=str(safe), wasm_sha256=sha_file(safe)))
             with TestClient(app) as client:

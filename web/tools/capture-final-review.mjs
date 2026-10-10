@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 
-const [base = 'http://127.0.0.1:8863', out = '../artifacts/acceptance/v0.2-development/final'] = process.argv.slice(2);
+const [base = 'http://127.0.0.1:8863', out = '../artifacts/work/checks/final'] = process.argv.slice(2);
 const output = resolve(out), visual = resolve(output, 'visual/review-viewport');
 mkdirSync(visual, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome' });
@@ -12,7 +12,7 @@ const context = await browser.newContext({ baseURL: base });
 const page = await context.newPage(), screenshots = [], errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
-  const response = await context.request.get('/api/v1/matches?entrant=heuristic&tournament_id=reference-v01&limit=1');
+  const response = await context.request.get('/api/v1/matches?entrant=heuristic&tournament_id=reference&limit=1');
   expect(response.ok()).toBeTruthy();
   const match = (await response.json()).items[0].id;
   const entrants = await context.request.get('/api/v1/entrants'); expect(entrants.ok()).toBeTruthy();
@@ -21,7 +21,7 @@ try {
     await page.setViewportSize({ width, height: 1000 });
     for (const [name, path, selector] of [
       ['hall', '/', '.feature-match canvas'], ['viewer', `/matches/${match}?frame=0`, 'canvas'],
-      ['batch', '/tournaments/reference-v01', '.ranking-row'], ['entrants', '/entrants', '.entrant-card'],
+      ['batch', '/tournaments/reference', '.ranking-row'], ['entrants', '/entrants', '.entrant-card'],
       ['profile', '/entrants/heuristic', '.match-row'], ['manage', '/manage', '.workflow-grid input'],
     ]) {
       await page.goto(path); await expect(page.locator(selector).first()).toBeVisible();

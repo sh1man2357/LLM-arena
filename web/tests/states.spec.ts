@@ -1,13 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
 import { resolve } from 'node:path';
 
-const output = resolve(process.env.ARENA_STATE_EVIDENCE || '../artifacts/acceptance/v0.2-development/visual/read-states');
+const output = resolve(process.env.ARENA_STATE_EVIDENCE || '../artifacts/work/checks/visual/read-states');
 const widths = [390, 768, 1280, 1440];
 const cases = [
   ['hall', '/', /\/api\/v1\/matches\?/, '正在读取对局记录', '.match-row'],
   ['batches', '/tournaments', /\/api\/v1\/tournaments$/, '正在读取比赛批次', '.batch-card'],
   ['entrants', '/entrants', /\/api\/v1\/entrants$/, '正在读取参赛者', '.entrant-card'],
-  ['batch', '/tournaments/reference-v01', /\/api\/v1\/tournaments\/reference-v01$/, '正在读取批次', '.ranking-row'],
+  ['batch', '/tournaments/reference', /\/api\/v1\/tournaments\/reference$/, '正在读取批次', '.ranking-row'],
   ['viewer', '/matches/reference-chain', /\/api\/v1\/matches\/reference-chain(?:\/frames)?$/, '正在准备观赛画面', 'canvas'],
   ['manage', '/manage', /\/api\/v1\/jobs$/, '正在读取工作台记录', '.source-workspace'],
 ] as const;
@@ -91,7 +91,7 @@ test('actual missing resources distinguish absence and provide a return path', a
 
 test('working replay survives refresh failure; explicit denial hides it until a successful retry', async ({page}) => {
   await page.goto('/manage');
-  await expect(page.getByRole('button', {name:'导入 v0.1 完整参考赛', exact:true})).toBeEnabled();
+  await expect(page.getByRole('button', {name:'生成工程参考赛', exact:true})).toBeEnabled();
   await page.goto('/matches/reference-chain?frame=13');
   await expect(page.getByRole('slider', {name:'回放帧'})).toHaveValue('13');
   let status = 503;
@@ -150,7 +150,7 @@ test('workbench can retry unlocking after a transient read failure', async ({pag
   await page.unroute(request);
   await page.getByRole('button', {name:'重试读取', exact:true}).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
-  await expect(page.getByRole('button', {name:'导入 v0.1 完整参考赛', exact:true})).toBeEnabled();
+  await expect(page.getByRole('button', {name:'生成工程参考赛', exact:true})).toBeEnabled();
 });
 
 test('an actual empty instance has deliberate empty states and preparation links', async ({page}) => {
@@ -181,7 +181,7 @@ test('countdown presentation never exceeds the real 60 minute deadline under cli
 });
 
 test('five page families share the actual design system with complete real data', async ({page}) => {
-  for (const [name, path, content] of [['hall','/','.match-row'], ['viewer','/matches/reference-chain?frame=13','canvas'], ['batch','/tournaments/reference-v01','.ranking-row'], ['entrants','/entrants','.entrant-card'], ['entrant','/entrants/heuristic','.identity-panel'], ['manage','/manage','.submission-row']]) {
+  for (const [name, path, content] of [['hall','/','.match-row'], ['viewer','/matches/reference-chain?frame=13','canvas'], ['batch','/tournaments/reference','.ranking-row'], ['entrants','/entrants','.entrant-card'], ['entrant','/entrants/heuristic','.identity-panel'], ['manage','/manage','.submission-row']]) {
     await page.goto(path);
     await expect(page.locator(content).first()).toBeVisible();
     if (name === 'hall') await expect(page.locator('.feature-board canvas')).toBeVisible();

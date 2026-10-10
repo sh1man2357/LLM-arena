@@ -1,5 +1,5 @@
 param(
-    [string]$Output = 'artifacts/acceptance/v0.2-development/checks/performance-machine.json',
+    [string]$Output = 'artifacts/work/checks/checks/performance-machine.json',
     [string]$Node = 'node.exe',
     [string]$Python = (Join-Path $PSScriptRoot '../.venv/Scripts/python.exe')
 )

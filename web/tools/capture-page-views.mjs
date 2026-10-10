@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 import {mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 
-const [base='http://127.0.0.1:8841', out='../artifacts/acceptance/v0.2-development'] = process.argv.slice(2);
+const [base='http://127.0.0.1:8841', out='../artifacts/work/checks'] = process.argv.slice(2);
 const output=resolve(out), visual=resolve(output,'visual/read-states-final');
 mkdirSync(visual,{recursive:true});mkdirSync(resolve(output,'checks'),{recursive:true});
 const browser=await chromium.launch({channel:'chrome'});
@@ -14,7 +14,7 @@ page.on('pageerror',error=>errors.push(error.message));
 try {
   for(const width of [390,1280])for(const [name,path,selector] of [
     ['hall','/','.feature-board canvas'],['viewer','/matches/reference-chain?frame=13','canvas'],
-    ['batch','/tournaments/reference-v01','.draw-analysis'],['entrants','/entrants','.entrant-card'],
+    ['batch','/tournaments/reference','.draw-analysis'],['entrants','/entrants','.entrant-card'],
     ['manage','/manage','.submission-row']]) {
     await page.setViewportSize({width,height:1000});await page.goto(path);
     await expect(page.locator(selector).first()).toBeVisible();

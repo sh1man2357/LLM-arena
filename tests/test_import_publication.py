@@ -1,4 +1,5 @@
-"""Real legacy evidence, all-or-nothing imports and immutable public copies."""
+"""Generated reference evidence, all-or-nothing imports and immutable public copies."""
+from service.reference import reference_archive
 import hashlib
 import io
 import json
@@ -21,10 +22,10 @@ from service.replays import from_bytes
 
 
 def fixture(folder, *, wasm=True):
-    """Two actual archived matches, preserving original headers and WASM."""
+    """Two actual generated matches, preserving original headers and WASM."""
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(ROOT / "artifacts/acceptance/v0.1-release/evidence.zip") as archive:
+    with zipfile.ZipFile(reference_archive()) as archive:
         manifest = json.loads(archive.read("manifest.json"))
         manifest["entrants"] = manifest["entrants"][:2]
         cases = json.loads(archive.read("cases.json"))[:1]
@@ -59,7 +60,7 @@ def archive_bytes(folder):
 
 class EvidenceLifecycleTests(unittest.TestCase):
     def test_public_projection_drops_private_header_extensions(self):
-        with zipfile.ZipFile(ROOT / "artifacts/acceptance/v0.1-release/evidence.zip") as archive:
+        with zipfile.ZipFile(reference_archive()) as archive:
             records = [json.loads(line) for line in archive.read("examples/chain/replay.jsonl").splitlines()]
         private = "PRIVATE_ONLY_SENTINEL"
         records[0]["budget"]["private_seed"] = private

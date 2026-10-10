@@ -1,4 +1,4 @@
-"""Verified old/current batches plus actual fault/tie WASM competition cases."""
+"""Verified current baseline batches plus actual fault/tie WASM competition cases."""
 import argparse
 from collections import Counter
 from pathlib import Path
@@ -62,11 +62,6 @@ def main():
     args=parser.parse_args(); root=Path(args.data).resolve()
     if root.exists(): raise ValueError('Use a fresh report-check directory')
     store=Store(root); old=import_bundled(store)
-    archive=ROOT/'artifacts/acceptance/v0.2-baselines/evidence.zip'
-    assert sha_file(archive)==read_json(archive.with_name('evidence.index.json'))['sha256']
-    current=root/'current-baselines';extract_archive(archive,current)
-    new=import_tournament(store,current,'report-baselines-v02',title='当前 SDK 三 Baseline · 300 局工程检查')
-    new=close_submissions(store,new['id'])
     batch=root/'fault-tie';batch.mkdir();(batch/'build').mkdir()
     gate='i32.const 0 i32.load offset=4 i32.const 5 i32.ge_u'
     modules={'wait-a':module(),'wait-b':module(),
@@ -84,7 +79,7 @@ def main():
     for entrant in fault['entrant_aliases'].values():
         store.update('entrant',entrant,lambda r:r.update(model='工程 WASM 报告检查，不是模型提交'))
     proofs=[]
-    for row in [old,new,fault]:
+    for row in [old,fault]:
         folder=Path(row['directory']); expected,traces=raw_analysis(folder)
         actual=summarize([m for m in store.list('match') if m.get('tournament_id')==row['id']])
         assert all(actual[k]==v for k,v in expected.items()), (row['id'],expected,actual)

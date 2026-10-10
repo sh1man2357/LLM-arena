@@ -1,4 +1,5 @@
 """Release disclosure, local requests and frozen scheduling boundaries."""
+from service.reference import reference_archive
 import json
 from pathlib import Path
 import tempfile
@@ -67,7 +68,7 @@ class ReleaseBoundaries(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             app = create_app(folder)
             store = app.state.store
-            with zipfile.ZipFile(ROOT/'artifacts/acceptance/v0.1-release/evidence.zip') as archive:
+            with zipfile.ZipFile(reference_archive()) as archive:
                 for identity in ('safe','random','heuristic'):
                     wasm = Path(folder)/(identity+'.wasm'); wasm.write_bytes(archive.read(f'build/{identity}.wasm'))
                     from runner.io import sha_file

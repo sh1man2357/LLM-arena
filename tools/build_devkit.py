@@ -5,6 +5,7 @@ import re
 import sys
 import tempfile
 import zipfile
+import posixpath
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from runner.compiler import compile_bot
@@ -17,7 +18,7 @@ def package(output):
     output = Path(output).resolve()
     if output.exists() or output.with_suffix('.sha256').exists():
         raise ValueError("Choose a new ZIP path; existing distribution files are not overwritten")
-    names = ["START_HERE.md", "start-devkit.ps1", "MODEL_TASK.md", "arena.py", "requirements.lock", "configs/toolchain.json", "configs/public-dev.json",
+    names = ["devkit/START_HERE.md", "devkit/start-devkit.ps1", "devkit/MODEL_TASK.md", "arena.py", "requirements.lock", "configs/toolchain.json", "configs/public-dev.json",
              "tools/setup.ps1", "tools/bootstrap.py", "tools/devkit_ready.py", "tools/practice.py", "tools/build_devkit.py", "sdk/arena.hpp", "sdk/wrapper.cpp", "sdk/template.cpp",
              "docs/guides/model-development.md"]
     for folder in ("engine", "runtime", "runner", "replay"):
@@ -25,7 +26,7 @@ def package(output):
     names += [f'bots/baselines/{name}' for name in ('random.cpp', 'safe.cpp', 'heuristic.cpp', 'planner.hpp')]
     names += [p.relative_to(ROOT).as_posix() for p in sorted((ROOT / 'docs/specs').glob('*.md'))]
     # Guide links remain useful; references outside this public package are plain text.
-    included = set(names)
+    targets = {name: name.removeprefix('devkit/') for name in names}
     def public_document(name):
         text = (ROOT / name).read_text(encoding='utf-8')
         def link(match):
@@ -33,12 +34,15 @@ def package(output):
             if not target.startswith(('./', '../')):
                 return match.group(0)
             key = (ROOT / name).parent.joinpath(target.split('#', 1)[0]).resolve().relative_to(ROOT).as_posix()
-            return match.group(0) if key in included else label
+            if key not in targets:
+                return label
+            relative = posixpath.relpath(targets[key], posixpath.dirname(targets[name]) or '.')
+            return f'[{label}]({relative})'
         return re.sub(r'\[([^\]]+)\]\(([^)]+)\)', link, text)
     with tempfile.TemporaryDirectory(prefix='llm-arena-devkit-') as folder:
         stage = Path(folder).resolve()
         assert stage.is_relative_to(Path(tempfile.gettempdir()).resolve())
-        files = {name: (public_document(name).encode('utf-8') if name.endswith('.md') and name != 'MODEL_TASK.md'
+        files = {targets[name]: (public_document(name).encode('utf-8') if name.endswith('.md') and name != 'devkit/MODEL_TASK.md'
                         else (ROOT / name).read_bytes()) for name in names}
         files['README.md'] = files['START_HERE.md']
         qualification = {}
@@ -74,7 +78,7 @@ def package(output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', required=True)
+    parser.add_argument('--output', default='artifacts/distribution/llm-arena-devkit.zip')
     args = parser.parse_args()
     try:
         package(args.output)

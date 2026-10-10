@@ -38,7 +38,7 @@ class Input(BaseModel):
 
 
 class ImportInput(Input):
-    source: str = "bundled-v0.1"
+    source: str = "bundled-reference"
 
 
 class SessionInput(Input):
@@ -91,7 +91,7 @@ def public_tournament(row):
                                     "completed_matches", "created", "source_sha256", "job_id", "submission_window_closed",
                                     "window_closed_at", "published_at", "publication_id", "publication_sha256", "imported", "bundled_reference",
                                     "requires_disclosure_confirmation", "window_close_source", "window_closed_entrants")}
-    result["bundled_reference"] = bool(row.get("bundled_reference") or row["id"] == "reference-v01")
+    result["bundled_reference"] = bool(row.get("bundled_reference") or row["id"] == "reference")
     return result
 
 
@@ -133,9 +133,9 @@ def create_app(data_root=None, *, demo=False, workers=False):
         if demo:
             if workers:
                 try:
-                    store.get("tournament", "reference-v01")
+                    store.get("tournament", "reference")
                 except KeyError:
-                    queue.create("import", {}, key="bundled-reference-v01")
+                    queue.create("import", {}, key="bundled-reference")
             else:
                 await asyncio.to_thread(import_bundled, store)
         try:
@@ -452,7 +452,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
     @app.post("/api/v1/imports", status_code=202)
     async def imports(body: ImportInput, request: Request):
         owner(request)
-        if body.source != "bundled-v0.1":
+        if body.source != "bundled-reference":
             raise APIError("invalid_source", "只能选择预注册的参考归档；上传 Replay 使用文件导入。", 422)
         return public_job(queue.create("import", {}, request.headers.get("idempotency-key")))
 

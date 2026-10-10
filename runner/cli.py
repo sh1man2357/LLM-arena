@@ -17,7 +17,7 @@ from replay.view import frames
 
 
 def parser():
-    p = argparse.ArgumentParser(description="Deterministic C++20/WASM Bomber Arena v0.1")
+    p = argparse.ArgumentParser(description="Deterministic C++20/WASM Bomber Arena")
     sub = p.add_subparsers(dest="command", required=True)
     build = sub.add_parser("build"); build.add_argument("source"); build.add_argument("--output", required=True)
     baselines = sub.add_parser("baselines"); baselines.add_argument("--output", default="artifacts/work/baselines")

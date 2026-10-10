@@ -41,7 +41,7 @@ test('corrupt and unknown Replay uploads explain failure without registering a m
   const created=await page.request.post('/api/v1/sessions',{data:{name:`异常状态工程 ${Date.now()}`}});expect(created.ok()).toBeTruthy();const session=await created.json();
   await page.getByLabel('选择收卷记录').selectOption(session.id);await page.getByLabel('最终 bot.cpp').fill('preserved source draft');
   const before=(await(await page.request.get('/api/v1/matches?limit=1')).json()).total;
-  const replay=readFileSync(resolve('../artifacts/acceptance/v0.2-development/checks/final-chain.jsonl'),'utf8');
+  const replay=readFileSync(resolve('../artifacts/work/browser-fixtures/chain.jsonl'),'utf8');
   const unknown=replay.replace(/"schema_version"\s*:\s*1/,'"schema_version":99');expect(unknown).not.toBe(replay);
   for(const [name,data,reason]of [['unknown.jsonl',unknown,'schema'],['corrupt.jsonl','{broken','Expecting property']]){
     const response=page.waitForResponse(r=>r.url().endsWith('/api/v1/imports/replay')&&r.request().method()==='POST');

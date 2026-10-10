@@ -1,4 +1,5 @@
 """Durable frame cursors, uncommitted results and attempt log boundaries."""
+from service.reference import reference_archive
 from pathlib import Path
 import tempfile
 import unittest
@@ -16,7 +17,7 @@ from service.jobs import Queue
 class LiveRecoveryContracts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        with zipfile.ZipFile(ROOT / "artifacts/acceptance/v0.1-release/evidence.zip") as archive:
+        with zipfile.ZipFile(reference_archive()) as archive:
             cls.chain = archive.read("examples/chain/replay.jsonl")
 
     def test_cursor_watermark_and_attempt_change_return_full_snapshot(self):

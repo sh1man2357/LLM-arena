@@ -1,4 +1,5 @@
 """Portable private recovery and seed-free public Replay trust boundaries."""
+from service.reference import reference_archive
 from copy import deepcopy
 import hashlib
 import json
@@ -30,7 +31,7 @@ def bytes_of(value):
 class PublicReplayRecoveryTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        with zipfile.ZipFile(ROOT / "artifacts/acceptance/v0.1-release/evidence.zip") as archive:
+        with zipfile.ZipFile(reference_archive()) as archive:
             cls.original = archive.read("examples/chain/replay.jsonl")
 
     def test_roundtrip_recomputes_world_and_keeps_distinct_file_origin_hashes(self):

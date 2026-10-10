@@ -1,3 +1,4 @@
+from service.reference import reference_archive
 import copy
 from pathlib import Path
 import tempfile
@@ -60,8 +61,8 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(failed['players'], [])
             self.assertEqual(failed['reason'], 'infrastructure_failure')
 
-    def test_new_observed_runner_matches_frozen_v01_reference(self):
-        archive_path = ROOT / 'artifacts/acceptance/v0.1-release/evidence.zip'
+    def test_observed_runner_matches_generated_reference(self):
+        archive_path = reference_archive()
         with zipfile.ZipFile(archive_path) as archive, Backend() as backend:
             plan = json.loads(archive.read('schedule.json'))
             for name in ('heuristic', 'safe', 'random'):

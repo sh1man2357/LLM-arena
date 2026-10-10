@@ -30,10 +30,10 @@
 ## 批量换边与报告
 
 ```powershell
-.\.venv\Scripts\python.exe arena.py tournament --entrants artifacts/work/baselines/entrants.json --cases configs/acceptance-cases.json --output artifacts/acceptance/v0.1
-.\.venv\Scripts\python.exe arena.py report artifacts/acceptance/v0.1
-.\.venv\Scripts\python.exe arena.py verify-all artifacts/acceptance/v0.1 --entrants artifacts/work/baselines/entrants.json
-.\.venv\Scripts\python.exe arena.py verify-all artifacts/acceptance/v0.1 --entrants artifacts/work/baselines/entrants.json --rerun
+.\.venv\Scripts\python.exe arena.py tournament --entrants artifacts/work/baselines/entrants.json --cases configs/acceptance-cases.json --output artifacts/work/reference-games
+.\.venv\Scripts\python.exe arena.py report artifacts/work/reference-games
+.\.venv\Scripts\python.exe arena.py verify-all artifacts/work/reference-games --entrants artifacts/work/baselines/entrants.json
+.\.venv\Scripts\python.exe arena.py verify-all artifacts/work/reference-games --entrants artifacts/work/baselines/entrants.json --rerun
 ```
 
 50 张工程验收地图 × 每对换边 2 局 × 三个 Baseline 的 3 个配对，共 300 局。生成 manifest.json、schedule.json、cases.json、qualification.json、matches、results.jsonl、replays、report.json 和 report.md。每次完整验收使用新输出目录。

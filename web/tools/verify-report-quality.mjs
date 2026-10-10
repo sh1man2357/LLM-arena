@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 import {chromium,expect} from '@playwright/test';
 import {contrastReport} from './check-contrast.mjs';
 
-const [base='http://127.0.0.1:8800',outputArg='../artifacts/acceptance/v0.2-development']=process.argv.slice(2);
+const [base='http://127.0.0.1:8800',outputArg='../artifacts/work/checks']=process.argv.slice(2);
 const output=resolve(outputArg), visual=resolve(output,'visual/report-quality');mkdirSync(visual,{recursive:true});
 const proof=JSON.parse(readFileSync(resolve(output,'checks/report-traces.json'),'utf8'));
 const browser=await chromium.launch({channel:'chrome'}), context=await browser.newContext({baseURL:base,viewport:{width:1280,height:1000}});

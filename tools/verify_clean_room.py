@@ -26,8 +26,8 @@ def main():
                 [python, "arena.py", "verify", "artifacts/work/example/replay.jsonl",
                  "--wasm", "artifacts/work/baselines/heuristic.wasm", "--wasm", "artifacts/work/baselines/random.wasm"],
                 [python, "arena.py", "tournament", "--entrants", "artifacts/work/baselines/entrants.json",
-                 "--cases", "configs/acceptance-cases.json", "--output", "artifacts/acceptance/clean-room"],
-                [python, "arena.py", "verify-all", "artifacts/acceptance/clean-room", "--entrants",
+                 "--cases", "configs/acceptance-cases.json", "--output", "artifacts/work/clean-room"],
+                [python, "arena.py", "verify-all", "artifacts/work/clean-room", "--entrants",
                  "artifacts/work/baselines/entrants.json", "--rerun"]]
     logs = []
     try:

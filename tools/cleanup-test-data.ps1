@@ -1,8 +1,18 @@
-param([switch]$Apply, [switch]$ResetLocal)
+param([switch]$Apply, [switch]$IncludeGenerated, [switch]$ResetLocal)
 $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $taskPrefix = $taskRoot.TrimEnd('\') + '\'
 $taskNames = @('artifacts\work', 'web\test-results', 'web\playwright-report')
+if ($IncludeGenerated) {
+    $taskNames += @('artifacts\acceptance', 'artifacts\distribution', 'web\dist')
+    $taskNames += @(Get-ChildItem -LiteralPath (Join-Path $taskRoot 'web') -Filter '*.tsbuildinfo' -File -Force |
+        ForEach-Object { $_.FullName.Substring($taskPrefix.Length) })
+    foreach ($taskSource in @('engine', 'replay', 'runner', 'runtime', 'service', 'tests', 'tools')) {
+        $taskSourcePath = Join-Path $taskRoot $taskSource
+        $taskCachePath = Join-Path $taskSourcePath '__pycache__'
+        if (Test-Path -LiteralPath $taskCachePath) { $taskNames += "$taskSource\__pycache__" }
+    }
+}
 if ($ResetLocal) { $taskNames += 'artifacts\local' }
 $taskTargets = @()
 $taskBytes = 0L
@@ -19,13 +29,13 @@ foreach ($taskName in $taskNames) {
     $taskTarget = (Resolve-Path -LiteralPath $taskExpected).Path
     if ($taskTarget -ne $taskExpected) { throw "Unexpected resolved path: $taskTarget" }
     $taskItem = Get-Item -LiteralPath $taskTarget -Force
-    if (-not $taskItem.PSIsContainer -or ($taskItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-        throw "Expected a normal directory: $taskTarget"
+    if ($taskItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        throw "Reparse points prevent cleanup: $taskTarget"
     }
     $taskTracked = @(& git -C $taskRoot ls-files -- $taskName.Replace('\', '/'))
     if ($LASTEXITCODE -ne 0) { throw 'Unable to check tracked files.' }
     if ($taskTracked.Count) { throw "Tracked files prevent cleanup: $taskTarget" }
-    $taskEntries = @(Get-ChildItem -LiteralPath $taskTarget -Recurse -Force)
+    $taskEntries = if ($taskItem.PSIsContainer) { @(Get-ChildItem -LiteralPath $taskTarget -Recurse -Force) } else { @($taskItem) }
     if (@($taskEntries | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }).Count) {
         throw "Reparse points prevent recursive cleanup: $taskTarget"
     }
@@ -57,7 +67,7 @@ if ($Apply) {
         Remove-Item -LiteralPath $taskTarget -Recurse -Force
         if (Test-Path -LiteralPath $taskTarget) { throw "Cleanup incomplete: $taskTarget" }
     }
-    Write-Output ('Removed {0} directories and {1} files; freed {2:N3} GiB.' -f $taskTargets.Count, $taskFiles, ($taskBytes / 1GB))
+    Write-Output ('Removed {0} targets and {1} files; freed {2:N3} GiB.' -f $taskTargets.Count, $taskFiles, ($taskBytes / 1GB))
 } else {
-    Write-Output 'Preview only. Use -Apply after stopping test instances. -ResetLocal also deletes ALL default organizer data.'
+    Write-Output 'Preview only. Use -Apply after stopping test instances. -IncludeGenerated adds archives, distribution packages, frontend builds and source caches. -ResetLocal also deletes ALL default organizer data.'
 }

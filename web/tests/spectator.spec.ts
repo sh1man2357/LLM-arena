@@ -29,7 +29,7 @@ test('real chained-explosion replay supports exact seeking, events, keyboard and
 });
 
 test('batch report uses authoritative scores, pair selection and map swap cases', async ({ page }) => {
-  await page.goto('/tournaments/reference-v01');
+  await page.goto('/tournaments/reference');
   await expect(page.getByRole('heading', { name: '批次榜单' })).toBeVisible();
   await expect(page.locator('.ranking-row')).toHaveCount(3);
   await page.locator('.matrix-cell').filter({ hasText: '0.47' }).click();
@@ -43,7 +43,7 @@ test('batch report uses authoritative scores, pair selection and map swap cases'
 test('responsive high-fidelity pages use real data without horizontal overflow', async ({ page }) => {
   for (const width of [390, 768, 1280, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    for (const [name, path] of [['hall', '/'], ['viewer', '/matches/reference-chain?frame=16'], ['batch', '/tournaments/reference-v01'], ['manage', '/manage']]) {
+    for (const [name, path] of [['hall', '/'], ['viewer', '/matches/reference-chain?frame=16'], ['batch', '/tournaments/reference'], ['manage', '/manage']]) {
       await page.goto(path);
       if (name === 'viewer') await expect(page.getByRole('slider', { name: '回放帧' })).toHaveValue('16');
       else await expect(page.locator('h1')).toBeVisible();
@@ -52,7 +52,7 @@ test('responsive high-fidelity pages use real data without horizontal overflow',
         const size = await page.locator('canvas').boundingBox();
         expect(Math.abs(size!.width / size!.height - 13 / 11)).toBeLessThan(.01);
       }
-      await page.screenshot({ path: `../artifacts/acceptance/v0.2-development/visual/${name}-${width}.png`, fullPage: true });
+      await page.screenshot({ path: `../artifacts/work/checks/visual/${name}-${width}.png`, fullPage: true });
     }
   }
 });

@@ -1,43 +1,61 @@
 # 开发与验证
 
-所有 Python 命令在项目根目录执行；npm 命令在 `web/` 目录执行。
+Python 命令在项目根目录执行；npm 命令在 `web/` 执行。先按[安装与启动](getting-started.md)准备依赖和编译器。
 
-## 开发服务与浏览器检查
+默认在 `main` 分支开发；项目整理保留 Git 历史。代理开发约定见 [AGENTS.md](../../AGENTS.md)。应用版本和规则 / SDK / 评测标识用于复现，不因清理文件而重置。
 
-开发服务运行 `.\.venv\Scripts\python.exe -m service --demo`；前端在 `web/` 执行 `npm run dev`。发行安装按[安装与启动](./getting-started.md)构建同源静态页面。
-
-浏览器检查使用 `npm test`，需要本机 Chrome；`ARENA_BASE_URL` 指向专用验收实例，`ARENA_EMPTY_URL` 指向另一个新建的空实例。全量检查需这两个实例，并先通过真实工作流程提供资格 / 作业样例；最终准备与复现顺序见[版本交接](../releases/handoff-v0.2.md)。早期局部检查的范围见[页面状态记录](../records/components-and-page-states.md)。测试会改变专用数据，不对正在使用的比赛实例运行。
-
-运行浏览器测试必须显式设置 `ARENA_BASE_URL`，不再默认连接日常使用的 8787 实例。专用实例的数据目录放在 `artifacts/work/` 下，例如：
+## 核心检查
 
 ```powershell
-# 项目根目录的一个终端；完整验收样例准备见版本交接
+.\.venv\Scripts\python.exe -m unittest discover -v
+.\.venv\Scripts\python.exe tools\check_docs.py
+```
+
+检查覆盖规则、地图、真实 C++ 编译、ABI、fuel、内存、调度、回放、收卷、结果防篡改、导入与恢复。参考样例由当前基准源码和公开配置生成，缓存于 `artifacts/work/reference/`，首次检查需要编译器。连锁样例的源码在 `bots/examples/`。
+
+## 前端与浏览器
+
+在 `web/` 执行 `npm run dev` 开发界面、`npm run build` 构建静态页面、`npm run test:protocol` 检查直播帧合并。
+
+浏览器测试使用 Chrome 和专用实例，显式设置 `ARENA_BASE_URL`；页面状态测试另需空实例，由 `ARENA_EMPTY_URL` 指定。测试会创建收卷、作业和比赛，数据放在 `artifacts/work/`。
+
+```powershell
+# 项目根目录，独立终端
 .\.venv\Scripts\python.exe -m service --demo --port 8861 --data artifacts/work/browser-tests
-# web 目录的另一个终端
+# 项目根目录，另一个终端
+.\.venv\Scripts\python.exe -m service --port 8862 --data artifacts/work/browser-empty
+# web 目录，第三个终端；等待参考赛生成完成
 $env:ARENA_BASE_URL = 'http://127.0.0.1:8861'
+$env:ARENA_EMPTY_URL = 'http://127.0.0.1:8862'
 npm.cmd test
 ```
 
-## 清理测试数据
+`workflows.spec.ts` 提供后续页面检查使用的真实冻结提交和比赛样例。运行 `release.spec.ts` 前，在项目根目录导出连锁样例：
 
-停止测试实例后，从项目根目录预览或执行[清理工具](../../tools/cleanup-test-data.ps1)：
+```powershell
+.\.venv\Scripts\python.exe tools\build_reference.py --chain-output artifacts/work/browser-fixtures/chain.jsonl
+```
+
+独立观赛、报告与性能工具位于 `tools/` 和 `web/tools/`，以当前源码准备数据，结果写入 `artifacts/work/`。视觉修改需检查实际页面，尺寸、对比度和性能测量不能替代人工判断。
+
+## 清理生成数据
+
+停止测试实例后运行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\cleanup-test-data.ps1
 powershell -ExecutionPolicy Bypass -File tools\cleanup-test-data.ps1 -Apply
 ```
 
-工具清理 `artifacts/work/`、`web/test-results/` 和 `web/playwright-report/`，保留验收归档、依赖、编译器和发行前端。遇到跟踪文件、链接目录或被服务占用的数据目录会停止。
+默认清理 `artifacts/work/`、`web/test-results/` 和 `web/playwright-report/`。遇到跟踪文件、链接目录或服务占用的工作区会停止，依赖、编译器和前端构建保留。
 
-`-ResetLocal` 另外清空 `artifacts/local/`，包括全部收卷、源码、作业、比赛及主办方凭据。只在确认该实例全部为测试数据，或已另行备份时使用。清空后运行 `start-arena.ps1` 会重新初始化实例并导入工程参考赛。
-
-## 核心检查与冻结证据
-
-已完成的工程验收证据见 [交接说明](../../artifacts/acceptance/v0.1-release/handoff.md) 和 [逐项审计](../../artifacts/acceptance/v0.1-release/audit.md)：39 项检查、300 局有效比赛、全部世界回放与 Bot 重跑，以及独立目录的另一个 300 局批次均通过。完整原始证据归档为 evidence.zip，恢复方式和 SHA-256 见交接说明。
+全量清理生成产物时增加 `-IncludeGenerated`，先预览，再执行：
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -v
-git log --oneline
+powershell -ExecutionPolicy Bypass -File tools\cleanup-test-data.ps1 -IncludeGenerated
+powershell -ExecutionPolicy Bypass -File tools\cleanup-test-data.ps1 -IncludeGenerated -Apply
 ```
 
-检查包含规则、地图向量、真实 C++ 编译、STL/构造/堆状态、ABI、fuel trap 恢复、内存上限、watchdog、调度恢复和结果防篡改。运行时和链接决策见 [实现决策](../architecture/decisions.md)。
+此选项另外删除历史验收输出、任务 ZIP、`web/dist/`、TypeScript 构建缓存与 Python 源码缓存。随后启动界面前重新执行 `npm.cmd run build`；开发环境与 `artifacts/local/` 的主办方数据保留。历史源码和验收记录可从清理前的 Git 提交查阅。
+
+`-ResetLocal` 另外清空 `artifacts/local/` 的全部收卷、源码、作业、比赛和本机凭据。清空后启动应用会重新生成工程参考赛。

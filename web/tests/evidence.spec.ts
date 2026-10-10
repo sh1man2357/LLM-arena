@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -19,7 +20,7 @@ function withComment(original: Buffer, comment: string) {
 test('host imports full legacy archive, compares swaps and downloads immutable publication', async ({ page }) => {
   test.setTimeout(120000);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  const path = resolve('../artifacts/acceptance/v0.1-release/evidence.zip');
+  const path = execFileSync(resolve('../.venv/Scripts/python.exe'), [resolve('../tools/build_reference.py')], { cwd: resolve('..'), encoding: 'utf8', timeout: 600000 }).trim().split(/\r?\n/).at(-1)!;
   const original = readFileSync(path), originalHash = sha(original);
   const title = `浏览器旧证据 ${Date.now()}`;
   const data = withComment(original, title);

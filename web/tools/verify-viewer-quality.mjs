@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { contrastReport } from './check-contrast.mjs';
 
-const [base='http://127.0.0.1:8799', outputArg='../artifacts/acceptance/v0.2-development'] = process.argv.slice(2);
+const [base='http://127.0.0.1:8799', outputArg='../artifacts/work/checks'] = process.argv.slice(2);
 const output=resolve(outputArg), visual=resolve(output, 'visual/viewer-quality');
 mkdirSync(visual, { recursive: true });
 process.env.PLAYWRIGHT_BROWSERS_PATH ||= resolve(fileURLToPath(new URL('../..',import.meta.url)),'.tools/playwright');
@@ -138,7 +138,7 @@ async function pixels(frame) {
   await page.emulateMedia({reducedMotion:'no-preference'});
   checks.push({keyboard:true,focused_input_not_hijacked:true,reduced_motion_playback:true});
   const entrants=(await (await context.request.get('/api/v1/entrants')).json()).items;
-  const longMatch=(await (await context.request.get('/api/v1/matches?entrant=heuristic&tournament_id=reference-v01&limit=1')).json()).items[0].id;
+  const longMatch=(await (await context.request.get('/api/v1/matches?entrant=heuristic&tournament_id=reference&limit=1')).json()).items[0].id;
   const original=(await (await context.request.get(`/api/v1/matches/${longMatch}`)).json());
   const swap=(await (await context.request.get(`/api/v1/matches/${original.swap_match_id}`)).json());
   expect(swap.entrants.map(e=>e.id)).toEqual(original.entrants.map(e=>e.id).reverse());
@@ -149,7 +149,7 @@ async function pixels(frame) {
   checks.push({swap_match:{original:original.id,swapped:swap.id,reverse_entrants:true,preserved_frame:1,roundtrip:true}});
   for(const width of [390,768,1280,1440]) {
     await page.setViewportSize({width,height:1000});
-    for(const [name,path] of [['hall','/'],['viewer',`/matches/${longMatch}?frame=0`],['batch','/tournaments/reference-v01'],['entrants','/entrants'],['profile','/entrants/heuristic'],['manage','/manage']]) {
+    for(const [name,path] of [['hall','/'],['viewer',`/matches/${longMatch}?frame=0`],['batch','/tournaments/reference'],['entrants','/entrants'],['profile','/entrants/heuristic'],['manage','/manage']]) {
       await page.goto(path); await expect(page.locator('h1')).toBeVisible();
       if(name==='viewer')await expect(slider()).toHaveValue('0');
       if(name==='hall') {await expect(page.locator('.feature-match canvas')).toBeVisible(); await expect(page.locator('.match-row').first()).toBeVisible();}
@@ -172,7 +172,7 @@ async function pixels(frame) {
       }
     }
   }
-  await page.goto('/tournaments/reference-v01?pair=heuristic,bomber&case=0');
+  await page.goto('/tournaments/reference?pair=heuristic,random&case=0');
   await expect(page.locator('.case-dot.selected')).toHaveCount(1);
   const selectedContrast=await contrastReport(page); contrasts.push({page:'selected-case',...selectedContrast}); expect(selectedContrast.failures).toEqual([]);
   await page.goto('/matches/reference-chain'); await expect(slider()).toHaveValue('0');

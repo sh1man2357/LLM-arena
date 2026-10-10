@@ -1,3 +1,4 @@
+from service.reference import reference_archive
 import json
 from pathlib import Path
 import tempfile
@@ -14,7 +15,7 @@ from service.replays import from_bytes
 class SpectatorFoundationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        with zipfile.ZipFile(ROOT / "artifacts/acceptance/v0.1-release/evidence.zip") as archive:
+        with zipfile.ZipFile(reference_archive()) as archive:
             cls.data = archive.read("examples/chain/replay.jsonl")
 
     def test_chain_projection_matches_real_geometry_without_private_seeds(self):

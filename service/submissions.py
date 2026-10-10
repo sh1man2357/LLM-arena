@@ -30,7 +30,7 @@ def create_session(store, name, model, started_at=None, time_source="host_confir
         raise ValueError("Session cannot start in the future")
     value = dict(id="s-" + secrets.token_hex(8), name=name, model=model, started_at=started.isoformat(),
                  deadline=(started + timedelta(minutes=60)).isoformat(), time_source=time_source,
-                 task_sha256=sha_file(ROOT / "MODEL_TASK.md"), status="open", submission_id=None, created=utc_now())
+                 task_sha256=sha_file(ROOT / "devkit/MODEL_TASK.md"), status="open", submission_id=None, created=utc_now())
     request_hash = digest(dict(name=name, model=model, started_at=started_at, time_source=time_source))
     with store.connection() as db:
         db.execute("BEGIN IMMEDIATE")

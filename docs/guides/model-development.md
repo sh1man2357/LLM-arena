@@ -2,13 +2,13 @@
 
 每个参赛模型获得相同版本的任务书、SDK、公开地图、三个基准 Bot 和运行工具。**主办方只需发送同一个 ZIP，无需另附聊天指令。** 根目录 README 开头直接要求代理执行任务：模型自己解压、准备环境并检查竞技场，通过后开始 60 分钟开发，最终交回 `bot.cpp`。这适用于能打开附件的编程代理；包本身无法控制代理所在工具是否自动读取附件。
 
-无需另外指定工作区或手动运行安装命令；包内根目录的 [START_HERE.md](../../START_HERE.md) 和 README 给出代理的完整执行流程。任务书正文不依赖外部链接，包内路径相对于解压目录；本指南的链接供浏览材料。只复制 `MODEL_TASK.md` 文字也可以让模型编写源码，但实际测试与基准源码阅读需要开发包文件。
+无需另外指定工作区或手动运行安装命令；任务包根目录的 [START_HERE.md](../../devkit/START_HERE.md) 和 README 给出代理的完整执行流程。任务书正文不依赖外部链接，包内路径相对于解压目录；本指南的链接供浏览材料。只复制 `MODEL_TASK.md` 文字也可以让模型编写源码，但实际测试与基准源码阅读需要开发包文件。
 
 ## 提供哪些材料
 
 | 材料 | 用途 |
 | --- | --- |
-| [MODEL_TASK.md](../../MODEL_TASK.md) | 完整规则、目标、资源限制与交卷协议 |
+| [MODEL_TASK.md](../../devkit/MODEL_TASK.md) | 完整规则、目标、资源限制与交卷协议 |
 | [SDK](../../sdk/arena.hpp)、[模板](../../sdk/template.cpp) | 编写单文件 `bot.cpp` |
 | [公开地图](../../configs/public-dev.json) | 固定 10 个开发案例及 Bot Seed |
 | [Random](../../bots/baselines/random.cpp) | 固定种子的随机动作 |
@@ -75,4 +75,6 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 .\.venv\Scripts\python.exe tools/build_devkit.py --output artifacts/distribution/llm-arena-devkit.zip
 ```
 
-工具按白名单打包公开文件，编译并检查基准资格，生成清单与 ZIP 校验和；不打包 `.tools/` 或 `.venv/`。生成文件放在 Git 忽略目录，源码工具、指南与任务书进入版本记录。首次使用前安装环境；所有参赛者拿到同一份已生成的包。
+工具按白名单打包公开文件，编译并检查基准资格，生成清单与 ZIP 校验和；不打包 `.tools/` 或 `.venv/`。生成文件放在 Git 忽略目录，源码工具、指南与任务书随项目维护。首次使用前安装环境；所有参赛者拿到同一份已生成的包。
+
+项目中的任务材料统一放在 `devkit/`，打包时映射到 ZIP 根目录。对外使用固定名称 `llm-arena-devkit.zip`，所有参赛者获得同一文件。更新前删除旧 ZIP 和校验文件再重新生成，不累积版本副本。

@@ -37,7 +37,7 @@ test('public Replay roundtrip and complete private backup download use real curr
   await page.getByRole('link', { name: '下载私有备份', exact: true }).first().click();
   const download = await downloadEvent;
   const row = (await (await page.request.get('/api/v1/backups')).json()).items[0];
-  const output = resolve('../artifacts/work/v0.2-recovery-browser-download'); mkdirSync(output, { recursive: true });
+  const output = resolve('../artifacts/work/recovery-browser-download'); mkdirSync(output, { recursive: true });
   const downloadedPath = resolve(output, `private-backup-${row.id}.zip`);
   await download.saveAs(downloadedPath);
   const bytes = readFileSync(downloadedPath);
