@@ -40,7 +40,7 @@ export function Home() {
     <section className="content-section" id="new-match" aria-labelledby="run-title"><div className="section-heading"><h2 id="run-title">新对局</h2></div><div className="section-body"><form className="run-form" onSubmit={e => { e.preventDefault(); void act(async () => {
       const match = await api<Match>('/api/v1/matches', {method: 'POST', headers: {'X-Arena-Local': '1', 'Idempotency-Key': runKey.current},
         body: JSON.stringify({bot_ids: slots, ...(seed === '' ? {} : {map_seed: Number(seed)})})});
-      navigate(`/matches/${match.id}`);
+      navigate(`/matches/${match.id}`, {state: {autoplay: true}});
     }); }}><p className="form-hint">{slots.length} 个 Bot 各自为战 · 支持 2～8 人，同一个 Bot 可重复参赛。</p>
       <div className="match-picker">{slots.map((id, slot) => <div className="slot-picker" key={slot}>
         <label><span className="slot-label"><i className="slot-dot" style={{background: slotColor(slot)}} aria-hidden="true" />Bot {slot}</span>

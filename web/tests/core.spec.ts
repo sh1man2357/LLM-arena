@@ -32,6 +32,8 @@ test('八人各自为战：增减槽位、直播、排名与录像', async ({pag
   await page.screenshot({path: testInfo.outputPath('eight-player-live-desktop.png'), fullPage: true});
   expect(await page.locator('.player-card').evaluateAll(cards => new Set(cards.map(card => getComputedStyle(card).borderColor)).size)).toBe(8);
   await expect.poll(async () => (await request.get(`/api/v1/matches/${run.id}`)).json().then(r => r.status), {timeout: 40000}).toBe('completed');
+  await expect(page.getByRole('button', {name: '回到最新'})).toBeHidden();
+  await page.getByRole('button', {name: '最后一帧', exact: true}).click();
   await expect(page.getByRole('heading', {name: '平局', exact: true})).toBeVisible();
   await expect(page.getByRole('list', {name: '本局排名'}).locator('li')).toHaveCount(8);
   const recording = await (await request.get(`/api/v1/matches/${run.id}/frames`)).json();
@@ -141,8 +143,10 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   await expect.poll(async () => Number(await stage.getAttribute('data-frame-count'))).toBeGreaterThan(received);
   await page.screenshot({path: testInfo.outputPath('live-desktop.png'), fullPage: true});
   await page.getByRole('button', {name: '回到最新'}).click();
-  await expect(page.getByRole('button', {name: '回到最新'})).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', {name: '暂停', exact: true})).toBeVisible();
   await expect.poll(async () => (await request.get(`/api/v1/matches/${run.id}`)).json().then(r => r.status), {timeout: 40000}).toBe('completed');
+  await expect(page.getByRole('button', {name: '回到最新'})).toBeHidden();
+  await page.getByRole('button', {name: '最后一帧', exact: true}).click();
   await expect(page.getByRole('heading', {name: '平局', exact: true})).toBeVisible();
   const saved = (await (await request.get(`/api/v1/matches/${run.id}/frames`)).json()).frames.length;
   expect(saved).toBe(501);
