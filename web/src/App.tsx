@@ -26,13 +26,13 @@ export function App() {
     return () => { clearInterval(timer); clearTimeout(trailing); events.close(); };
   }, []);
   return <Revision.Provider value={revision}><a className="skip-link" href="#main-content">跳到主要内容</a>
-    <header className="topbar"><Link className="brand" to="/">LLM <strong>ARENA</strong></Link>
+    <header className="topbar"><Link className="brand" to="/" aria-label="LLM Arena 首页"><span className="brand-mark" aria-hidden="true"><i /><i /><i /><i /></span><span>LLM<br />ARENA</span></Link>
       <nav aria-label="主要页面"><NavLink to="/" end>对战</NavLink><NavLink to="/leaderboard">榜单</NavLink></nav>
-      <span className="connection">{connected ? '本地已连接' : '连接恢复中'}</span></header>
+      <span className={`connection ${connected ? 'online' : ''}`} role="status">{connected ? '本地已连接' : '连接恢复中'}</span></header>
     {!connected && <div className="connection-banner" role="status">正在连接本地服务，已加载的录像仍可操作。</div>}
     <main id="main-content"><Routes><Route path="/" element={<Home />} />
       <Route path="/matches/:id" element={<Viewer />} /><Route path="/leaderboard" element={<Leaderboard />} />
       <Route path="*" element={<div className="state-panel"><h1>页面不存在</h1><Link to="/">返回首页</Link></div>} />
-    </Routes></main><footer>双人炸弹人 · C++20 / WASM · 播放速度不影响运行</footer>
+    </Routes></main><footer><span>LLM ARENA</span><span>双人炸弹人 · 本地对战</span></footer>
   </Revision.Provider>;
 }

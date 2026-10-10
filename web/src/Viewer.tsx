@@ -107,7 +107,7 @@ export function Viewer() {
   const failed = run && ['failed', 'interrupted'].includes(run.status);
   return <><div className="viewer-heading"><Link to="/">← 返回首页</Link>
     {run && <button disabled={rerunning || !status.data || status.data.busy} onClick={() => void rerun()}>重新运行</button>}</div>
-    <div className="row-heading"><h1>{run?.title || '准备观赛'}</h1>{run && <Badge status={run.status} />}</div>
+    <p className="eyebrow">{running ? 'LIVE / 正在对战' : 'REPLAY / 对局回看'}</p><div className="row-heading viewer-title"><h1>{run?.title || '准备观赛'}</h1>{run && <Badge status={run.status} />}</div>
     {(error || match.error) && <ErrorPanel message={error || match.error} onRetry={retryReads} />}
     {actionError && <p role="alert" className="notice error">{actionError}</p>}
     {failed && <div className="notice error" role="status"><strong>{labels[run.status]} · 本局不计分</strong><p>{run.diagnostic || '执行未完成，已保存的帧仍可查看。'}</p></div>}
@@ -117,15 +117,15 @@ export function Viewer() {
         const player = frame.state.players[entrant.slot], faults = frame.state.fault_counters[entrant.slot];
         const fault = frame.calls.find(call => call.id === entrant.slot)?.fault;
         return <div className="player-card" key={entrant.id} style={{borderColor: slotColor(entrant.slot)}}><span className="player-number" style={{color: slotColor(entrant.slot)}}>{entrant.slot}</span>
-          <div><strong>{entrant.name}</strong><small>{playerStateLabel(player)} · ({player.x}, {player.y}){fault ? ` · ${labels[fault] || fault}` : faults.total ? ` · 故障 ${faults.total} 次` : ''}</small></div></div>;
+          <div><strong>{entrant.name}</strong><small>{playerStateLabel(player)}{fault ? ` · ${labels[fault] || fault}` : faults.total ? ` · 故障 ${faults.total} 次` : ''}</small></div></div>;
       })}</div>
       <div className="board-wrap"><Board frame={frame} previous={seq > 0 ? data!.frames[seq - 1] : undefined} entrants={run.entrants} animate={playing || (follow && running)} /></div>
       <div className="playback"><div className="row-heading"><strong>{frame.tick === null ? '初始状态' : `Tick ${frame.tick} 已结算`}</strong><span className="muted">{running ? follow ? '跟随最新' : '回看中' : '录像'} · {seq} / {max}</span></div>
         <input className="timeline" type="range" aria-label="时间轴" min="0" max={max} value={Math.min(seq, max)} onChange={e => seek(Number(e.target.value))} />
-        <div className="controls"><button onClick={() => seek(0)} aria-label="回到初始帧">|←</button><button disabled={!seq} onClick={() => seek(seq - 1)} aria-label="上一帧">←</button>
-          <button className="primary" onClick={play}>{playing ? '暂停' : '播放'}</button><button disabled={seq >= max} onClick={() => seek(seq + 1)} aria-label="下一帧">→</button><button onClick={() => seek(max)} aria-label="最后一帧">→|</button>
+        <div className="controls"><div className="transport"><button onClick={() => seek(0)} aria-label="回到初始帧">|←</button><button disabled={!seq} onClick={() => seek(seq - 1)} aria-label="上一帧">←</button>
+          <button className="primary" onClick={play}>{playing ? '暂停' : '播放'}</button><button disabled={seq >= max} onClick={() => seek(seq + 1)} aria-label="下一帧">→</button><button onClick={() => seek(max)} aria-label="最后一帧">→|</button></div><div className="playback-tools">
           <label className="speed">倍速<select aria-label="倍速" value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[.25, .5, 1, 2, 4].map(value => <option key={value} value={value}>{value}×</option>)}</select></label>
-          {running && <button onClick={() => { setPlaying(false); setFollow(true); setSeq(max); }}>回到最新</button>}<button onClick={() => void fullscreen()}>全屏</button></div>
+          {running && <button onClick={() => { setPlaying(false); setFollow(true); setSeq(max); }}>回到最新</button>}<button onClick={() => void fullscreen()}>全屏</button></div></div>
         {running && seq === max && <p className="muted" role="status">等待新的已确认帧…</p>}
         {!running && run.result?.valid && <div className="result" role="status"><h2>{outcome(run)}</h2><p>{labels[run.result.reason] || run.result.reason} · 共 {run.result.ticks} Tick</p></div>}
       </div>

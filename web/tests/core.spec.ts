@@ -6,8 +6,23 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', {name: '选好 Bot，开始对战。'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'LLM ARENA.'})).toBeVisible();
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 20000}).toBe(false);
+  await expect(page.getByLabel('Bot 文件')).toBeHidden();
+  await expect(page.getByLabel('地图 Seed', {exact: true})).toBeHidden();
+  await page.screenshot({path: testInfo.outputPath('home-desktop.png'), fullPage: true});
+  await page.setViewportSize({width: 390, height: 844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path: testInfo.outputPath('home-mobile.png'), fullPage: true});
+  await page.locator('.import-disclosure > summary').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Bot 文件')).toBeVisible();
+  await page.getByText('地图设置', {exact: true}).click();
+  await expect(page.getByLabel('地图 Seed', {exact: true})).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path: testInfo.outputPath('home-import-mobile.png'), fullPage: true});
+  await page.getByText('地图设置', {exact: true}).click();
+  await page.setViewportSize({width: 1280, height: 900});
   const ids: string[] = [];
   for (let slot = 0; slot < 2; slot++) {
     await page.getByLabel('Bot 文件').setInputFiles({name: `wait-${slot}.cpp`, mimeType: 'text/plain', buffer: source});
@@ -20,6 +35,9 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
     await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy)).toBe(false);
   }
   await page.getByRole('combobox', {name: 'Bot 0', exact: true}).selectOption(ids[0]);
+  await page.getByRole('combobox', {name: 'Bot 1', exact: true}).selectOption(ids[0]);
+  await expect(page.getByRole('button', {name: '运行', exact: true})).toBeDisabled();
+  await expect(page.getByText('请选择两个不同的 Bot。')).toBeVisible();
   await page.getByRole('combobox', {name: 'Bot 1', exact: true}).selectOption(ids[1]);
   await page.getByText('地图设置', {exact: true}).click();
   await page.getByLabel('地图 Seed', {exact: true}).fill('1');
@@ -86,6 +104,7 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
 test('导入失败与已删除页面、API', async ({page, request}) => {
   await page.goto('/');
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 40000}).toBe(false);
+  await page.locator('.import-disclosure > summary').click();
   await page.getByLabel('Bot 文件').setInputFiles({name: 'broken.cpp', mimeType: 'text/plain', buffer: Buffer.from('not C++')});
   const response = page.waitForResponse(r => r.url().endsWith('/api/v1/bots') && r.request().method() === 'POST');
   await page.getByRole('button', {name: '导入 Bot', exact: true}).click();

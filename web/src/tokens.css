@@ -1,12 +1,13 @@
 :root {
-  --bg: #10151C;
-  --surface: #1B242D;
-  --text: #F3F1E9;
-  --muted: #A6B0BA;
+  --bg: #0D0D0D;
+  --surface: #161616;
+  --text: #E9E8E3;
+  --muted: #969691;
+  --accent: #F0DB69;
   --teal: #69DCC9;
   --gold: #EFB95B;
   --red: #E97975;
-  --line: #30404B;
+  --line: #30302D;
   --tile-hard: #5F707C;
   --tile-hard-edge: #8496A2;
   --tile-soft: #64796C;
