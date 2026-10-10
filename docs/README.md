@@ -11,5 +11,6 @@
 | 规则 | [游戏规则](specs/rules.md)、[Bot SDK](specs/bot-sdk.md)、[地图与随机性](specs/maps-and-randomness.md)、[评测与评分](specs/benchmark.md) |
 | 架构 | [核心模块](architecture/overview.md)、[本地服务](architecture/service.md) |
 | 界面 | [前端体验与视觉规范](design/frontend.md) |
+| 改造方案 | [核心功能简化（待实施）](design/simplification.md) |
 
 文档描述当前项目的操作与契约；生成数据、临时检查和任务包不进入源码仓库。
