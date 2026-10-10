@@ -10,6 +10,7 @@
     "test:protocol": "node --test protocol-tests/live.test.mjs"
   },
   "dependencies": {
+    "lucide-react": "1.55.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-router-dom": "7.18.4"

@@ -6,7 +6,7 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', {name: 'LLM ARENA.'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: '对战', exact: true})).toBeVisible();
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 20000}).toBe(false);
   await expect(page.getByLabel('Bot 文件')).toBeHidden();
   await expect(page.getByLabel('地图 Seed', {exact: true})).toBeHidden();
@@ -36,13 +36,13 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   }
   await page.getByRole('combobox', {name: 'Bot 0', exact: true}).selectOption(ids[0]);
   await page.getByRole('combobox', {name: 'Bot 1', exact: true}).selectOption(ids[0]);
-  await expect(page.getByRole('button', {name: '运行', exact: true})).toBeDisabled();
+  await expect(page.getByRole('button', {name: '开始对战', exact: true})).toBeDisabled();
   await expect(page.getByText('请选择两个不同的 Bot。')).toBeVisible();
   await page.getByRole('combobox', {name: 'Bot 1', exact: true}).selectOption(ids[1]);
   await page.getByText('地图设置', {exact: true}).click();
   await page.getByLabel('地图 Seed', {exact: true}).fill('1');
   const created = page.waitForResponse(r => r.url().endsWith('/api/v1/matches') && r.request().method() === 'POST');
-  await page.getByRole('button', {name: '运行', exact: true}).click();
+  await page.getByRole('button', {name: '开始对战', exact: true}).click();
   const run = await (await created).json();
   await expect(page).toHaveURL(new RegExp(`/matches/${run.id}$`));
   const stage = page.locator('.spectator-stage');
@@ -68,7 +68,7 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   await expect.poll(async () => Number(await stage.getAttribute('data-frame-count'))).toBeGreaterThan(received);
   await page.screenshot({path: testInfo.outputPath('live-desktop.png'), fullPage: true});
   await page.getByRole('button', {name: '回到最新'}).click();
-  await expect(page.getByText('跟随最新', {exact: false})).toBeVisible();
+  await expect(page.getByRole('button', {name: '回到最新'})).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(async () => (await request.get(`/api/v1/matches/${run.id}`)).json().then(r => r.status), {timeout: 40000}).toBe('completed');
   await expect(page.getByRole('heading', {name: '平局', exact: true})).toBeVisible();
   const saved = (await (await request.get(`/api/v1/matches/${run.id}/frames`)).json()).frames.length;
@@ -120,4 +120,41 @@ test('导入失败与已删除页面、API', async ({page, request}) => {
   for (const path of ['sessions', 'submissions', 'tournaments', 'backups', 'jobs', 'imports', 'exports/old']) {
     expect((await request.get('/api/v1/' + path)).status()).toBe(404);
   }
+});
+
+test('真实棋盘的脚下炸弹、爆炸与终局画面', async ({page, request}, testInfo) => {
+  const bots = await (await request.get('/api/v1/bots')).json();
+  const entrants = ['Heuristic', 'Random'].map(name => bots.items.find((bot: any) => bot.name === name && bot.baseline && bot.status === 'ready'));
+  expect(entrants.every(Boolean)).toBe(true);
+  const created = await request.post('/api/v1/matches', {
+    headers: {'X-Arena-Local': '1'}, data: {bot_ids: entrants.map(bot => bot.id), map_seed: 1},
+  });
+  expect(created.status()).toBe(202);
+  const run = await created.json();
+  await expect.poll(async () => (await (await request.get(`/api/v1/matches/${run.id}`)).json()).status).toBe('completed');
+  const replay = await (await request.get(`/api/v1/matches/${run.id}/frames`)).json();
+  expect(replay.verified).toBe(true);
+  const bombSeq = replay.frames.findIndex((frame: any) => frame.state.bombs.some((bomb: any) => frame.state.players.some((player: any) => player.x === bomb.x && player.y === bomb.y)));
+  const blastSeq = replay.frames.findIndex((frame: any) => frame.visual.coverage.length > 0);
+  expect(bombSeq).toBeGreaterThan(0);
+  expect(blastSeq).toBeGreaterThan(bombSeq);
+  await page.setViewportSize({width: 1280, height: 900});
+  await page.goto(`/matches/${run.id}`);
+  const stage = page.locator('.spectator-stage');
+  await expect(stage).toHaveAttribute('data-seq', '0');
+  for (let seq = 0; seq < bombSeq; seq++) await page.getByRole('button', {name: '下一帧'}).click();
+  await expect(stage).toHaveAttribute('data-seq', String(bombSeq));
+  await page.screenshot({path: testInfo.outputPath('arena-bombs-desktop.png'), fullPage: true});
+  for (let seq = bombSeq; seq < blastSeq; seq++) await page.getByRole('button', {name: '下一帧'}).click();
+  await expect(stage).toHaveAttribute('data-seq', String(blastSeq));
+  await page.screenshot({path: testInfo.outputPath('arena-blast-desktop.png'), fullPage: true});
+  await page.getByRole('button', {name: '最后一帧'}).click();
+  await expect(stage).toHaveAttribute('data-seq', String(replay.frames.length - 1));
+  // A blast can happen before anyone is eliminated; verify the recorded terminal state.
+  if (replay.frames.at(-1).state.players.some((player: any) => !player.alive)) {
+    await expect(page.locator('.player-state').filter({hasText: '出局'}).first()).toBeVisible();
+  }
+  await page.setViewportSize({width: 390, height: 844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path: testInfo.outputPath('arena-end-mobile.png'), fullPage: true});
 });

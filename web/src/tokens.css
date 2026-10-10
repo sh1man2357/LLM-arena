@@ -4,13 +4,15 @@
   --text: #E9E8E3;
   --muted: #969691;
   --accent: #F0DB69;
-  --teal: #69DCC9;
-  --gold: #EFB95B;
+  --player-zero: #E9E8E3;
+  --player-one: #F0DB69;
   --red: #E97975;
   --line: #30302D;
-  --tile-hard: #5F707C;
-  --tile-hard-edge: #8496A2;
-  --tile-soft: #64796C;
-  --tile-soft-edge: #7B9181;
+  --board-bg: #111110;
+  --board-grid: #242421;
+  --tile-hard: #55554E;
+  --tile-soft: #242421;
+  --tile-soft-edge: #7D7D72;
+  --blast-fill: #F0DB6933;
   color-scheme: dark;
 }
