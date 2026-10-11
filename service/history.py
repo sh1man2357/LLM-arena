@@ -6,17 +6,18 @@ from service.store import utc_now
 ACTIVE = ("pending", "running")
 
 
-def filter_runs(rows, *, q="", status=None, trashed=False):
+def filter_runs(rows, *, q="", status=None, trashed=False, game_id=None):
     query = q.strip().casefold()
     return [row for row in rows
             if bool(row.get("deleted_at")) == trashed
+            and (not game_id or row.get("game_id", "bomberman") == game_id)
             and (not status or row["status"] == status)
             and (not query or query in " ".join([
                 row["title"], row["id"], str(row.get("map_seed", "")),
                 *(e.get("name", "") for e in row["entrants"])]).casefold())]
 
 
-def manage_runs(store, action, ids, *, all_finished=False, q="", status=None):
+def manage_runs(store, action, ids, *, all_finished=False, q="", status=None, game_id=None):
     if all_finished and (action != "trash" or ids):
         raise ValueError("清空操作不能指定记录，且只支持移入回收站。")
     if not all_finished and not ids:
@@ -26,7 +27,7 @@ def manage_runs(store, action, ids, *, all_finished=False, q="", status=None):
         db.execute("BEGIN IMMEDIATE")
         if all_finished:
             rows = [json.loads(r[0]) for r in db.execute("SELECT body FROM records WHERE kind='run'")]
-            rows = filter_runs(rows, q=q, status=status)
+            rows = filter_runs(rows, q=q, status=status, game_id=game_id)
         else:
             rows = [store.get("run", identity, db=db) for identity in dict.fromkeys(ids)]
         for row in rows:

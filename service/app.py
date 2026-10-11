@@ -33,6 +33,8 @@ class MatchInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     bot_ids: list[str] = Field(min_length=2, max_length=8)
     map_seed: int | None = Field(default=None, ge=0, le=4294967295)
+    game_id: Literal["bomberman", "gomoku"] = "bomberman"
+    opening_mode: Literal["empty", "library"] = "empty"
 
 
 MatchStatus = Literal["pending", "running", "completed", "failed", "interrupted"]
@@ -50,11 +52,12 @@ class MatchManagement(BaseModel):
     all_finished: bool = False
     q: str = Field(default="", max_length=100)
     status: MatchStatus | None = None
+    game_id: Literal["bomberman", "gomoku"] | None = None
 
 
 def public_match(row):
-    return {k: row.get(k) for k in ("id", "title", "entrants", "status", "ticks", "result", "verified",
-                                   "created", "finished", "map_seed", "diagnostic", "source_sha256")}
+    return dict(game_id=row.get("game_id", "bomberman"), **{k: row.get(k) for k in ("id", "title", "entrants", "status", "ticks", "result", "verified",
+                                   "created", "finished", "map_seed", "diagnostic", "source_sha256", "opening_mode", "pair_id", "pair_index", "pair_runs")})
 
 
 def create_app(data_root=None, *, demo=False, workers=False):
@@ -67,7 +70,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
             executor.start()
         try:
             if demo:
-                prepare_baselines(store, executor)
+                prepare_baselines(store, executor, "all")
             yield
         finally:
             if workers:
@@ -131,11 +134,12 @@ def create_app(data_root=None, *, demo=False, workers=False):
         return dict(busy=active is not None, operation=active["kind"] if active else None)
 
     @app.get("/api/v1/bots")
-    def bots():
-        return dict(items=[public_bot(row) for row in listed_bots(store.list("bot"))])
+    def bots(game_id: Literal["bomberman", "gomoku"] | None = None):
+        return dict(items=[public_bot(row) for row in listed_bots(store.list("bot")) if not game_id or row.get("game_id", "bomberman") == game_id])
 
     @app.post("/api/v1/bots", status_code=202)
-    async def upload_bot(request: Request, file: UploadFile, name: str = Form(default="")):
+    async def upload_bot(request: Request, file: UploadFile, name: str = Form(default=""),
+                         game_id: Literal["bomberman", "gomoku"] = Form(default="bomberman")):
         if not (file.filename or "").lower().endswith(".cpp"):
             raise APIError("invalid_file", "请选择单文件 C++20 Bot（.cpp）。", 422)
         data = await file.read(MAX_SOURCE_BYTES + 1)
@@ -143,15 +147,17 @@ def create_app(data_root=None, *, demo=False, workers=False):
             raise APIError("upload_too_large", "源码超过 1 MiB。", 413)
         try:
             row = import_bot(store, executor, data, name or Path(file.filename).stem,
-                             request.headers.get("idempotency-key"))
+                             request.headers.get("idempotency-key"), game_id)
         except UnicodeDecodeError:
             raise APIError("invalid_encoding", "源码须使用 UTF-8 编码。", 422)
         return public_bot(row)
 
-    def frozen_bots(ids):
+    def frozen_bots(ids, game_id="bomberman"):
         result = []
         for identity in ids:  # Preserve the user's spawn order.
             bot = store.get("bot", identity)
+            if bot.get("game_id", "bomberman") != game_id:
+                raise ValueError("Bot 所属游戏与对局不一致。")
             if bot["status"] != "ready" or not bot.get("wasm"):
                 raise FileExistsError("只有可运行的 Bot 可以开始对局。")
             if not Path(bot["wasm"]).is_file() or sha_file(bot["wasm"]) != bot["wasm_sha256"]:
@@ -165,27 +171,52 @@ def create_app(data_root=None, *, demo=False, workers=False):
             raise KeyError(identity)
         return row
 
-    def new_match(ids, map_seed, key, request_data, bot_seeds=None, entrants=None):
-        entrants = entrants or frozen_bots(ids)
+    def new_match(ids, map_seed, key, request_data, bot_seeds=None, entrants=None, game_id="bomberman", opening_mode="empty"):
+        if game_id == "gomoku" and len(ids) != 2:
+            raise ValueError("五子棋需要两个 Bot。")
+        if game_id == "bomberman" and opening_mode != "empty":
+            raise ValueError("炸弹人不支持棋局开局库。")
+        entrants = entrants or frozen_bots(ids, game_id)
         identity = "run-" + secrets.token_hex(8)
         seed = secrets.randbits(32) if map_seed is None else map_seed
         inputs = dict(match_id=identity, entrants=entrants, map_seed=seed,
-                      bot_seeds=bot_seeds or [f"{secrets.randbits(64):016x}" for _ in entrants], components=components())
+                      bot_seeds=bot_seeds or [f"{secrets.randbits(64):016x}" for _ in entrants], components=components(),
+                      game_id=game_id, opening_mode=opening_mode)
+        pair_runs = [identity, "run-" + secrets.token_hex(8)] if game_id == "gomoku" else None
+        if pair_runs:
+            inputs["legs"] = [dict(match_id=pair_runs[i], entrants=entrants if i == 0 else list(reversed(entrants)),
+                                   map_seed=seed, bot_seeds=inputs["bot_seeds"] if i == 0 else list(reversed(inputs["bot_seeds"])),
+                                   game_id=game_id, opening_mode=opening_mode) for i in range(2)]
         def resource(task, db):
-            store.put("run", dict(id=identity, title=" vs ".join(e["name"] for e in entrants),
+            for index, leg in enumerate(inputs.get("legs", [inputs])):
+                participants = leg["entrants"]
+                store.put("run", dict(id=leg["match_id"], title=" vs ".join(e["name"] for e in participants),
+                                  game_id=game_id, opening_mode=opening_mode,
+                                  pair_id=identity if pair_runs else None, pair_index=index if pair_runs else None, pair_runs=pair_runs,
                                   entrants=[dict(id=e["id"], name=e["name"], slot=i, wasm_sha256=e["wasm_sha256"])
-                                            for i, e in enumerate(entrants)],
+                                            for i, e in enumerate(participants)],
                                   status="pending", ticks=0, verified=False, result=None, map_seed=seed,
                                   created=utc_now(), task_id=task["id"], diagnostic=None), create=True, db=db)
         task = executor.create("match", inputs, key, request=request_data, resource=resource)
         row = store.get("run", task["inputs"]["match_id"])
         if row.get("deleted_at"):
             raise FileExistsError("该请求对应的对局已在回收站，请恢复记录或创建新对局。")
-        return public_match(row)
+        return show_match(row)
+
+    def show_match(row):
+        value = public_match(row)
+        if row.get("pair_runs"):
+            legs = [store.get("run", i) for i in row["pair_runs"]]
+            complete = all(r["status"] == "completed" and r.get("verified") and (r.get("result") or {}).get("valid") for r in legs)
+            score = [sum(r["result"]["players"][i if index == 0 else 1-i]["placement_score"] for index, r in enumerate(legs)) for i in range(2)] if complete else None
+            value["pair"] = dict(complete=complete, counted=complete and not any(r.get("deleted_at") for r in legs), score=score,
+                                 runs=[dict(id=r["id"], status=r["status"], pair_index=r["pair_index"], deleted=bool(r.get("deleted_at"))) for r in legs])
+        return value
 
     @app.post("/api/v1/matches", status_code=202)
     def create_match(body: MatchInput, request: Request):
-        return new_match(body.bot_ids, body.map_seed, request.headers.get("idempotency-key"), body.model_dump())
+        return new_match(body.bot_ids, body.map_seed, request.headers.get("idempotency-key"), body.model_dump(),
+                         game_id=body.game_id, opening_mode=body.opening_mode)
 
     @app.post("/api/v1/matches/{identity}/rerun", status_code=202)
     def rerun(identity: str, request: Request):
@@ -196,20 +227,20 @@ def create_app(data_root=None, *, demo=False, workers=False):
                 raise FileExistsError("原 Bot 产物已改变，无法按原输入重新运行。")
         return new_match([e["id"] for e in inputs["entrants"]], inputs["map_seed"],
                          request.headers.get("idempotency-key"), dict(rerun=identity),
-                         inputs["bot_seeds"], inputs["entrants"])
+                         inputs["bot_seeds"], inputs["entrants"], inputs.get("game_id", "bomberman"), inputs.get("opening_mode", "empty"))
 
     @app.get("/api/v1/matches")
     def matches(offset: int = 0, limit: int = 30, q: str = "", status: MatchStatus | None = None,
-                trashed: bool = False):
-        rows = filter_runs(store.list("run"), q=q, status=status, trashed=trashed)
+                trashed: bool = False, game_id: Literal["bomberman", "gomoku"] | None = None):
+        rows = filter_runs(store.list("run"), q=q, status=status, trashed=trashed, game_id=game_id)
         rows.sort(key=lambda r: (r["created"], r["id"]), reverse=True)
         limit, offset = max(1, min(limit, 100)), max(0, offset)
-        return dict(items=[public_match(r) for r in rows[offset:offset + limit]], total=len(rows))
+        return dict(items=[show_match(r) for r in rows[offset:offset + limit]], total=len(rows))
 
     @app.post("/api/v1/matches/manage")
     def manage_matches(body: MatchManagement):
         return manage_runs(store, body.action, body.ids, all_finished=body.all_finished,
-                           q=body.q, status=body.status)
+                           q=body.q, status=body.status, game_id=body.game_id)
 
     @app.patch("/api/v1/matches/{identity}")
     def rename_match(identity: str, body: MatchTitle):
@@ -222,11 +253,11 @@ def create_app(data_root=None, *, demo=False, workers=False):
             row["title"] = title
         row = store.update("run", identity, change)
         store.emit(identity, "run", dict(status=row["status"]))
-        return public_match(row)
+        return show_match(row)
 
     @app.get("/api/v1/matches/{identity}")
     def match(identity: str):
-        return public_match(visible_run(identity))
+        return show_match(visible_run(identity))
 
     @app.get("/api/v1/matches/{identity}/frames")
     def frames(identity: str, after_seq: int = -1, attempt_id: str | None = None):
@@ -257,8 +288,8 @@ def create_app(data_root=None, *, demo=False, workers=False):
         return ui
 
     @app.get("/api/v1/leaderboard")
-    def rankings():
-        return leaderboard(store.list("bot"), filter_runs(store.list("run")))
+    def rankings(game_id: Literal["bomberman", "gomoku"] = "bomberman"):
+        return leaderboard(store.list("bot"), filter_runs(store.list("run")), game_id)
 
     @app.get("/api/v1/events")
     async def events(request: Request, after: int | None = None):

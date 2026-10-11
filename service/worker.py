@@ -18,9 +18,10 @@ def compile_snapshot(store, identity):
     try:
         if sha_file(bot["source"]) != bot["source_sha256"]:
             raise ValueError("导入的源码快照已改变，请重新导入。")
-        compile_bot(bot["source"], wasm)
+        game_id = bot.get("game_id", "bomberman")
+        compile_bot(bot["source"], wasm, game_id)
         with Backend() as backend:
-            qualify(backend, wasm)
+            qualify(backend, wasm, game_id)
         bot.update(status="ready", wasm=str(wasm), wasm_sha256=sha_file(wasm), diagnostic=None)
     except Exception as exc:
         bot.update(status="failed", diagnostic=f"{type(exc).__name__}: {exc}")
@@ -61,15 +62,21 @@ class LiveSink:
         self.stream.close()
 
 
-def run_single(store, task):
-    inputs = task["inputs"]
+def run_single(store, task, inputs=None):
+    inputs = inputs or task["inputs"]
     for bot in inputs["entrants"]:
         if sha_file(bot["wasm"]) != bot["wasm_sha256"]:
             raise ValueError("Bot 编译产物已改变，请重新导入。")
     sink = LiveSink(store, inputs["match_id"])
     try:
         with Backend() as backend:
-            result, _ = run_match(backend, inputs["entrants"], inputs["map_seed"],
+            if inputs.get("game_id") == "gomoku":
+                from gomoku.match import run_match as gomoku_run
+                result, _ = gomoku_run(backend, inputs["entrants"], inputs["map_seed"],
+                                      [int(s, 16) for s in inputs["bot_seeds"]], inputs["match_id"],
+                                      opening_mode=inputs["opening_mode"], record_sink=sink)
+            else:
+                result, _ = run_match(backend, inputs["entrants"], inputs["map_seed"],
                                   [int(s, 16) for s in inputs["bot_seeds"]], inputs["match_id"], record_sink=sink)
         sink.close()
         projection = project(decode(sink.path.read_bytes()), partial=not result["valid"])
@@ -108,7 +115,8 @@ def main(data_root, task_id):
         elif task["kind"] == "match":
             if task["inputs"]["components"] != components():
                 raise ValueError("运行输入的规则 / 工具版本已改变，请建立新运行。")
-            run_single(store, task)
+            for leg in task["inputs"].get("legs", [task["inputs"]]):
+                run_single(store, task, leg)
         else:
             raise ValueError("Unknown core task")
         store.update("task", task_id, lambda r: r.update(status="succeeded", finished=utc_now()))

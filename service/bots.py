@@ -13,11 +13,13 @@ BASELINES = ("random", "safe", "heuristic")
 
 
 def public_bot(row):
-    return {k: row.get(k) for k in ("id", "name", "status", "baseline", "created", "source_sha256",
-                                  "wasm_sha256", "diagnostic", "compile_log")}
+    return dict(game_id=row.get("game_id", "bomberman"), **{k: row.get(k) for k in ("id", "name", "status", "baseline", "created", "source_sha256",
+                                  "wasm_sha256", "diagnostic", "compile_log")})
 
 
-def import_bot(store, executor, source, name, key=None):
+def import_bot(store, executor, source, name, key=None, game_id="bomberman"):
+    if game_id not in ("bomberman", "gomoku"):
+        raise ValueError("Unknown game")
     if not 1 <= len(source) <= MAX_SOURCE_BYTES:
         raise ValueError("源码须为 1 byte～1 MiB。")
     source.decode("utf-8-sig")
@@ -25,7 +27,7 @@ def import_bot(store, executor, source, name, key=None):
     if not 1 <= len(name) <= 100:
         raise ValueError("Bot 名称须为 1～100 字符。")
     identity = "bot-" + secrets.token_hex(8)
-    row = dict(id=identity, name=name, status="processing", baseline=False, created=utc_now(),
+    row = dict(id=identity, name=name, game_id=game_id, status="processing", baseline=False, created=utc_now(),
                source_sha256=hashlib.sha256(source).hexdigest(), diagnostic=None, compile_log=None)
     def resource(task, db):
         folder = store.root / "bots" / identity
@@ -35,25 +37,28 @@ def import_bot(store, executor, source, name, key=None):
         row.update(source=str(path))
         store.put("bot", row, create=True, db=db)
     task = executor.create("compile", dict(bot_id=identity), key,
-                           request=dict(source_sha256=row["source_sha256"], name=name), resource=resource)
+                           request=dict(source_sha256=row["source_sha256"], name=name, game_id=game_id), resource=resource)
     return store.get("bot", task["inputs"]["bot_id"])
 
 
-def baseline_records(store):
+def baseline_records(store, game_id="bomberman"):
+    folder = "gomoku" if game_id == "gomoku" else "baselines"
+    sdk = ROOT / "sdk/gomoku" if game_id == "gomoku" else ROOT / "sdk"
+    header = "gomoku.hpp" if game_id == "gomoku" else "arena.hpp"
     rows = []
     version = dict(flags=FLAGS, compiler_sha256=sha_file(compiler_path()),
-                   sdk_sha256={name: sha_file(ROOT / 'sdk' / name) for name in ('arena.hpp', 'wrapper.cpp')},
+                   sdk_sha256={name: sha_file(sdk / name) for name in (header, 'wrapper.cpp')},
                    toolchain=read_json(ROOT / 'configs/toolchain.json'))
-    planner_sha = sha_file(ROOT / 'bots/baselines/planner.hpp')
+    planner_sha = sha_file(ROOT / f'bots/{folder}/planner.hpp')
     existing = store.list('bot')
-    for name in BASELINES:
-        source = ROOT / f"bots/baselines/{name}.cpp"
+    for name in (("random", "tactical", "search") if game_id == "gomoku" else BASELINES):
+        source = ROOT / f"bots/{folder}/{name}.cpp"
         sha = sha_file(source)
-        identity = f"baseline-{name}-" + digest(dict(source=sha, planner=planner_sha, **version))[:16]
+        identity = f"baseline-{'gomoku-' if game_id == 'gomoku' else ''}{name}-" + digest(dict(source=sha, planner=planner_sha, **version))[:16]
         # Reuse intact legacy snapshots whose build inputs match, regardless of their old ID.
         reusable = False
         for candidate in existing:
-            if not (candidate.get('baseline') and candidate['name'] == name.title()
+            if not (candidate.get('baseline') and candidate.get('game_id', 'bomberman') == game_id and candidate['name'] == name.title()
                     and candidate['status'] == 'ready' and candidate.get('source_sha256') == sha):
                 continue
             try:
@@ -72,7 +77,7 @@ def baseline_records(store):
         try:
             row = store.get("bot", identity)
         except KeyError:
-            row = dict(id=identity, name=name.title(), status="processing", baseline=True,
+            row = dict(id=identity, name=name.title(), game_id=game_id, status="processing", baseline=True,
                        source=str(source), source_sha256=sha, created=utc_now(), diagnostic=None, compile_log=None)
         if row["status"] != "ready":
             rows.append(row)
@@ -84,24 +89,26 @@ def listed_bots(rows):
     latest = {}
     for row in rows:
         if row.get('baseline'):
-            previous = latest.get(row['name'])
+            key = (row.get('game_id', 'bomberman'), row['name'])
+            previous = latest.get(key)
             if previous is None or (row['created'], row['id']) > (previous['created'], previous['id']):
-                latest[row['name']] = row
-    return [row for row in rows if not row.get('baseline') or row['id'] == latest[row['name']]['id']]
+                latest[key] = row
+    return [row for row in rows if not row.get('baseline') or row['id'] == latest[(row.get('game_id', 'bomberman'), row['name'])]['id']]
 
 
-def prepare_baselines(store, executor):
-    rows = baseline_records(store)
+def prepare_baselines(store, executor, game_id="bomberman"):
+    rows = [r for game in (("bomberman", "gomoku") if game_id == "all" else (game_id,)) for r in baseline_records(store, game)]
     if not rows:
         return
     def resource(task, db):
         for row in rows:
-            source = ROOT / f"bots/baselines/{row['name'].lower()}.cpp"
+            folder_name = "gomoku" if row.get("game_id") == "gomoku" else "baselines"
+            source = ROOT / f"bots/{folder_name}/{row['name'].lower()}.cpp"
             folder = store.root / "bots" / row["id"]
             folder.mkdir(parents=True, exist_ok=True)
             snapshot = folder / "bot.cpp"
             snapshot.write_bytes(source.read_bytes())
-            (folder / "planner.hpp").write_bytes((ROOT / "bots/baselines/planner.hpp").read_bytes())
+            (folder / "planner.hpp").write_bytes((ROOT / f"bots/{folder_name}/planner.hpp").read_bytes())
             row["source"] = str(snapshot)
             row.update(status="processing", diagnostic=None)
             store.put("bot", row, db=db)

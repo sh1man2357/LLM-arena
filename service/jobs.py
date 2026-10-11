@@ -82,6 +82,7 @@ class Executor:
         identities += [("bot", i) for i in inputs.get("bot_ids", [])]
         if "match_id" in inputs:
             identities.append(("run", inputs["match_id"]))
+        identities += [("run", leg["match_id"]) for leg in inputs.get("legs", []) if leg["match_id"] != inputs.get("match_id")]
         for kind, identity in identities:
             row = self.store.get(kind, identity)
             if row["status"] not in ("pending", "running", "processing"):
