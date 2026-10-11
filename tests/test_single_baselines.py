@@ -132,6 +132,30 @@ class SingleBaselineTests(unittest.TestCase):
                         self.assertIsNone(result['fault'], (crowded,walls,bombs,result))
         finally: instance.close()
 
+    def test_gomoku_blocks_reported_continuous_four_before_it_is_forced(self):
+        # Reproduce a legal twenty-move defeat; blocking just the next four
+        # loses, while these seven points break the complete attack chain.
+        moves = [(7,7),(8,8),(6,7),(8,7),(8,9),(7,8),(5,7),(3,7),
+                 (4,8),(6,9),(5,10),(9,6),(10,5),(9,8),(6,8),(9,5),
+                 (9,7),(11,8),(10,8),(8,6)]
+        defenders = {67,68,82,83,96,115,147}
+        instance = self.backend.instance(self.backend.load(self.paths['gomoku','baseline']),1,tick_fuel=MOVE_FUEL)
+        instance.action_max = 225
+        try:
+            for rotation in range(4):
+                def index(x,y):
+                    for _ in range(rotation): x,y = 14-y,x
+                    return y*15+x
+                world = World()
+                for k,(x,y) in enumerate(moves):
+                    i = index(x,y); color = 1+k%2
+                    world.grid[i] = color
+                    world.moves.append(dict(x=i%15,y=i//15,color=color))
+                call = instance.call(encode(world,0))
+                self.assertIsNone(call['fault'])
+                self.assertIn(call['raw_action'],{index(i%15,i//15) for i in defenders})
+        finally: instance.close()
+
     def test_bomberman_reference_games_and_old_opponent(self):
         bots = [dict(id=n,wasm=str(self.paths['bomberman',n])) for n in ('baseline','heuristic')]
         points = []

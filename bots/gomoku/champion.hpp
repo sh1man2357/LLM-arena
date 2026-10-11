@@ -118,15 +118,15 @@ inline int static_score(int c){
 }
 // Prove continuous-four wins by checking every forced reply.
 // Reaching a work/depth limit is never treated as a proof.
-inline bool prove(int c,int depth,int& first){
-    if(work>PROOF_LIMIT||depth<=0)return false;
+inline bool prove(int c,int depth,int& first,int cap=PROOF_LIMIT){
+    if(work>cap||depth<=0)return false;
     ++nodes;Move options[12];int n=moves(c,options,12,-1,0,true);
     if(!n)return false;
     if(value[c][options[0].i]>=WIN){first=options[0].i;return true;}
     if(options[0].score<=-INF){
         if(options[0].score<=-INF-2||!fours[c][options[0].i])return false;
     }
-    for(int k=0;k<n&&work<=PROOF_LIMIT;++k){
+    for(int k=0;k<n&&work<=cap;++k){
         int i=options[k].i;change(i,c,true);
         int winning=0,reply=-1;bool counter=false;
         for(int j=0;j<225;++j){
@@ -135,14 +135,37 @@ inline bool prove(int c,int depth,int& first){
             if(value[c][j]>=WIN){reply=j;++winning;}
         }
         bool proven=!counter&&winning>=2;
-        if(!counter&&winning==1&&depth>=3&&work<=PROOF_LIMIT){
+        if(!counter&&winning==1&&depth>=3&&work<=cap){
             change(reply,3-c,true);int continuation=-1;
-            proven=prove(c,depth-2,continuation);change(reply,3-c,false);
+            proven=prove(c,depth-2,continuation,cap);change(reply,3-c,false);
         }
         change(i,c,false);
         if(proven){first=i;return true;}
     }
     return false;
+}
+// Two open threes on different axes cannot both be blocked by one stone.
+// The defender can instead counter with a four, so verify every such counter.
+inline bool prove_threes(int c,int& first,int cap){
+    Move options[16];int n=moves(c,options,16);
+    for(int k=0;k<n&&work<cap;++k){
+        int i=options[k].i;
+        if(threes[c][i]<2)continue;
+        int local_cap=std::min(work+250000,cap);
+        change(i,c,true);bool proven=true;
+        for(int j=0;j<225&&proven;++j){
+            work+=22;if(board[j]||!fours[3-c][j])continue;
+            if(value[3-c][j]>=WIN||work>=local_cap){proven=false;break;}
+            change(j,3-c,true);int reply=-1;
+            proven=prove(c,13,reply,local_cap);change(j,3-c,false);
+        }
+        change(i,c,false);
+        if(proven&&work<local_cap){first=i;return true;}
+    }
+    return false;
+}
+inline bool proof(int c,int& first,int cap){
+    return prove_threes(c,first,cap)||prove(c,13,first,cap);
 }
 inline int store_mate(int score,int ply){
     return score>WIN-1000?score+ply:score<-WIN+1000?score-ply:score;
@@ -164,8 +187,19 @@ inline int search(int c,int depth,int alpha,int beta,int ply){
     if(value[c][i]>=WIN)return WIN-ply;
     if(options[0].score<=-INF-2)return -WIN+ply+1;
     bool forced=options[0].score<=-INF;
+    // Making an open four wins on the following move. Immediate counterwins
+    // have already forced the only block above, so this is a proven shortcut.
+    for(int k=0;k<n;++k)if(value[c][options[k].i]>=2000000)return WIN-ply-2;
     if(ply>=16)return static_score(c);
-    if(depth<=0&&!forced)return static_score(c);
+    if(depth<=0&&!forced){
+        bool fork=false;
+        for(int k=0;k<n;++k)fork|=threes[c][options[k].i]>=2;
+        if(fork&&work<WORK_LIMIT-500000){
+            int first=-1;
+            if(prove_threes(c,first,std::min(work+150000,WORK_LIMIT-300000)))return WIN-ply-3;
+        }
+        return static_score(c);
+    }
     int best=-INF,best_move=i;
     for(int k=0;k<n;++k){
         i=options[k].i;
@@ -191,7 +225,24 @@ inline int choose(const GameState& s){
     load(s);Move roots[16];int c=s.self_color,n=moves(c,roots,16);
     if(!n)return -1;int selected=roots[0].i;
     if(value[c][selected]>=WIN||roots[0].score<=-INF)return selected;
-    int proven=-1;if(prove(c,13,proven))return proven;
+    int proven=-1;if(proof(c,proven,PROOF_LIMIT))return proven;
+    // Search the opponent's continuous-four attack before trusting a quiet score.
+    // A lower-ranked defensive point can be the only move that breaks the whole chain.
+    int incoming=-1;
+    if(proof(3-c,incoming,std::min(work+1000000,WORK_LIMIT-4000000))){
+        Move defended[16];int safe_count=0;
+        int cap=std::min(work+3500000,WORK_LIMIT-2000000);
+        for(int k=0;k<n;++k){
+            int i=roots[k].i;change(i,c,true);int reply=-1;
+            bool lost=proof(3-c,reply,std::min(work+300000,cap));
+            change(i,c,false);
+            if(!lost)defended[safe_count++]=roots[k];
+        }
+        if(safe_count){
+            n=safe_count;for(int k=0;k<n;++k)roots[k]=defended[k];
+            selected=roots[0].i;
+        }
+    }
     for(int depth=1;depth<=10&&!stopped;++depth){
         int best=-INF,pick=selected;
         for(int k=0;k<n;++k)if(roots[k].i==selected)std::swap(roots[0],roots[k]);
