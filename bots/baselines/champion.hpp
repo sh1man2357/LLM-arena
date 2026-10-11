@@ -63,8 +63,12 @@ inline int choose(const GameState& s,arena::Rng& rng) {
     }
     auto threat=considered?forecast(enemy,false):f;
     if(useful_bomb(s)) {
+        // Hypothetical opponent bombs can change chain timing and terrain.
+        // Escape must also work when those opponents do not place bombs.
+        auto actual=forecast(s,true);
         auto bomb=forecast(enemy,true);
-        if(!bomb.danger[0][start] && reachable(s,bomb,start,1)>=2) {
+        if(!actual.danger[0][start] && reachable(s,actual,start,1)>=2 &&
+           !bomb.danger[0][start] && reachable(s,bomb,start,1)>=2) {
             int walls=0,targets=0;
             for(int d=1;d<=4;++d)for(int k=1;k<=int(s.blast_range);++k) {
                 int x=int(s.self().x)+dx[d]*k,y=int(s.self().y)+dy[d]*k;
