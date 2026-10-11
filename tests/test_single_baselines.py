@@ -75,6 +75,43 @@ class SingleBaselineTests(unittest.TestCase):
                 points += result['players'][int(swap)]['placement_score']
         self.assertGreater(points, 12)
 
+    def test_gomoku_continuous_four_and_enemy_counterwin(self):
+        instance = self.backend.instance(self.backend.load(self.paths['gomoku', 'baseline']), 1, tick_fuel=MOVE_FUEL)
+        instance.action_max = 225
+        try:
+            for color in (1, 2):
+                for rotation in range(4):
+                    def index(x, y):
+                        for _ in range(rotation): x, y = 14-y, x
+                        return y*15+x
+                    w = World()
+                    for x, y in ((4,7),(5,7),(6,7),(7,5),(7,8)): w.grid[index(x,y)] = color
+                    w.grid[index(3,7)] = 3-color
+                    if color == 2: w.moves = [dict(x=index(3,7)%15,y=index(3,7)//15,color=1)]
+                    # Force a horizontal block, then turn into an open vertical four.
+                    first = instance.call(encode(w,color-1))
+                    self.assertIsNone(first['fault']); self.assertEqual(first['raw_action'],index(7,7))
+                    w.grid[first['raw_action']] = color
+                    w.grid[index(8,7)] = 3-color
+                    second = instance.call(encode(w,color-1))
+                    self.assertIsNone(second['fault']); self.assertEqual(second['raw_action'],index(7,6))
+                    w.grid[second['raw_action']] = color
+                    for defend, win in ((4,9),(9,4)):
+                        w.grid[index(7,defend)] = 3-color
+                        final = instance.call(encode(w,color-1))
+                        self.assertIsNone(final['fault']); self.assertEqual(final['raw_action'],index(7,win))
+                        w.grid[index(7,defend)] = 0
+                    # A promising attack must yield to the opponent's immediate win.
+                    w = World()
+                    for x,y in ((4,7),(5,7),(6,7),(7,5),(7,8)): w.grid[index(x,y)] = color
+                    w.grid[index(3,7)] = 3-color
+                    w.grid[index(1,11)] = color
+                    for x in (2,3,4,5): w.grid[index(x,11)] = 3-color
+                    if color == 2: w.moves = [dict(x=index(3,7)%15,y=index(3,7)//15,color=1)]
+                    defense = instance.call(encode(w,color-1))
+                    self.assertIsNone(defense['fault']); self.assertEqual(defense['raw_action'],index(6,11))
+        finally: instance.close()
+
     def test_bomberman_large_maps_and_eight_players_within_budget(self):
         instance = self.backend.instance(self.backend.load(self.paths['bomberman', 'baseline']), 1)
         try:
