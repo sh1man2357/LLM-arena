@@ -32,7 +32,7 @@ def package(output, game_id="bomberman"):
     names += ["configs/gomoku-public-dev.json", "tools/gomoku_practice.py", "sdk/gomoku/gomoku.hpp", "sdk/gomoku/wrapper.cpp", "sdk/gomoku/template.cpp"]
     for folder in ("engine", "gomoku", "runtime", "runner", "replay"):
         names += [p.relative_to(ROOT).as_posix() for p in sorted((ROOT / folder).glob('*.py'))]
-    names += [f'bots/baselines/{name}' for name in ('baseline.cpp', 'champion.hpp', 'planner.hpp')]
+    names += [f'bots/baselines/{name}' for name in ('baseline.cpp', 'champion.hpp')]
     names += [f'bots/gomoku/{name}' for name in ('baseline.cpp', 'champion.hpp', 'patterns.hpp')]
     names += [p.relative_to(ROOT).as_posix() for p in sorted((ROOT / 'docs/specs').glob('*.md'))]
     # Guide links remain useful; references outside this public package are plain text.

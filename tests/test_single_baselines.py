@@ -1,10 +1,12 @@
 """Real strategy regressions and resource budgets for the two zero-point references."""
 from pathlib import Path
 import random
+from copy import deepcopy
 import tempfile
 import unittest
 
 from engine.model import World as BombWorld, Player, Bomb, FLOOR, HARD_WALL, SOFT_WALL
+from engine.rules import explode, step as bomb_step
 from gomoku.rules import World
 from gomoku.match import encode, run_match as gomoku_match
 from gomoku import MOVE_FUEL
@@ -142,3 +144,69 @@ class SingleBaselineTests(unittest.TestCase):
                 self.assertTrue(all(not c['fault'] for t in records for c in t.get('calls', [])))
                 points.append(result['players'][int(swap)]['placement_score'])
         self.assertGreaterEqual(sum(points), len(points)/2)
+
+    def test_bomberman_corner_trap_and_body_block(self):
+        instance = self.backend.instance(self.backend.load(self.paths['bomberman','baseline']),1)
+        def room(floors, positions):
+            grid = [HARD_WALL]*49
+            for x,y in floors: grid[y*7+x] = FLOOR
+            return BombWorld(7,7,grid,[Player(i,*p) for i,p in enumerate(positions)])
+        try:
+            trap = room(((3,3),(3,2),(2,2),(2,1),(4,3),(5,3)),((3,3),(5,3)))
+            call = instance.call(bomb_encode(trap,0))
+            self.assertIsNone(call['fault']); self.assertEqual(call['raw_action'],5)
+            hold = room(((5,1),(5,2),(5,3),(4,3),(4,2),(3,3)),((4,2),(5,3)))
+            hold.bombs = [Bomb(0,0,3,3,2,3),Bomb(1,1,5,1,2,3)]
+            hold.next_bomb_id = 2
+            call = instance.call(bomb_encode(hold,0))
+            self.assertIsNone(call['fault']); self.assertEqual(call['raw_action'],0)
+            # Exhaust every opponent action sequence through detonation.
+            import itertools
+            for actions in itertools.product(range(6), repeat=3):
+                world = deepcopy(hold)
+                for action in actions:
+                    own = instance.call(bomb_encode(world,0))
+                    self.assertIsNone(own['fault']); self.assertEqual(own['raw_action'],0)
+                    bomb_step(world,{0:own,1:dict(raw_action=action,fault=None)})
+                self.assertTrue(world.players[0].alive)
+                self.assertFalse(world.players[1].alive)
+                self.assertEqual(world.players[0].score,3+100*world.players[0].kills)
+        finally: instance.close()
+
+    def test_bomberman_compact_forecast_matches_engine_chain_closure(self):
+        # Query the current C++ predictor; Python's actual explosion closure is the oracle.
+        source = self.root / 'forecast-probe.cpp'
+        source.write_text(
+            '#include "'+(ROOT/'bots/baselines/champion.hpp').as_posix()+'"\n'
+            'champion::Forecast prediction;\n'
+            'namespace bot {void init(uint64_t) {} Action tick(const GameState& s) {'
+            'champion::prepare(s);prediction=champion::forecast(s);return Action::WAIT;}}\n'
+            'extern "C" __attribute__((export_name("cell"))) int cell(int i,int t) {'
+            'return int(bool(prediction.danger[i]&(1u<<t)))|'
+            '(int(prediction.open[i]<=t)<<1)|(int(prediction.until[i]>t)<<2);}\n',
+            encoding='utf-8')
+        wasm = self.root / 'forecast-probe.wasm'; compile_bot(source,wasm)
+        instance = self.backend.instance(self.backend.load(wasm),1)
+        rng = random.Random(628129)
+        try:
+            for trial in range(24):
+                grid = [FLOOR]*49
+                for y in range(7):
+                    for x in range(7):
+                        if x in (0,6) or y in (0,6):grid[y*7+x]=HARD_WALL
+                        elif rng.random()<.3:grid[y*7+x]=SOFT_WALL
+                positions = rng.sample([i for i in range(49) if grid[i]!=HARD_WALL],8)
+                for i in positions: grid[i] = FLOOR
+                world = BombWorld(7,7,grid,[Player(k,i%7,i//7) for k,i in enumerate(positions)])
+                world.bombs = [Bomb(k,k,i%7,i//7,rng.randrange(7),rng.randrange(1,5)) for k,i in enumerate(positions)]
+                call = instance.call(bomb_encode(world,0)); self.assertIsNone(call['fault'])
+                for t in range(7):
+                    occupied = {(b.x,b.y) for b in world.bombs}
+                    detonated, soft, coverage = explode(world,[b.id for b in world.bombs if b.explode_at_tick<=t])
+                    for i in range(49):
+                        x,y = i%7,i//7
+                        expected = int((x,y) in coverage)|(int(world.grid[i]==FLOOR)<<1)|(int((x,y) in occupied)<<2)
+                        self.assertEqual(instance.exports['cell'](instance.store,i,t),expected,(trial,t,x,y))
+                    for x,y in soft:world.grid[y*7+x] = FLOOR
+                    world.bombs = [b for b in world.bombs if b.id not in detonated]
+        finally: instance.close()

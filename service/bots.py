@@ -49,7 +49,7 @@ def baseline_records(store, game_id="bomberman"):
     version = dict(flags=FLAGS, compiler_sha256=sha_file(compiler_path()),
                    sdk_sha256={name: sha_file(sdk / name) for name in (header, 'wrapper.cpp')},
                    toolchain=read_json(ROOT / 'configs/toolchain.json'))
-    headers = ('champion.hpp', 'patterns.hpp') if game_id == 'gomoku' else ('champion.hpp', 'planner.hpp')
+    headers = ('champion.hpp', 'patterns.hpp') if game_id == 'gomoku' else ('champion.hpp',)
     header_sha = {name: sha_file(ROOT / f'bots/{folder}/{name}') for name in headers}
     existing = store.list('bot')
     for name in BASELINES:
@@ -109,7 +109,7 @@ def prepare_baselines(store, executor, game_id="bomberman"):
             folder.mkdir(parents=True, exist_ok=True)
             snapshot = folder / "bot.cpp"
             snapshot.write_bytes(source.read_bytes())
-            headers = ('champion.hpp', 'patterns.hpp') if row.get('game_id') == 'gomoku' else ('champion.hpp', 'planner.hpp')
+            headers = ('champion.hpp', 'patterns.hpp') if row.get('game_id') == 'gomoku' else ('champion.hpp',)
             for name in headers:
                 (folder / name).write_bytes((ROOT / f"bots/{folder_name}/{name}").read_bytes())
             row["source"] = str(snapshot)
