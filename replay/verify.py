@@ -68,7 +68,7 @@ def verify_world(records):
 def verify_bot(backend, records, wasm_paths):
     verify_world(records)
     header = records[0]
-    require(header["components"] == components(), "Current source/toolchain version differs from Replay")
+    require(header["components"] == components(header.get("game_id", "bomberman")), "Current source/toolchain version differs from Replay")
     require(len(wasm_paths) == len(header["entrants"]), "Expected one WASM per spawn slot")
     entrants = []
     for e, path in zip(header["entrants"], wasm_paths):

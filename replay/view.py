@@ -5,6 +5,10 @@ def frames(records):
     states += [(f"tick {r['tick']}", r["state"], r["events"], r["actions"], r["calls"])
                for r in records if r["type"] == "tick"]
     for label, state, events, actions, calls in states:
+        if header.get("game_id") == "gomoku":
+            text = "\n".join("".join(".XO"[v] for v in state["grid"][y*width:(y+1)*width]) for y in range(height))
+            yield f"{label} | ply {len(state['moves'])}\n{text}\nactions: {actions}\ncalls: {calls}\nevents: {events}\n"
+            continue
         cells = [".#+"[v] for v in state["grid"]]
         for b in state["bombs"]:
             cells[b["y"] * width + b["x"]] = "*"

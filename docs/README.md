@@ -7,7 +7,7 @@
 | 使用 | [安装与启动](guides/getting-started.md)、[导入与观赛](guides/organizing-matches.md)、[CLI](guides/cli.md) |
 | 模型开发 | [开发包与练习](guides/model-development.md)、[任务书](../devkit/MODEL_TASK.md)、[执行入口](../devkit/START_HERE.md) |
 | 开发维护 | [开发与验证](guides/development.md)、[文档维护](maintenance.md) |
-| 规则 | [游戏规则](specs/rules.md)、[Bot SDK](specs/bot-sdk.md)、[地图与随机性](specs/maps-and-randomness.md)、[本地榜单计分](specs/benchmark.md) |
+| 规则 | [炸弹人规则](specs/rules.md)、[炸弹人 Bot SDK](specs/bot-sdk.md)、[地图与随机性](specs/maps-and-randomness.md)、[本地榜单计分](specs/benchmark.md)、[五子棋规则与 SDK](specs/gomoku.md) |
 | 架构 | [核心模块](architecture/overview.md)、[本地服务](architecture/service.md) |
 | 界面与改造 | [前端规范](design/frontend.md)、[核心简化方案](design/simplification.md) |
 

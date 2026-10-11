@@ -36,7 +36,7 @@ def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", *, open
     stats = [empty_stats(), empty_stats()]
     init, instances = [], {}
     header = dict(type="header", schema_version=1, game_id="gomoku", match_id=match_id,
-                  components=components(), rules=RULES.copy(), map_seed=map_seed, opening_mode=opening_mode,
+                  components=components("gomoku"), rules=RULES.copy(), map_seed=map_seed, opening_mode=opening_mode,
                   map=dict(width=SIZE, height=SIZE, moves=deepcopy(world.moves)),
                   bot_seeds=[f"{s:016x}" for s in bot_seeds],
                   entrants=[dict(id=e["id"], slot=i, wasm_sha256=sha_file(e["wasm"])) for i, e in enumerate(entrants)],

@@ -7,7 +7,7 @@ if ($IncludeGenerated) {
     $taskNames += @('artifacts\acceptance', 'artifacts\distribution', 'web\dist')
     $taskNames += @(Get-ChildItem -LiteralPath (Join-Path $taskRoot 'web') -Filter '*.tsbuildinfo' -File -Force |
         ForEach-Object { $_.FullName.Substring($taskPrefix.Length) })
-    foreach ($taskSource in @('engine', 'replay', 'runner', 'runtime', 'service', 'tests', 'tools')) {
+    foreach ($taskSource in @('engine', 'gomoku', 'replay', 'runner', 'runtime', 'service', 'tests', 'tools')) {
         $taskSourcePath = Join-Path $taskRoot $taskSource
         $taskCachePath = Join-Path $taskSourcePath '__pycache__'
         if (Test-Path -LiteralPath $taskCachePath) { $taskNames += "$taskSource\__pycache__" }

@@ -26,28 +26,38 @@ def parser():
     m.add_argument("--output", required=True)
     v = sub.add_parser("verify"); v.add_argument("replay"); v.add_argument("--wasm", action="append", help="WASM paths in spawn order")
     view = sub.add_parser("view"); view.add_argument("replay"); view.add_argument("--output")
+    for command in (build, base, q, map_cmd, m):
+        command.add_argument("--game", choices=("bomberman", "gomoku"), default="bomberman")
+    for command in (map_cmd, m):
+        command.add_argument("--opening-mode", choices=("empty", "library"), default="empty")
     return p
 
 
 def execute(args):
     if args.command == "build":
-        return compile_bot(args.source, args.output)
+        return compile_bot(args.source, args.output, args.game)
     if args.command == "baselines":
         folder = Path(args.output).resolve()
         entrants, checks = [], []
         with Backend() as backend:
-            for name in ("random", "safe", "heuristic"):
+            for name in (("random", "tactical", "search") if args.game == "gomoku" else ("random", "safe", "heuristic")):
                 wasm = folder / f"{name}.wasm"
-                compile_bot(ROOT / f"bots/baselines/{name}.cpp", wasm)
+                compile_bot(ROOT / f"bots/{'gomoku' if args.game == 'gomoku' else 'baselines'}/{name}.cpp", wasm, args.game)
                 entrants.append(dict(id=name, wasm=str(wasm)))
-                checks.append(dict(id=name, **qualify(backend, wasm)))
+                checks.append(dict(id=name, **qualify(backend, wasm, args.game)))
         write_json(folder / "entrants.json", entrants)
         write_json(folder / "qualification.json", checks)
         return dict(entrants=str(folder / "entrants.json"), qualification=checks)
     if args.command == "qualify":
         with Backend() as backend:
-            return qualify(backend, args.wasm)
+            return qualify(backend, args.wasm, args.game)
     if args.command == "map":
+        if args.game == "gomoku":
+            from gomoku.rules import opening
+            value = dict(game_id="gomoku", width=15, height=15, opening_mode=args.opening_mode,
+                         map_seed=args.seed, moves=opening(args.seed, args.opening_mode))
+            write_json(args.output, value)
+            return dict(output=args.output, **value)
         m = generate(args.seed, args.players); write_json(args.output, m)
         return dict(map_hash=m["map_hash"], output=args.output)
     if args.command == "match":
@@ -63,7 +73,25 @@ def execute(args):
             raise ValueError("Use 2..8 Bots and one Bot seed per slot")
         with Backend() as backend:
             for entrant in entrants:
-                qualify(backend, entrant["wasm"])
+                qualify(backend, entrant["wasm"], args.game)
+            if args.game == "gomoku":
+                from gomoku.match import run_match as gomoku_run
+                if len(entrants) != 2:
+                    raise ValueError("Gomoku requires exactly two Bots")
+                legs = []
+                for swap in (False, True):
+                    label = "swap" if swap else "first"
+                    result, records = gomoku_run(backend, entrants[::-1] if swap else entrants, args.map_seed,
+                                                seeds[::-1] if swap else seeds, f"single-{label}",
+                                                opening_mode=args.opening_mode, replay_path=folder / f"replay-{label}.jsonl")
+                    if result["valid"]:
+                        verify_world(records)
+                    legs.append(result)
+                valid = all(r["valid"] for r in legs)
+                result = dict(game_id="gomoku", valid=valid, legs=legs,
+                              score=[sum(r["players"][i if k == 0 else 1-i]["placement_score"] for k, r in enumerate(legs)) for i in range(2)] if valid else None)
+                write_json(folder / "result.json", result)
+                return result
             result, _ = run_match(backend, entrants, args.map_seed, seeds, replay_path=folder / "replay.jsonl")
         write_json(folder / "result.json", result)
         return result

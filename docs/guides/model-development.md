@@ -8,6 +8,7 @@
 
 ```powershell
 .\.venv\Scripts\python.exe tools\build_devkit.py
+.\.venv\Scripts\python.exe tools\build_devkit.py --game gomoku
 ```
 
 输出到 artifacts/distribution/llm-arena-devkit.zip，旁边有 SHA-256。已有包不覆盖；需要新包时用 --output 指定新文件。打包按白名单，不包含本机数据、旧归档、.venv 或 .tools。
@@ -20,7 +21,7 @@
 | [公开地图](../../configs/public-dev.json) | 十张可复现练习地图 |
 | [练习工具](../../tools/practice.py) | 逐局基准对战、简要统计与轨迹 |
 
-包还包含当前引擎、沙箱、单局 CLI、Replay 校验器和三个已检查的基准 WASM。清单版本为 2，记录文件哈希、工具链、2～8 人各自为战及地图生成器版本 2。每个基准同时通过双人资格检查和八人世界校验。SDK / 二进制协议仍为版本 1。
+包还包含当前引擎、沙箱、CLI、Replay 校验器和对应游戏三个已检查的基准 WASM。清单版本为 3，记录游戏 ID、文件哈希、工具链和公开案例。炸弹人基准通过双人资格检查和八人世界校验；五子棋基准通过资格检查和完整棋局世界校验。两种 SDK / 二进制协议均为版本 1，以不同协议 magic 区分。
 
 ## 模型执行
 
@@ -50,3 +51,14 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 每轮使用新输出目录，基准 WASM 核对包清单哈希。练习遵守与应用相同的规则和资源限制，但独立于应用榜单。复用基准辅助代码时合并进单个 bot.cpp，不让最终文件依赖 planner.hpp。
 
 模型完成后将 bot.cpp 交给使用者，在应用首页导入即可。
+
+## 五子棋开发包
+
+使用 `--game gomoku` 打包为 `artifacts/distribution/llm-arena-gomoku-devkit.zip`，根目录仍为 README、START_HERE、MODEL_TASK 和 start-devkit.ps1。源码中的材料为[五子棋入口](../../devkit/GOMOKU_START_HERE.md)、[任务书](../../devkit/GOMOKU_MODEL_TASK.md)、[SDK](../../sdk/gomoku/gomoku.hpp)、[模板](../../sdk/gomoku/template.cpp)、[公开开局](../../configs/gomoku-public-dev.json)。执行入口从清单自动识别游戏；源码仓库中可传 `-Game gomoku`。
+
+```powershell
+.\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --output artifacts/work/gomoku-practice-01
+.\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --opponent search --maps 1 --output artifacts/work/gomoku-practice-02
+```
+
+五子棋固定两人，默认三个基准、12 个公开三手开局，每种换色两盘，共 72 盘。支持 `--opening-mode empty`。统计按每盘胜 1、平 0.5、负 0 分，并分别显示执黑 / 执白成绩。编译和 qualify 必须使用 `--game gomoku`；提交的 bot.cpp 包含 gomoku.hpp。详见[五子棋规则](../specs/gomoku.md)。

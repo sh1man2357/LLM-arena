@@ -30,3 +30,17 @@
 ```
 
 CLI 单局生成的文件用于开发，不自动导入应用或计入本地榜单。已删除 tournament、report、seeds 和 verify-all 命令。多地图基准练习仍可通过[开发包练习工具](model-development.md)逐局执行，无批次管理业务。
+
+## 五子棋
+
+编译、资格检查、基准和 match 使用 `--game gomoku`。五子棋 match 自动打两盘换色，输出 `replay-first.jsonl`、`replay-swap.jsonl` 与含整组比分的 `result.json`。verify / view 从录像识别游戏。
+
+```powershell
+.\.venv\Scripts\python.exe arena.py build sdk/gomoku/template.cpp --game gomoku --output artifacts/work/gomoku-template.wasm
+.\.venv\Scripts\python.exe arena.py qualify artifacts/work/gomoku-template.wasm --game gomoku
+.\.venv\Scripts\python.exe arena.py baselines --game gomoku --output artifacts/work/gomoku-baselines
+.\.venv\Scripts\python.exe arena.py match --game gomoku --bot tactical=artifacts/work/gomoku-baselines/tactical.wasm --bot search=artifacts/work/gomoku-baselines/search.wasm --opening-mode library --map-seed 8 --output artifacts/work/gomoku-pair-01
+.\.venv\Scripts\python.exe arena.py verify artifacts/work/gomoku-pair-01/replay-first.jsonl
+.\.venv\Scripts\python.exe arena.py view artifacts/work/gomoku-pair-01/replay-first.jsonl --output artifacts/work/gomoku-pair-01/view.txt
+.\.venv\Scripts\python.exe arena.py map 8 --game gomoku --opening-mode library --output artifacts/work/gomoku-opening-8.json
+```

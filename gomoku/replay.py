@@ -71,7 +71,8 @@ def project(records, *, partial=False, source_hash=None):
     require(all(isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", v) for v in components.values())
             and re.fullmatch(r"[a-f0-9]{64}", components["source_hash"]), "Invalid components")
     return dict(schema_version=1, projection_version=1, game_id="gomoku", source_sha256=source_hash,
-                match_id=h["match_id"], width=SIZE, height=SIZE, entrants=h["entrants"], rules=RULES.copy(),
+                match_id=h["match_id"], width=SIZE, height=SIZE,
+                entrants=[{k: e[k] for k in ("id", "slot", "wasm_sha256")} for e in h["entrants"]], rules=RULES.copy(),
                 budget=h["budget"], initialization=[{k: r[k] for k in ("id", "status", "fuel_used") if k in r} for r in h["initialization"]],
                 verified=verified, partial=not terminal, frames=frames, result=public_result, components=components)
 

@@ -27,7 +27,10 @@ def baseline_wasm(name, output):
     return target
 
 
-def practice(source, wasm, output, opponents, maps, players=2):
+def practice(source, wasm, output, opponents, maps, players=2, game_id="bomberman", opening_mode="library"):
+    if game_id == "gomoku":
+        from tools.gomoku_practice import practice as gomoku_practice
+        return gomoku_practice(source, wasm, output, opponents, maps, players, opening_mode)
     output = Path(output).resolve()
     if output.exists():
         raise ValueError("Output directory already exists; choose a new practice directory")
@@ -96,13 +99,17 @@ def main():
     inputs = parser.add_mutually_exclusive_group(required=True)
     inputs.add_argument("--source"); inputs.add_argument("--wasm")
     parser.add_argument("--output", required=True)
-    parser.add_argument("--opponent", choices=("all", *BASELINES), default="all")
-    parser.add_argument("--maps", type=int, choices=range(1, 11), default=10)
+    parser.add_argument("--game", choices=("bomberman", "gomoku"), default="bomberman")
+    parser.add_argument("--opponent", choices=("all", *BASELINES, "tactical", "search"), default="all")
+    parser.add_argument("--maps", type=int, choices=range(1, 13))
+    parser.add_argument("--opening-mode", choices=("empty", "library"), default="library")
     parser.add_argument("--players", type=int, choices=range(2, 9), default=2)
     args = parser.parse_args()
     try:
+        baselines = ("random", "tactical", "search") if args.game == "gomoku" else BASELINES
         result = practice(args.source, args.wasm, args.output,
-                          BASELINES if args.opponent == "all" else (args.opponent,), args.maps, args.players)
+                          baselines if args.opponent == "all" else (args.opponent,), args.maps or (12 if args.game == "gomoku" else 10),
+                          args.players, args.game, args.opening_mode)
         print(f"Complete: {result['matches']} matches. Read {Path(args.output).resolve() / 'summary.md'}")
     except (ValueError, OSError) as exc:
         print(f"{type(exc).__name__}: {exc}", file=sys.stderr)

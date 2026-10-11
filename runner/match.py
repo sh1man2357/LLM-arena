@@ -11,13 +11,14 @@ from runtime.wasm import Backend, InitializationError, InfrastructureError, INIT
 from runner.io import ROOT, read_json, sha_file, write_lines
 
 
-def components():
+def components(game_id="bomberman"):
     files = {}
     for folder in ("engine", "gomoku", "runtime", "runner", "replay", "sdk", "bots", "configs"):
         for path in sorted((ROOT / folder).rglob("*")):
             if path.is_file() and path.suffix in (".py", ".hpp", ".cpp", ".json") and "__pycache__" not in path.parts:
                 files[path.relative_to(ROOT).as_posix()] = sha_file(path)
-    return dict(benchmark_id="bomber-v0.2-rules1", ruleset="1", map_generator="2", sdk="1", baseline_set="1",
+    return dict(benchmark_id="gomoku-v1-rules1" if game_id == "gomoku" else "bomber-v0.2-rules1", ruleset="1",
+                map_generator="1" if game_id == "gomoku" else "2", sdk="gomoku-1" if game_id == "gomoku" else "1", baseline_set="1",
                 reporter="1", runtime="wasmtime-49.0.0", toolchain=read_json(ROOT / "configs/toolchain.json"),
                 python=sys.version.split()[0], platform=dict(system=platform.system(), machine=platform.machine()),
                 source_hash=digest(files), source_files=files)

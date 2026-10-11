@@ -1,0 +1,98 @@
+[
+  {
+    "id": "opening-00",
+    "map_seed": 0,
+    "bot_seeds": [
+      "fedcba9876543210",
+      "0123456789abcdef"
+    ]
+  },
+  {
+    "id": "opening-01",
+    "map_seed": 1,
+    "bot_seeds": [
+      "fedcba9876543211",
+      "0123456789abcdf0"
+    ]
+  },
+  {
+    "id": "opening-02",
+    "map_seed": 2,
+    "bot_seeds": [
+      "fedcba9876543212",
+      "0123456789abcdf1"
+    ]
+  },
+  {
+    "id": "opening-03",
+    "map_seed": 3,
+    "bot_seeds": [
+      "fedcba9876543213",
+      "0123456789abcdf2"
+    ]
+  },
+  {
+    "id": "opening-04",
+    "map_seed": 4,
+    "bot_seeds": [
+      "fedcba9876543214",
+      "0123456789abcdf3"
+    ]
+  },
+  {
+    "id": "opening-05",
+    "map_seed": 5,
+    "bot_seeds": [
+      "fedcba9876543215",
+      "0123456789abcdf4"
+    ]
+  },
+  {
+    "id": "opening-06",
+    "map_seed": 6,
+    "bot_seeds": [
+      "fedcba9876543216",
+      "0123456789abcdf5"
+    ]
+  },
+  {
+    "id": "opening-07",
+    "map_seed": 7,
+    "bot_seeds": [
+      "fedcba9876543217",
+      "0123456789abcdf6"
+    ]
+  },
+  {
+    "id": "opening-08",
+    "map_seed": 8,
+    "bot_seeds": [
+      "fedcba9876543218",
+      "0123456789abcdf7"
+    ]
+  },
+  {
+    "id": "opening-09",
+    "map_seed": 9,
+    "bot_seeds": [
+      "fedcba9876543219",
+      "0123456789abcdf8"
+    ]
+  },
+  {
+    "id": "opening-10",
+    "map_seed": 10,
+    "bot_seeds": [
+      "fedcba987654321a",
+      "0123456789abcdf9"
+    ]
+  },
+  {
+    "id": "opening-11",
+    "map_seed": 11,
+    "bot_seeds": [
+      "fedcba987654321b",
+      "0123456789abcdfa"
+    ]
+  }
+]
