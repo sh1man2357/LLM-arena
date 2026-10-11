@@ -197,6 +197,43 @@ class SingleBaselineTests(unittest.TestCase):
                 self.assertEqual(world.players[0].score,3+100*world.players[0].kills)
         finally: instance.close()
 
+    def test_bomberman_escape_survives_every_contested_destination_reply(self):
+        grid = [FLOOR]*49
+        for y in range(7):
+            for x in range(7):
+                if x in (0,6) or y in (0,6): grid[y*7+x] = HARD_WALL
+        world = BombWorld(7,7,grid,[Player(0,3,3),Player(1,3,5)])
+        world.bombs = [Bomb(0,0,5,3,0,3)]
+        world.next_bomb_id = 1
+        instance = self.backend.instance(self.backend.load(self.paths['bomberman','baseline']),1)
+        try:
+            call = instance.call(bomb_encode(world,0))
+            self.assertIsNone(call['fault']); self.assertEqual(call['raw_action'],1)
+            # DOWN is safe only if its contested destination is reached.
+            # UP survives every simultaneous opponent reply in the actual engine.
+            for action in range(6):
+                branch = deepcopy(world)
+                bomb_step(branch,{0:call,1:dict(raw_action=action,fault=None)})
+                self.assertTrue(branch.players[0].alive,action)
+        finally: instance.close()
+
+    def test_bomberman_repeated_contention_does_not_stall(self):
+        terrain = ['#############','#...........#','#.#.#.#.#.#.#',
+                   '#...........#','#.#.#.#.#.#.#','#...........#',
+                   '#.#.#.#.#.#.#','#+........+.#','#.#.#.#+#+#.#',
+                   '#.+.+.+.....#','#############']
+        grid = [{'.':FLOOR,'#':HARD_WALL,'+':SOFT_WALL}[c] for row in terrain for c in row]
+        world = BombWorld(13,11,grid,[Player(0,6,5),Player(1,5,4)])
+        instance = self.backend.instance(self.backend.load(self.paths['bomberman','baseline']),0xa1c6edc06b7dad13)
+        try:
+            progress = False
+            for _ in range(8):
+                call = instance.call(bomb_encode(world,0)); self.assertIsNone(call['fault'])
+                bomb_step(world,{0:call,1:dict(raw_action=3,fault=None)})
+                progress |= (world.players[0].x,world.players[0].y)!=(6,5) or bool(world.bombs)
+            self.assertTrue(progress,'Repeating the same failed move cannot be a permanent policy.')
+        finally: instance.close()
+
     def test_bomberman_compact_forecast_matches_engine_chain_closure(self):
         # Query the current C++ predictor; Python's actual explosion closure is the oracle.
         source = self.root / 'forecast-probe.cpp'

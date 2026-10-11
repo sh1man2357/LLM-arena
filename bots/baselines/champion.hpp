@@ -7,6 +7,8 @@ constexpr int CELLS=961,HORIZON=6,NEVER=255;
 constexpr int dx[5]={0,0,1,0,-1},dy[5]={0,-1,0,1,0};
 inline int adjacent[CELLS][5],visited[CELLS],stamp=0;
 inline int distance[CELLS],previous=-1,older=-1,work;
+inline int stationary=0;
+inline uint32_t last_visit[CELLS]{};
 inline uint32_t graph_width=0,graph_height=0;
 inline bool blocked[CELLS];
 inline int WORK_LIMIT=900000;
@@ -146,32 +148,83 @@ inline int attack(const GameState& s,const Forecast& base,const Forecast& bomb,i
     }
     return score;
 }
+// An opponent can move onto our escape corridor on the placement tick.
+// Test each legal adjacent position separately instead of assuming that one
+// player can occupy several exits at once.
+inline bool escape_after_enemy_move(const GameState& s,const Forecast& bomb,int start){
+    for(uint32_t p=0;p<s.player_count;++p)if(p!=s.self_id&&s.players[p].alive){
+        int origin=s.players[p].y*s.width+s.players[p].x;
+        if(abs(origin%int(s.width)-start%int(s.width))+abs(origin/int(s.width)-start/int(s.width))>3)continue;
+        for(int d=1;d<=4;++d){
+            int pos=adjacent[origin][d];
+            if(pos<0||pos==start||blocked[pos]||!safe(bomb,pos,0,origin))continue;
+            if(work>=WORK_LIMIT-140000)return false;
+            blocked[origin]=false;blocked[pos]=true;
+            int escape=reachable(s,bomb,start,1);
+            blocked[pos]=false;blocked[origin]=true;
+            if(!escape)return false;
+        }
+    }
+    return true;
+}
 inline int choose(const GameState& s,arena::Rng& rng) {
     prepare(s);targets(s);
     int start=s.self().y*s.width+s.self().x;
+    stationary=start==previous?stationary+1:0;
+    uint32_t opponent_score=0;
+    for(uint32_t p=0;p<s.player_count;++p)if(p!=s.self_id){
+        opponent_score=std::max(opponent_score,s.players[p].score);
+    }
+    bool pursue=s.self().score<=opponent_score;
+    bool explore=s.player_count==2&&pursue;
     auto base=forecast(s);
-    auto enemy=s;int considered=0;
-    for(uint32_t p=0;p<s.player_count&&considered<2;++p)if(p!=s.self_id&&s.players[p].alive){
+    auto enemy=s;int considered=0,nearest[8],near_count=0;
+    for(uint32_t p=0;p<s.player_count;++p)if(p!=s.self_id&&s.players[p].alive){
+        int k=near_count++;
+        nearest[k]=p;
+        while(k>0){
+            auto dist=[&](int id){return abs(int(s.self().x)-int(s.players[id].x))+abs(int(s.self().y)-int(s.players[id].y));};
+            if(dist(nearest[k])>=dist(nearest[k-1]))break;
+            std::swap(nearest[k],nearest[k-1]);--k;
+        }
+    }
+    for(int q=0;q<near_count&&considered<2;++q){
+        uint32_t p=nearest[q];
         int pos=s.players[p].y*s.width+s.players[p].x;
         int range=abs(int(s.self().x)-int(s.players[p].x))+abs(int(s.self().y)-int(s.players[p].y));
         if(!available(s,p,pos)||range>int(s.blast_range+s.bomb_fuse_ticks))continue;
         enemy.bombs[enemy.bomb_count++]={0,p,s.players[p].x,s.players[p].y,s.tick+s.bomb_fuse_ticks,s.blast_range};++considered;
     }
     auto threat=considered?forecast(enemy):base;
-    int scores[6],areas[5]{},best=-10000000,selected=0;
+    int scores[6],areas[5]{},best=-10000000,selected=0,fallback=-1;
     for(int d=0;d<=4;++d){
         scores[d]=-10000000;int j=adjacent[start][d];
         if(!safe(base,j,0,start)||blocked[j])continue;
         int area=reachable(s,base,j,1);if(!area)continue;
-        int robust=considered?reachable(s,threat,j,1):area;
+        int robust=considered?(safe(threat,j,0,start)?reachable(s,threat,j,1):0):area;
         int risk=0;
         for(uint32_t p=0;p<s.player_count;++p)if(p!=s.self_id&&s.players[p].alive)
-            if(abs(j%int(s.width)-int(s.players[p].x))+abs(j/int(s.width)-int(s.players[p].y))==1)risk+=25;
+            if(d&&abs(j%int(s.width)-int(s.players[p].x))+abs(j/int(s.width)-int(s.players[p].y))==1)risk+=25;
         // In a free-for-all, stay mobile instead of charging into several opponents.
         int score=-distance[j]*(s.player_count>2?20:70)+std::min(area,60)*3+std::min(robust,30)*12-risk+(d?4:0)+int(rng.next()%3);
         if(!robust)score-=20000;
+        // Contested destinations can leave us at the origin. Treat a fatal
+        // failed move as an escape failure, not merely a proximity penalty.
+        bool collision_fatal=false;
+        if(risk){
+            if(!safe(base,start,0,start))collision_fatal=true;
+            else{
+                if(fallback<0)fallback=reachable(s,base,start,1);
+                collision_fatal=!fallback;
+            }
+            if(collision_fatal)score-=1000000;
+        }
+        if(explore&&risk&&stationary>=2)score-=1000;
+        if(explore&&d&&stationary>=3)score+=110;
+        if(explore&&last_visit[j]&&s.tick+1>=last_visit[j]&&s.tick+1-last_visit[j]<8)
+            score-=int(8-(s.tick+1-last_visit[j]))*15;
         if(j==older&&j!=start)score-=20;
-        areas[d]=area;scores[d]=score;
+        areas[d]=collision_fatal?0:area;scores[d]=score;
         if(score>best){best=score;selected=d;}
     }
     bool can_bomb=available(s,s.self_id,start)&&s.bomb_fuse_ticks<=HORIZON;
@@ -189,7 +242,9 @@ inline int choose(const GameState& s,arena::Rng& rng) {
                 }
             }
             int pressure=attack(s,base,bomb,start,0);
-            if(pressure>=20000||walls||(targets_hit&&pressure>=35)){
+            if((pressure>=20000||walls||(targets_hit&&(pressure>=35||(pursue&&stationary>=12))))
+               &&escape_after_enemy_move(s,bomb,start)){
+                last_visit[start]=s.tick+1;
                 older=previous;previous=start;return int(Action::BOMB);
             }
         }
@@ -238,6 +293,7 @@ inline int choose(const GameState& s,arena::Rng& rng) {
             scores[d]+=bonus;
             if(scores[d]>best){best=scores[d];selected=d;}
         }
+    last_visit[start]=s.tick+1;
     older=previous;previous=start;return selected;
 }
 }
