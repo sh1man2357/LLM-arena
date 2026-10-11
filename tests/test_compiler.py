@@ -51,6 +51,22 @@ class CompilerTests(unittest.TestCase):
             self.assertEqual(instance.call(encode(w, 0))["raw_action"], 2)
         finally: instance.close()
 
+    def test_sdk_exposes_scores_and_resets_fields_for_legacy_observation(self):
+        path = self.compile_text('scores', '''#include "arena.hpp"
+            namespace bot { void init(uint64_t){} Action tick(const GameState& s){
+                if(s.scoring_version==1) return s.self().score==0 && s.self().kills==0 ? Action::LEFT : Action(99);
+                return s.survival_points==1 && s.kill_points==100 && s.self().score==123 && s.self().kills==1
+                    ? Action::RIGHT : Action(99);
+            }}''')
+        m = generate(1); w = World(13, 11, m['grid'], [Player(i, *p) for i, p in enumerate(m['spawns'])])
+        w.players[1].score, w.players[1].kills = 123, 1
+        instance = self.backend.instance(self.backend.load(path), 1)
+        try:
+            self.assertEqual(instance.protocol_version, 2)
+            self.assertEqual(instance.call(encode(w, 1))['raw_action'], 2)
+            self.assertEqual(instance.call(encode(w, 1, 1))['raw_action'], 4)
+        finally: instance.close()
+
     def test_sdk_decodes_eight_players_and_eight_bombs(self):
         path = self.compile_text('multiplayer', '''#include "arena.hpp"
             namespace bot { void init(uint64_t){} Action tick(const GameState& s){

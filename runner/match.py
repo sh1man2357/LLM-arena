@@ -1,4 +1,3 @@
-from dataclasses import asdict
 from copy import deepcopy
 from pathlib import Path
 import sys
@@ -11,14 +10,14 @@ from runtime.wasm import Backend, InitializationError, InfrastructureError, INIT
 from runner.io import ROOT, read_json, sha_file, write_lines
 
 
-def components(game_id="bomberman"):
+def components(game_id="bomberman", scoring_version=2):
     files = {}
     for folder in ("engine", "gomoku", "runtime", "runner", "replay", "sdk", "bots", "configs"):
         for path in sorted((ROOT / folder).rglob("*")):
             if path.is_file() and path.suffix in (".py", ".hpp", ".cpp", ".json") and "__pycache__" not in path.parts:
                 files[path.relative_to(ROOT).as_posix()] = sha_file(path)
-    return dict(benchmark_id="gomoku-v1-rules1" if game_id == "gomoku" else "bomber-v0.2-rules1", ruleset="1",
-                map_generator="1" if game_id == "gomoku" else "2", sdk="gomoku-1" if game_id == "gomoku" else "1", baseline_set="1",
+    return dict(benchmark_id="gomoku-v1-rules1" if game_id == "gomoku" else ("bomber-v0.3-rules2" if scoring_version == 2 else "bomber-v0.2-rules1"), ruleset="1" if game_id == "gomoku" else str(scoring_version),
+                map_generator="1" if game_id == "gomoku" else "2", sdk="gomoku-1" if game_id == "gomoku" else str(scoring_version), baseline_set="1",
                 reporter="1", runtime="wasmtime-49.0.0", toolchain=read_json(ROOT / "configs/toolchain.json"),
                 python=sys.version.split()[0], platform=dict(system=platform.system(), machine=platform.machine()),
                 source_hash=digest(files), source_files=files)
@@ -35,7 +34,7 @@ def qualify(backend, path, game_id="bomberman"):
     try:
         m = generate(1)
         world = World(m["width"], m["height"], m["grid"], [Player(i, *p) for i, p in enumerate(m["spawns"])])
-        call = instance.call(encode(world, 0))
+        call = instance.call(encode(world, 0, instance.protocol_version))
         if call["fault"]:
             raise ValueError(f"Public smoke check failed: {call['fault']}")
         return dict(status="qualified", wasm_sha256=sha_file(path), smoke_call=call,
@@ -50,7 +49,7 @@ def empty_stats():
                 kills=0, self_kills=0, mixed_deaths=0, bombs_placed=0)
 
 
-def account(stats, calls, events):
+def account(stats, calls, events, scoring_version=1):
     for pid, call in calls.items():
         row = stats[pid]
         row["calls"] += 1
@@ -59,6 +58,8 @@ def account(stats, calls, events):
         row["action_faults"] += call.get("fault") in ("fuel", "invalid_action")
         row["fuel_exhaustions"] += call.get("fault") == "fuel"
     for event in events:
+        if event["type"] == "kill":
+            stats[event["player"]]["kills"] += 1
         if event["type"] == "place":
             stats[event["owner"]]["bombs_placed"] += 1
         if event["type"] != "death":
@@ -71,17 +72,20 @@ def account(stats, calls, events):
         owners = event["owners"]
         if owners == [pid]:
             stats[pid]["self_kills"] += 1
-        elif len(owners) == 1:
+        elif len(owners) == 1 and scoring_version == 1:
             stats[owners[0]]["kills"] += 1
-        else:
+        elif len(owners) > 1:
             stats[pid]["mixed_deaths"] += 1
 
 
 def make_result(world, stats, match_id, reason=None):
     groups, scores = world.standings()
-    return dict(type="result", match_id=match_id, valid=True, reason=reason or world.end_reason(),
+    result = dict(type="result", match_id=match_id, valid=True, reason=reason or world.end_reason(),
                 ticks=world.tick, survivors=[p.id for p in world.players if p.alive],
                 groups=groups, players=scores, stats=stats, final_state_hash=world.state_hash())
+    if world.rules.scoring_version == 2:
+        result["scoring_version"] = 2
+    return result
 
 
 def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=None,
@@ -94,8 +98,8 @@ def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=N
     modules = [backend.load(e["wasm"]) for e in entrants]  # Qualification errors are not match losses.
     stats = [empty_stats() for _ in entrants]
     init_records, instances = [], {}
-    header = dict(type="header", schema_version=1, match_id=match_id, components=version or components(),
-                  rules=asdict(rules), map=m, map_seed=map_seed,
+    header = dict(type="header", schema_version=1, match_id=match_id, components=version or components(scoring_version=rules.scoring_version),
+                  rules=rules.record(), map=m, map_seed=map_seed,
                   bot_seeds=[f"{s:016x}" for s in bot_seeds],
                   entrants=[dict(id=e["id"], slot=i, wasm_sha256=sha_file(e["wasm"])) for i, e in enumerate(entrants)],
                   budget=dict(init_fuel=init_fuel, tick_fuel=tick_fuel), initialization=init_records,
@@ -116,10 +120,10 @@ def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", rules=N
         initial_end = world.end_reason() is not None
         while not world.end_reason():
             before = world.state_hash()
-            calls = {p.id: instances[p.id].call(encode(world, p.id)) for p in world.players if p.alive}
+            calls = {p.id: instances[p.id].call(encode(world, p.id, instances[p.id].protocol_version if rules.scoring_version == 2 else 1)) for p in world.players if p.alive}
             t = world.tick
             actions, events = step(world, calls)
-            account(stats, calls, events)
+            account(stats, calls, events, rules.scoring_version)
             records.append(dict(type="tick", tick=t, before_hash=before,
                                 calls=[dict(id=pid, **calls[pid]) for pid in sorted(calls)],
                                 actions=[dict(id=pid, action=actions[pid]) for pid in sorted(actions)],

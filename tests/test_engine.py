@@ -158,7 +158,7 @@ class FaultAndRankingTests(unittest.TestCase):
         act(w, WAIT, WAIT)
         self.assertEqual(w.end_reason(), "tick_limit")
         self.assertEqual(w.standings()[0], [[0, 1]])
-        w = arena([(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)])
+        w = arena([(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)], scoring_version=1)
         for p, death in zip(w.players, [None, None, 3, 2, -1]):
             p.alive, p.death_tick = death is None, death
         self.assertEqual([s["placement_score"] for s in w.standings()[1]], [.875, .875, .5, .25, 0])
@@ -193,7 +193,7 @@ class MapTests(unittest.TestCase):
         fixture = json.loads((Path(__file__).parent / "fixtures/vectors.json").read_text(encoding="utf-8"))
         m = generate(1)
         self.assertEqual(m, fixture["map_seed_1"])
-        w = World(13, 11, m["grid"], [Player(i, *p) for i, p in enumerate(m["spawns"])])
+        w = World(13, 11, m["grid"], [Player(i, *p) for i, p in enumerate(m["spawns"])], Rules(scoring_version=1))
         self.assertEqual(w.state_hash(), fixture["initial_state_sha256"])
 
     def test_rng_vector(self):

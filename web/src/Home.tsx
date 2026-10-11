@@ -46,7 +46,7 @@ export function Home() {
       const match = await api<Match>('/api/v1/matches', {method: 'POST', headers: {'X-Arena-Local': '1', 'Idempotency-Key': runKey.current},
         body: JSON.stringify({bot_ids: slots, game_id: game, ...(game === 'gomoku' ? {opening_mode: opening} : {}), ...(seed === '' ? {} : {map_seed: Number(seed)})})});
       navigate(`/matches/${match.id}`, {state: {autoplay: true}});
-    }); }}><p className="form-hint">{game === 'gomoku' ? '15 × 15 自由五子棋 · 自动进行两盘换色对战，支持自我对弈。' : `${slots.length} 个 Bot 各自为战 · 支持 2～8 人，同一个 Bot 可重复参赛。`}</p>
+    }); }}><p className="form-hint">{game === 'gomoku' ? '15 × 15 自由五子棋 · 自动进行两盘换色对战，支持自我对弈。' : `${slots.length} 个 Bot 各自为战 · 支持 2～8 人。回合结束存活 +1 分，击杀 +100 分，按总积分排名。`}</p>
       <div className="match-picker">{slots.map((id, slot) => <div className="slot-picker" key={slot}>
         <label><span className="slot-label"><i className="slot-dot" style={{background: game === 'gomoku' ? (slot === 0 ? '#202226' : '#faf7f0') : slotColor(slot)}} aria-hidden="true" />{game === 'gomoku' ? (slot === 0 ? '首盘黑棋' : '首盘白棋') : `Bot ${slot}`}</span>
           <select value={id} onChange={e => setSlots(current => current.map((value, i) => i === slot ? e.target.value : value))}>

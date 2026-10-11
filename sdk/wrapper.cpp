@@ -31,6 +31,7 @@ static uint32_t read32(const uint8_t* p) {
     return uint32_t(p[0]) | uint32_t(p[1]) << 8 | uint32_t(p[2]) << 16 | uint32_t(p[3]) << 24;
 }
 extern "C" uint32_t arena_input_ptr() { return uint32_t(uintptr_t(input)); }
+extern "C" __attribute__((export_name("arena_protocol_version"))) uint32_t arena_protocol_version() { return 2; }
 extern "C" void arena_init(uint32_t lo, uint32_t hi) {
     __wasm_call_ctors();
     bot::init(uint64_t(lo) | uint64_t(hi) << 32);
@@ -38,7 +39,10 @@ extern "C" void arena_init(uint32_t lo, uint32_t hi) {
 extern "C" uint32_t arena_tick(uint32_t ptr, uint32_t size) {
     if (ptr != arena_input_ptr() || size < 48) __builtin_trap();
     const uint8_t* p = input;
-    if (read32(p) != 1) __builtin_trap();
+    uint32_t version=read32(p);
+    if (version != 1 && version != 2) __builtin_trap();
+    uint32_t header=version==2?60:48, player_size=version==2?24:16;
+    if(size<header)__builtin_trap();
     state.tick=read32(p+4); state.width=read32(p+8); state.height=read32(p+12);
     state.self_id=read32(p+16); state.player_count=read32(p+20); state.bomb_count=read32(p+24);
     uint32_t cells=read32(p+28);
@@ -47,11 +51,15 @@ extern "C" uint32_t arena_tick(uint32_t ptr, uint32_t size) {
     if (state.width == 0 || state.height == 0 || state.width > 31 || state.height > 31 ||
         state.player_count < 2 || state.player_count > 8 || state.bomb_count > 8 ||
         state.self_id >= state.player_count || cells != state.width * state.height ||
-        size != 48 + cells + 16 * state.player_count + 24 * state.bomb_count) __builtin_trap();
-    p += 48;
+        size != header + cells + player_size * state.player_count + 24 * state.bomb_count) __builtin_trap();
+    state.scoring_version=version==2?read32(p+48):1;
+    state.survival_points=version==2?read32(p+52):0;
+    state.kill_points=version==2?read32(p+56):0;
+    p += header;
     for (uint32_t i=0; i<cells; ++i) state.grid[i]=*p++;
     for (uint32_t i=0; i<state.player_count; ++i) {
-        state.players[i] = {read32(p),read32(p+4),read32(p+8),read32(p+12)}; p += 16;
+        state.players[i] = {read32(p),read32(p+4),read32(p+8),read32(p+12),
+                            version==2?read32(p+16):0,version==2?read32(p+20):0}; p += player_size;
     }
     for (uint32_t i=0; i<state.bomb_count; ++i) {
         state.bombs[i] = {read32(p),read32(p+4),read32(p+8),read32(p+12),read32(p+16),read32(p+20)}; p += 24;

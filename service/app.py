@@ -125,7 +125,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
 
     @app.get("/health")
     def health():
-        return dict(status="ready", app_version=APP_VERSION, ruleset="1",
+        return dict(status="ready", app_version=APP_VERSION, ruleset="2", game_rulesets=dict(bomberman="2", gomoku="1"),
                     frontend_ready=(ROOT / "web/dist/index.html").exists())
 
     @app.get("/api/v1/status")
@@ -171,7 +171,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
             raise KeyError(identity)
         return row
 
-    def new_match(ids, map_seed, key, request_data, bot_seeds=None, entrants=None, game_id="bomberman", opening_mode="empty"):
+    def new_match(ids, map_seed, key, request_data, bot_seeds=None, entrants=None, game_id="bomberman", opening_mode="empty", rules=None):
         if game_id == "gomoku" and len(ids) != 2:
             raise ValueError("五子棋需要两个 Bot。")
         if game_id == "bomberman" and opening_mode != "empty":
@@ -180,8 +180,12 @@ def create_app(data_root=None, *, demo=False, workers=False):
         identity = "run-" + secrets.token_hex(8)
         seed = secrets.randbits(32) if map_seed is None else map_seed
         inputs = dict(match_id=identity, entrants=entrants, map_seed=seed,
-                      bot_seeds=bot_seeds or [f"{secrets.randbits(64):016x}" for _ in entrants], components=components(),
+                      bot_seeds=bot_seeds or [f"{secrets.randbits(64):016x}" for _ in entrants], components=components(game_id),
                       game_id=game_id, opening_mode=opening_mode)
+        if game_id == "bomberman":
+            from engine.model import Rules
+            inputs["rules"] = rules if rules is not None else Rules().record()
+            inputs["components"] = components(game_id, Rules.from_record(inputs["rules"]).scoring_version)
         pair_runs = [identity, "run-" + secrets.token_hex(8)] if game_id == "gomoku" else None
         if pair_runs:
             inputs["legs"] = [dict(match_id=pair_runs[i], entrants=entrants if i == 0 else list(reversed(entrants)),
@@ -227,7 +231,8 @@ def create_app(data_root=None, *, demo=False, workers=False):
                 raise FileExistsError("原 Bot 产物已改变，无法按原输入重新运行。")
         return new_match([e["id"] for e in inputs["entrants"]], inputs["map_seed"],
                          request.headers.get("idempotency-key"), dict(rerun=identity),
-                         inputs["bot_seeds"], inputs["entrants"], inputs.get("game_id", "bomberman"), inputs.get("opening_mode", "empty"))
+                         inputs["bot_seeds"], inputs["entrants"], inputs.get("game_id", "bomberman"), inputs.get("opening_mode", "empty"),
+                         inputs.get("rules", {}))
 
     @app.get("/api/v1/matches")
     def matches(offset: int = 0, limit: int = 30, q: str = "", status: MatchStatus | None = None,

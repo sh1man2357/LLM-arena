@@ -46,8 +46,9 @@ class PipelineTests(unittest.TestCase):
         with Backend() as backend:
             result, records = run_match(backend, [dict(id=str(i), wasm=p) for i, p in enumerate(paths)], 1, [1, 2, 3, 4])
             self.assertEqual(result['reason'], 'last_survivor')
-            self.assertEqual(result['groups'], [[3], [2], [1], [0]])
-            self.assertEqual([p['placement_score'] for p in result['players']], [0, 1/3, 2/3, 1])
+            self.assertEqual(result['groups'], [[3], [2], [0, 1]])
+            self.assertEqual([p['placement_score'] for p in result['players']], [1/6, 1/6, 2/3, 1])
+            self.assertEqual([p['score'] for p in result['players']], [0, 0, 2, 3])
             verify_world(records); verify_bot(backend, records, paths)
             changed = copy.deepcopy(records); changed[0]['entrants'].pop()
             with self.assertRaises(ValueError): verify_world(changed)
@@ -137,7 +138,7 @@ class PipelineTests(unittest.TestCase):
         failed = self.root / "fail.wasm"; failed.write_bytes(module(init="unreachable"))
         with Backend() as backend:
             for paths, expected in (([str(failed), str(failed)], [.5, .5]),
-                                    ([str(failed), self.paths[1]], [0, 1])):
+                                    ([str(failed), self.paths[1]], [.5, .5])):
                 entrants = [dict(id=str(i), wasm=p) for i, p in enumerate(paths)]
                 r, records = run_match(backend, entrants, 1, [1, 2])
                 self.assertEqual(r["reason"], "initialization_end")

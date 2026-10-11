@@ -2,7 +2,7 @@ export type Row = Record<string, any>;
 export type GameId = 'bomberman' | 'gomoku';
 export type Bot = { id: string; name: string; status: string; baseline: boolean; created: string; game_id?: GameId;
   diagnostic?: string; compile_log?: { stderr?: string; stdout?: string } };
-export type Player = { id: number; x: number; y: number; alive: boolean; death_tick: number | null };
+export type Player = { id: number; x: number; y: number; alive: boolean; death_tick: number | null; score?: number; kills?: number };
 export type Bomb = { id: number; owner_id: number; x: number; y: number; explode_at_tick: number; range: number };
 export type World = { tick: number; grid: number[]; players: Player[]; bombs: Bomb[];
   fault_counters: { consecutive: number; total: number }[] };

@@ -118,6 +118,7 @@ export function Viewer() {
   return <><div className="viewer-heading"><Link className="back-link" to="/"><ArrowLeft aria-hidden="true" />返回首页</Link>
     {run && <button disabled={rerunning || !status.data || status.data.busy} onClick={() => void rerun()}><RotateCcw aria-hidden="true" />重赛</button>}</div>
     <div className="row-heading viewer-title"><h1>{run?.title || '加载对局…'}</h1>{run && <Badge status={run.status} />}</div>
+    {run && data?.rules && !gomoku && <p className="form-hint">{data.rules.scoring_version === 2 ? '回合结算存活 +1 分 · 击杀 +100 分 · 总积分排名，同分并列' : '本局使用旧规则：按存活和死亡顺序排名，重赛保留原规则。'}</p>}
     {run?.pair && <nav className="pair-navigation" aria-label="换色对战">{run.pair.runs.map(leg => leg.deleted ? <span key={leg.id}>第 {leg.pair_index+1} 盘 · 回收站</span> : <Link key={leg.id} to={`/matches/${leg.id}`} aria-current={leg.id === id ? 'page' : undefined}>第 {leg.pair_index+1} 盘 · {labels[leg.status] || leg.status}</Link>)}</nav>}
     {(error || match.error) && <ErrorPanel message={error || match.error} onRetry={retryReads} />}
     {actionError && <p role="alert" className="notice error">{actionError}</p>}
@@ -134,7 +135,7 @@ export function Viewer() {
         const player = state.players[entrant.slot], faults = state.fault_counters[entrant.slot];
         const fault = frame.calls.find(call => call.id === entrant.slot)?.fault;
         return <div className="player-card" key={entrant.slot} style={{borderColor: slotColor(entrant.slot)}}><span className="player-number" style={{color: slotColor(entrant.slot)}}>{entrant.slot}</span>
-          <strong>{entrant.name}</strong><span className="player-state">{playerStateLabel(player)}{fault ? ` · ${labels[fault] || fault}` : faults.total ? ` · 故障 ${faults.total} 次` : ''}</span></div>;
+          <strong>{entrant.name}</strong><span className="player-state">{playerStateLabel(player)}{player.score !== undefined ? ` · ${player.score} 分 · 击杀 ${player.kills}` : ''}{fault ? ` · ${labels[fault] || fault}` : faults.total ? ` · 故障 ${faults.total} 次` : ''}</span></div>;
       })}</div>
       <div className="board-wrap">{gomoku ? <GomokuBoard frame={frame} numbers={numbers} /> : <Board frame={frame} previous={seq > 0 ? data!.frames[seq - 1] : undefined} entrants={run.entrants} animate={playing} />}</div>
       <div className="playback"><div className="row-heading"><strong>{gomoku ? `已落 ${(frame.state as GomokuWorld).moves.length} 子${frame.tick === null ? ' · 初始状态' : ''}` : frame.tick === null ? '初始状态' : `回合 ${frame.tick}`}</strong><span className="muted">{seq} / {max}</span></div>
@@ -150,7 +151,10 @@ export function Viewer() {
         {showResult && <ol className="result-standings" aria-label="本局排名">{run.result!.groups.map((group: number[], index: number) => {
           const placement = 1 + run.result!.groups.slice(0, index).reduce((total: number, previous: number[]) => total + previous.length, 0);
           return group.map(slot => <li key={slot} style={{borderColor: slotColor(slot)}}><span>第 {placement} 名{group.length > 1 ? '（并列）' : ''}</span>
-            <strong>{gomoku ? (slot === 0 ? '黑棋' : '白棋') : `Bot ${slot}`} · {run.entrants.find(e => e.slot === slot)?.name}</strong><span>{run.result!.players.find((p: any) => p.id === slot).placement_score.toFixed(3)} 分</span></li>);
+            <strong>{gomoku ? (slot === 0 ? '黑棋' : '白棋') : `Bot ${slot}`} · {run.entrants.find(e => e.slot === slot)?.name}</strong><span>{(() => {
+              const p = run.result!.players.find((p: any) => p.id === slot);
+              return p.score !== undefined ? `${p.score} 分 · 生存 ${p.survival_score} + 击杀 ${p.kill_score}（${p.kills} 人）` : `${p.placement_score.toFixed(3)} 名次分`;
+            })()}</span></li>);
         })}</ol>}
       </div>
     </section>}

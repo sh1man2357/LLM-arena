@@ -80,7 +80,7 @@ class GomokuToolsTests(unittest.TestCase):
         manifest = read_json(extracted / "devkit-manifest.json")
         self.assertEqual(set(manifest['qualifications']),{'baseline'})
         self.assertEqual(manifest['reference_rating'],0)
-        self.assertEqual(manifest['version'],4)
+        self.assertEqual(manifest['version'],5)
         self.assertEqual(manifest["game_id"], "gomoku"); self.assertEqual(manifest["public_cases"], 12)
         for name, row in manifest["files"].items():
             data = (extracted / name).read_bytes()

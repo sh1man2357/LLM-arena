@@ -30,7 +30,7 @@ def verify_world(records):
     require([e["slot"] for e in header["entrants"]] == list(range(count)), "Invalid Replay slots")
     require(header["map"] == generate(header["map_seed"], count), "Replay map differs from generator")
     m, state = header["map"], header["initial_state"]
-    world = World.from_state(m["width"], m["height"], Rules(**header["rules"]), state)
+    world = World.from_state(m["width"], m["height"], Rules.from_record(header["rules"]), state)
     require(len(world.players) == count, "Replay player count differs from entrants")
     expected = World(m["width"], m["height"], m["grid"], world.players, world.rules)
     # Validate initialization transitions separately from the recorded world.
@@ -38,6 +38,7 @@ def verify_world(records):
     stats = [empty_stats() for _ in world.players]
     for pid, (p, init) in enumerate(zip(world.players, header["initialization"])):
         require(init["id"] == pid and [p.x, p.y] == m["spawns"][pid], "Invalid spawn/initialization mapping")
+        require(p.score == 0 and p.kills == 0, "Initial scores must be zero")
         if init["status"] == "eliminated":
             require(not p.alive and p.death_tick == -1, "Invalid initialization death")
             stats[pid]["initialization_failures"] = 1
@@ -54,7 +55,7 @@ def verify_world(records):
         calls = {c["id"]: {k: v for k, v in c.items() if k != "id"} for c in record["calls"]}
         require(len(calls) == len(record["calls"]), "Duplicate call ID")
         actions, events = step(world, calls)
-        account(stats, calls, events)
+        account(stats, calls, events, world.rules.scoring_version)
         require(record["actions"] == [dict(id=pid, action=actions[pid]) for pid in sorted(actions)], "Action mismatch")
         require(events == record["events"], f"Event mismatch at {record['tick']}")
         require(world.state() == record["state"] and world.state_hash() == record["after_hash"],
@@ -68,7 +69,7 @@ def verify_world(records):
 def verify_bot(backend, records, wasm_paths):
     verify_world(records)
     header = records[0]
-    require(header["components"] == components(header.get("game_id", "bomberman")), "Current source/toolchain version differs from Replay")
+    require(header["components"] == components(header.get("game_id", "bomberman"), Rules.from_record(header["rules"]).scoring_version if header.get("game_id") != "gomoku" else 1), "Current source/toolchain version differs from Replay")
     require(len(wasm_paths) == len(header["entrants"]), "Expected one WASM per spawn slot")
     entrants = []
     for e, path in zip(header["entrants"], wasm_paths):
@@ -81,7 +82,7 @@ def verify_bot(backend, records, wasm_paths):
         require(rerun == records, "Gomoku Bot rerun differs from recording")
         return dict(status="bot_verified", match_id=header["match_id"])
     _, rerun = run_match(backend, entrants, header["map_seed"], [int(s, 16) for s in header["bot_seeds"]],
-                         header["match_id"], Rules(**header["rules"]),
+                         header["match_id"], Rules.from_record(header["rules"]),
                          init_fuel=header["budget"]["init_fuel"], tick_fuel=header["budget"]["tick_fuel"])
     require(rerun == records, "Bot rerun differs from recorded calls/state/result")
     return dict(status="bot_verified", match_id=header["match_id"])

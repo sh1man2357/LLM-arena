@@ -109,9 +109,19 @@ def step(world, calls):
             p.alive, p.death_tick = False, world.tick
             events.append(dict(type="death", player=p.id, cause="explosion",
                                owners=sorted(coverage[p.x, p.y])))
+            if world.rules.scoring_version == 2:
+                for owner in sorted(coverage[p.x, p.y] - {p.id}):
+                    killer = world.players[owner]
+                    killer.kills += 1
+                    killer.score += world.rules.kill_points
+                    events.append(dict(type="kill", player=owner, victim=p.id, points=world.rules.kill_points))
     for x, y in sorted(soft, key=lambda pos: pos[1] * world.width + pos[0]):
         world.grid[y * world.width + x] = FLOOR
         events.append(dict(type="destroy", x=x, y=y))
     world.bombs = [b for b in world.bombs if b.id not in detonated]
+    if world.rules.scoring_version == 2:
+        for p in world.players:
+            if p.alive:
+                p.score += world.rules.survival_points
     world.tick += 1
     return actions, events

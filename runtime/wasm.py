@@ -95,6 +95,10 @@ class Backend:
         if module.imports:
             raise QualificationError("All host/WASI imports are forbidden")
         exports = {e.name: e.type for e in module.exports}
+        if "arena_protocol_version" in exports:
+            ty = exports["arena_protocol_version"]
+            if not isinstance(ty, wasmtime.FuncType) or list(ty.params) or list(map(str, ty.results)) != ["i32"]:
+                raise QualificationError("Invalid export signature: arena_protocol_version")
         memory = exports.get("memory")
         if not isinstance(memory, wasmtime.MemoryType):
             raise QualificationError("Missing exported linear memory")
@@ -144,6 +148,10 @@ class BotInstance:
             def signed(v):
                 return v if v < 0x80000000 else v - 0x100000000
             self.exports["arena_init"](self.store, signed(seed & 0xFFFFFFFF), signed(seed >> 32))
+            capability = self.exports.get("arena_protocol_version")
+            self.protocol_version = capability(self.store) if capability else 1
+            if self.protocol_version not in (1, 2):
+                raise InitializationError("Unsupported observation protocol")
             self.input_ptr = self.exports["arena_input_ptr"](self.store) & 0xFFFFFFFF
             if self.input_ptr + 65536 > self.memory.data_len(self.store):
                 raise InitializationError("Input region does not fit allocated memory")

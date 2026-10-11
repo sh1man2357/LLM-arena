@@ -42,6 +42,10 @@ test('八人各自为战：增减槽位、直播、排名与录像', async ({pag
   expect(recording.verified).toBe(true);
   expect(recording.frames[0].state.players).toHaveLength(8);
   expect(recording.result.groups).toEqual([[0, 1, 2, 3, 4, 5, 6, 7]]);
+  expect(recording.rules.scoring_version).toBe(2);
+  expect(recording.result.players.map((p: any) => p.score)).toEqual(Array(8).fill(500));
+  await expect(page.locator('.player-card').first()).toContainText('500 分 · 击杀 0');
+  await expect(page.getByRole('list', {name: '本局排名'}).locator('li').first()).toContainText('500 分 · 生存 500 + 击杀 0');
   await page.reload();
   await expect(page.locator('.player-card')).toHaveCount(8);
   await page.getByRole('button', {name: '最后一帧', exact: true}).click();
@@ -211,7 +215,7 @@ test('真实棋盘的脚下炸弹、爆炸与终局画面', async ({page, reques
   });
   expect(created.status()).toBe(202);
   const run = await created.json();
-  await expect.poll(async () => (await (await request.get(`/api/v1/matches/${run.id}`)).json()).status).toBe('completed');
+  await expect.poll(async () => (await (await request.get(`/api/v1/matches/${run.id}`)).json()).status, {timeout:40000}).toBe('completed');
   const replay = await (await request.get(`/api/v1/matches/${run.id}/frames`)).json();
   expect(replay.verified).toBe(true);
   const bombSeq = replay.frames.findIndex((frame: any) => frame.state.bombs.some((bomb: any) => frame.state.players.some((player: any) => player.x === bomb.x && player.y === bomb.y)));

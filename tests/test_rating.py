@@ -7,7 +7,7 @@ from service.leaderboard import leaderboard
 
 def run(scores, ids, **extra):
     return dict(status='completed',verified=True,entrants=[dict(id=name,slot=i) for i,name in enumerate(ids)],
-                result=dict(valid=True,players=[dict(id=i,placement_score=s) for i,s in enumerate(scores)]),**extra)
+                result=dict(valid=True,scoring_version=2,players=[dict(id=i,placement_score=s) for i,s in enumerate(scores)]),**extra)
 
 
 class RatingTests(unittest.TestCase):
@@ -61,4 +61,10 @@ class RatingTests(unittest.TestCase):
         self.assertGreater(next(r for r in full['items'] if r['id']=='strong')['rating'],0)
         broken=deepcopy(second);broken['status']='failed'
         self.assertEqual(len(leaderboard(bots,[first,broken],'gomoku')['items']),1)
+
+    def test_legacy_bomberman_results_never_enter_new_ratings(self):
+        legacy = run([1, 0], ['strong', 'base'])
+        del legacy['result']['scoring_version']
+        self.assertEqual(leaderboard(self.bots, [legacy])['valid_matches'], 0)
+        self.assertEqual(leaderboard(self.bots, [legacy, run([.5, .5], ['strong', 'base'])])['valid_matches'], 1)
 

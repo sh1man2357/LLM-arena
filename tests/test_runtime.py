@@ -35,7 +35,7 @@ class RuntimeTests(unittest.TestCase):
     def test_protocol_layout(self):
         w = arena([(1, 1), (7, 5)])
         w.bombs = [Bomb(0, 1, 3, 3, 4, 3)]
-        data = encode(w, 1)
+        data = encode(w, 1, version=1)
         self.assertEqual(len(data), 48 + 63 + 32 + 24)
         self.assertEqual(struct.unpack("<12I", data[:48]), (1, 0, 9, 7, 1, 2, 1, 63, 500, 4, 1, 3))
         self.assertEqual(data[48:111], bytes(w.grid))

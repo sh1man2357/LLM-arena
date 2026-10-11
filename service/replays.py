@@ -36,8 +36,9 @@ def validate_shape(records):
     if (len(h["bot_seeds"]) != count or len(m["spawns"]) != count
             or len(h["initialization"]) > count or (not failed and len(h["initialization"]) != count)):
         raise ValueError("Replay slot counts differ")
-    if h["rules"] != Rules().__dict__:
-        raise ValueError("Unsupported rules; expected the frozen ruleset 1")
+    rules = Rules.from_record(h["rules"])
+    if h["rules"] != Rules(scoring_version=rules.scoring_version).record():
+        raise ValueError("Unsupported rules; expected frozen ruleset 1 or 2")
     if not isinstance(h.get("match_id"), str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", h["match_id"]):
         raise ValueError("Invalid Replay match identity")
     for slot, entrant in enumerate(h["entrants"]):
@@ -83,7 +84,7 @@ def project(records, *, partial=False, source_hash=None):
         verified = True
     elif not partial and not result:
         raise ValueError("Incomplete Replay; missing final result")
-    rules = Rules(**h["rules"])
+    rules = Rules.from_record(h["rules"])
     previous = h["initial_state"]
     # Initial-state extensions are not part of the schema-1 world. Rebuild the
     # public state so an otherwise valid header cannot smuggle private fields.
@@ -114,7 +115,7 @@ def project(records, *, partial=False, source_hash=None):
         previous = record["state"]
     public_result = None
     if result:
-        public_result = {k: result.get(k) for k in ("valid", "reason", "ticks", "survivors", "groups", "players", "stats", "final_state_hash")}
+        public_result = {k: result.get(k) for k in ("valid", "reason", "ticks", "survivors", "groups", "players", "stats", "final_state_hash", "scoring_version")}
         if type(result.get("valid")) is not bool:
             raise ValueError("Invalid Replay result validity")
         if not result["valid"]:

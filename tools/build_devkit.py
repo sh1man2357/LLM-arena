@@ -78,7 +78,7 @@ def package(output, game_id="bomberman"):
                                            multiplayer_smoke=dict(status='verified', player_count=2 if gomoku else 8, ticks=smoke['ticks']))
                 files[f'bots/{folder_name}/{name}.wasm'] = target.read_bytes()
         import hashlib
-        manifest = dict(format='llm-arena-public-devkit', version=4, game_id=game_id, platform='windows-x64', ruleset='1',
+        manifest = dict(format='llm-arena-public-devkit', version=5, game_id=game_id, platform='windows-x64', ruleset='1' if gomoku else '2',
                         reference_bot='baseline', reference_rating=0, rating_method='anchored_bradley_terry',
                         game_mode='paired_colors' if gomoku else 'free_for_all', player_counts=[2] if gomoku else list(range(2, 9)),
                         map_generator='1' if gomoku else '2', public_cases=12 if gomoku else 10,

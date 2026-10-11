@@ -4,11 +4,12 @@
 namespace arena {
 enum class Action : uint32_t { WAIT, UP, RIGHT, DOWN, LEFT, BOMB };
 enum Terrain : uint8_t { FLOOR, HARD_WALL, SOFT_WALL };
-struct Player { uint32_t id, x, y, alive; };
+struct Player { uint32_t id, x, y, alive, score, kills; };
 struct Bomb { uint32_t id, owner_id, x, y, explode_at_tick, range; };
 struct GameState {
     uint32_t tick, width, height, self_id, player_count, bomb_count;
     uint32_t max_ticks, bomb_fuse_ticks, bomb_capacity, blast_range;
+    uint32_t scoring_version, survival_points, kill_points;
     uint8_t grid[31 * 31];
     Player players[8];
     Bomb bombs[8];

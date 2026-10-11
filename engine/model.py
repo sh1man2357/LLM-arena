@@ -23,6 +23,9 @@ class Rules:
     blast_range: int = 3
     consecutive_fault_limit: int = 3
     total_fault_limit: int = 20
+    scoring_version: int = 2
+    survival_points: int = 1
+    kill_points: int = 100
 
     def __post_init__(self):
         for value in asdict(self).values():
@@ -30,6 +33,21 @@ class Rules:
                 raise ValueError("Rules require positive integer parameters")
         if self.bomb_capacity != 1:
             raise ValueError("Protocol v1 supports capacity 1 only")
+        if self.scoring_version not in (1, 2):
+            raise ValueError("Unsupported scoring version")
+        if self.max_ticks * self.survival_points + 7 * self.kill_points > 0xFFFFFFFF:
+            raise ValueError("Scores must fit uint32")
+
+    def record(self):
+        data = asdict(self)
+        if self.scoring_version == 1:
+            for key in ("scoring_version", "survival_points", "kill_points"):
+                del data[key]
+        return data
+
+    @classmethod
+    def from_record(cls, data):
+        return cls(**{**data, "scoring_version": data.get("scoring_version", 1)})
 
 
 @dataclass
@@ -39,6 +57,8 @@ class Player:
     y: int
     alive: bool = True
     death_tick: int | None = None
+    score: int = 0
+    kills: int = 0
 
 
 @dataclass
@@ -79,6 +99,8 @@ class World:
         for p in self.players:
             if not self.inside(p.x, p.y) or self.cell(p.x, p.y) != FLOOR:
                 raise ValueError("Player position must be floor")
+            if type(p.score) is not int or not 0 <= p.score <= 0xFFFFFFFF or type(p.kills) is not int or not 0 <= p.kills < len(self.players):
+                raise ValueError("Invalid player score/kills")
         if not self.fault_counters:
             self.fault_counters = [dict(id=p.id, consecutive=0, total=0) for p in self.players]
 
@@ -91,7 +113,9 @@ class World:
     def state(self):
         # This order is the documented state-hash serialization contract.
         return dict(tick=self.tick, grid=self.grid.copy(),
-                    players=[asdict(p) for p in sorted(self.players, key=lambda p: p.id)],
+                    players=[{k: v for k, v in asdict(p).items()
+                              if self.rules.scoring_version == 2 or k not in ("score", "kills")}
+                             for p in sorted(self.players, key=lambda p: p.id)],
                     bombs=[asdict(b) for b in sorted(self.bombs, key=lambda b: b.id)],
                     next_bomb_id=self.next_bomb_id,
                     fault_counters=[c.copy() for c in sorted(self.fault_counters, key=lambda c: c["id"])])
@@ -117,6 +141,8 @@ class World:
 
     def standings(self):
         def rank(p):
+            if self.rules.scoring_version == 2:
+                return p.score
             return self.rules.max_ticks + 1 if p.alive else p.death_tick
         groups = []
         for value in sorted({rank(p) for p in self.players}, reverse=True):
@@ -127,4 +153,8 @@ class World:
                        for q in self.players if q.id != p.id)
             scores.append(dict(id=p.id, alive=p.alive, death_tick=p.death_tick,
                                placement_score=wins / (len(self.players) - 1)))
+            if self.rules.scoring_version == 2:
+                scores[-1].update(score=p.score, kills=p.kills,
+                                  survival_score=p.score - p.kills * self.rules.kill_points,
+                                  kill_score=p.kills * self.rules.kill_points)
         return groups, scores

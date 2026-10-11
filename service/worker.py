@@ -3,7 +3,7 @@ import os
 import sys
 import time
 
-from engine.model import canonical
+from engine.model import Rules, canonical
 from runner.compiler import compile_bot
 from runner.io import read_json, sha_file
 from runner.match import components, qualify, run_match
@@ -77,7 +77,8 @@ def run_single(store, task, inputs=None):
                                       opening_mode=inputs["opening_mode"], record_sink=sink)
             else:
                 result, _ = run_match(backend, inputs["entrants"], inputs["map_seed"],
-                                  [int(s, 16) for s in inputs["bot_seeds"]], inputs["match_id"], record_sink=sink)
+                                  [int(s, 16) for s in inputs["bot_seeds"]], inputs["match_id"],
+                                  rules=Rules.from_record(inputs.get("rules", {})), record_sink=sink)
         sink.close()
         projection = project(decode(sink.path.read_bytes()), partial=not result["valid"])
         if projection["result"] is None:
@@ -113,7 +114,9 @@ def main(data_root, task_id):
             if errors:
                 raise ValueError("; ".join(errors))
         elif task["kind"] == "match":
-            if task["inputs"]["components"] != components():
+            game_id = task["inputs"].get("game_id", "bomberman")
+            scoring_version = Rules.from_record(task["inputs"].get("rules", {})).scoring_version if game_id == "bomberman" else 1
+            if task["inputs"]["components"] != components(game_id, scoring_version):
                 raise ValueError("运行输入的规则 / 工具版本已改变，请建立新运行。")
             for leg in task["inputs"].get("legs", [task["inputs"]]):
                 run_single(store, task, leg)

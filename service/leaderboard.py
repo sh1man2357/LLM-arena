@@ -32,6 +32,8 @@ def leaderboard(bots, runs, game_id="bomberman"):
     comparisons = []
     for run in runs:
         result = run.get("result") or {}
+        if game_id == "bomberman" and result.get("scoring_version") != 2:
+            continue
         if run["status"] != "completed" or not run.get("verified") or not result.get("valid"):
             continue
         entrants, players = run["entrants"], result.get("players", [])

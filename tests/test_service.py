@@ -150,6 +150,26 @@ class CoreServiceTests(unittest.TestCase):
         self.assertEqual(inputs[0]['bot_seeds'], inputs[1]['bot_seeds'])
         self.assertTrue(self.finish(rerun)['verified'])
 
+    def test_legacy_rerun_preserves_rule_and_does_not_enter_new_leaderboard(self):
+        from runner.match import components
+        run = self.start_run(seed=1).json()
+        task_id = self.store.get('run', run['id'])['task_id']
+        # Represent a prior task with no rule extension, without archived fixtures.
+        def legacy(task):
+            task['inputs'].pop('rules')
+            task['inputs']['components'] = components(scoring_version=1)
+        self.store.update('task', task_id, legacy)
+        self.finish(run)
+        old = self.client.get(f"/api/v1/matches/{run['id']}/frames").json()
+        self.assertNotIn('scoring_version', old['rules'])
+        self.assertNotIn('score', old['frames'][-1]['state']['players'][0])
+        rerun = self.client.post(f"/api/v1/matches/{run['id']}/rerun", headers=HEADERS).json()
+        self.assertTrue(self.finish(rerun)['verified'])
+        again = self.client.get(f"/api/v1/matches/{rerun['id']}/frames").json()
+        self.assertEqual(old['rules'], again['rules'])
+        self.assertEqual(old['frames'], again['frames'])
+        self.assertEqual(self.client.get('/api/v1/leaderboard').json()['valid_matches'], 0)
+
     def test_handoff_retries_do_not_duplicate_or_reseed(self):
         first = self.start_run().json()
         again = self.start_run().json()
@@ -481,7 +501,7 @@ class LeaderboardTests(unittest.TestCase):
         def run(scores, ids=('a', 'b', 'c', 'd')):
             return dict(status='completed', verified=True,
                         entrants=[dict(id=name, slot=i) for i, name in enumerate(ids)],
-                        result=dict(valid=True, players=[dict(id=i, placement_score=s) for i, s in enumerate(scores)]))
+                        result=dict(valid=True, scoring_version=2, players=[dict(id=i, placement_score=s) for i, s in enumerate(scores)]))
         rows = leaderboard(bots, [run([1, 2/3, 1/3, 0]), run([5/6, 5/6, 1/3, 0])])
         self.assertEqual(rows['valid_matches'], 2)
         a, b, c, d = rows['items']
@@ -503,7 +523,7 @@ class LeaderboardTests(unittest.TestCase):
         bots = [dict(id=i, name=i) for i in ('a', 'b', 'idle')]
         def run(status='completed', verified=True, score=.5, swapped=False):
             return dict(status=status, verified=verified, entrants=[dict(id='b' if swapped else 'a', slot=0), dict(id='a' if swapped else 'b', slot=1)],
-                        result=dict(valid=True, players=[dict(id=0, placement_score=score), dict(id=1, placement_score=1 - score)]))
+                        result=dict(valid=True, scoring_version=2, players=[dict(id=0, placement_score=score), dict(id=1, placement_score=1 - score)]))
         runs = [run(score=1), run(score=1, swapped=True), run(), run('failed'), run('interrupted'), run('running'), run(verified=False)]
         result = leaderboard(bots, runs)
         self.assertEqual(result['valid_matches'], 3)
