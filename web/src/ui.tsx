@@ -7,6 +7,8 @@ export const labels: Record<string, string> = {
   last_survivor: '仅剩一名存活者', all_eliminated: '全部出局', tick_limit: '回合上限',
   initialization_end: '初始化结束', infrastructure_failure: '运行失败',
   fuel: '计算预算耗尽', invalid_action: '非法动作', trap: 'Bot 崩溃',
+  five_in_row: '连成五子', board_full: '棋盘已满', resignation: '主动认输',
+  illegal_move: '非法落子', bot_fault: 'Bot 故障判负', initialization_failure: '初始化故障', occupied: '落在已有棋子的位置',
 };
 export const playerTokens = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'];
 export const slotColor = (slot: number) => `var(--player-${playerTokens[slot]})`;

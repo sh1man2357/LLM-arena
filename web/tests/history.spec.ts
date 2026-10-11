@@ -38,7 +38,7 @@ test('记录管理：运行保护、重命名、筛选、删除确认、批量�
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 40000}).toBe(false);
-  const bots = (await (await request.get('/api/v1/bots')).json()).items;
+  const bots = (await (await request.get('/api/v1/bots?game_id=bomberman')).json()).items;
   const bot = bots.find((b: any) => b.name === 'Safe' && b.status === 'ready') || bots.find((b: any) => b.status === 'ready');
   expect(bot).toBeTruthy();
   const before = (await (await request.get('/api/v1/leaderboard')).json()).valid_matches;

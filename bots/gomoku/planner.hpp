@@ -4,9 +4,12 @@
 
 namespace plan {
 inline int board[225];
+inline int work=0, work_limit=0;
+inline bool limited=false;
 inline constexpr int dx[4]={1,0,1,1}, dy[4]={0,1,1,-1};
 inline bool inside(int x,int y) { return x>=0 && x<15 && y>=0 && y<15; }
 inline int pattern(int i,int color) {
+    if(work_limit && ++work>work_limit) { limited=true;return 0; }
     int x=i%15,y=i/15,value=0;
     for(int d=0;d<4;++d) {
         int n=1,open=0;
@@ -38,7 +41,7 @@ inline int pattern(int i,int color) {
 struct Candidate { int i,score; };
 inline int candidates(int color,Candidate* out,int limit=8) {
     int n=0;
-    for(int i=0;i<225;++i) if(!board[i]) {
+    for(int i=0;i<225 && !limited;++i) if(!board[i]) {
         int x=i%15,y=i/15; bool nearby=false;
         for(int oy=-1;oy<=1 && !nearby;++oy) for(int ox=-1;ox<=1;++ox)
             if(inside(x+ox,y+oy) && board[(y+oy)*15+x+ox]) { nearby=true;break; }
@@ -51,7 +54,7 @@ inline int candidates(int color,Candidate* out,int limit=8) {
     std::sort(out,out+n,[](Candidate a,Candidate b){ return a.score!=b.score?a.score>b.score:a.i<b.i; });
     return std::min(n,limit);
 }
-inline void load(const GameState& s) { for(int i=0;i<225;++i) board[i]=s.grid[i]; }
+inline void load(const GameState& s) { work=0;work_limit=0;limited=false;for(int i=0;i<225;++i) board[i]=s.grid[i]; }
 inline int forced(int color) {
     for(int c: {color,3-color}) for(int i=0;i<225;++i)
         if(!board[i] && pattern(i,c)>=10000000) return i;

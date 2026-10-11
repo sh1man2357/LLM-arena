@@ -183,3 +183,15 @@ tbody tr:hover { background: var(--surface); }
   .history-row-actions { margin-left: 30px; width: calc(100% - 30px); }
   .history-rename { padding-left: 0; }
 }
+/* Game selection and turn-based board share the existing player and playback layout. */
+.game-picker { display: grid; gap: .5rem; max-width: 20rem; margin-bottom: 1.5rem; }
+.gomoku-board { aspect-ratio: 1; }
+.stone-label { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; font-size: .85rem; }
+.stone-label.black { background: #202226; color: #faf7f0; border: 1px solid #666; }
+.stone-label.white { background: #faf7f0; color: #202226; }
+.pair-navigation { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0; }
+.pair-navigation a, .pair-navigation span { padding: .6rem .8rem; border: 1px solid var(--line); border-radius: .3rem; }
+.pair-navigation a[aria-current="page"] { color: var(--accent); border-color: var(--accent); }
+.move-numbers { display: flex; align-items: center; gap: .5rem; margin: .7rem 0; }
+.move-numbers input { width: auto; }
+.pair-score { font-weight: 600; color: var(--accent); }

@@ -6,7 +6,7 @@ test('八人各自为战：增减槽位、直播、排名与录像', async ({pag
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 40000}).toBe(false);
-  const bots = await (await request.get('/api/v1/bots')).json();
+  const bots = await (await request.get('/api/v1/bots?game_id=bomberman')).json();
   const safe = bots.items.find((b: any) => b.name === 'Safe' && b.baseline && b.status === 'ready');
   expect(safe).toBeTruthy();
   await page.goto('/');
@@ -53,7 +53,7 @@ test('八人各自为战：增减槽位、直播、排名与录像', async ({pag
 test('仅一个可运行 Bot 时可默认自对战并查看录像', async ({ page, request }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  const bots = await (await request.get('/api/v1/bots')).json();
+  const bots = await (await request.get('/api/v1/bots?game_id=bomberman')).json();
   const bot = bots.items.find((b: any) => b.status === 'ready');
   expect(bot).toBeTruthy();
   await page.route('**/api/v1/bots', route => route.fulfill({json: {items: [bot]}}));
@@ -200,7 +200,7 @@ test('导入失败与已删除页面、API', async ({page, request}) => {
 });
 
 test('真实棋盘的脚下炸弹、爆炸与终局画面', async ({page, request}, testInfo) => {
-  const bots = await (await request.get('/api/v1/bots')).json();
+  const bots = await (await request.get('/api/v1/bots?game_id=bomberman')).json();
   const entrants = ['Heuristic', 'Random'].map(name => bots.items.find((bot: any) => bot.name === name && bot.baseline && bot.status === 'ready'));
   expect(entrants.every(Boolean)).toBe(true);
   const created = await request.post('/api/v1/matches', {

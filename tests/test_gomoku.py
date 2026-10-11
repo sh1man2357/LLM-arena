@@ -112,3 +112,16 @@ class GomokuPipelineTests(unittest.TestCase):
                         w.grid[105:109]=[2]*4
                         c=instance.call(encode(w,0));self.assertIn(c['raw_action'],(104,109))
                 finally:instance.close()
+
+    def test_baseline_full_games_across_every_opening_and_color(self):
+        with Backend() as b:
+            bots=[]
+            for name in ('tactical','search'):
+                p=self.root/f'{name}.wasm';compile_bot(ROOT/f'bots/gomoku/{name}.cpp',p,'gomoku')
+                bots.append(dict(id=name,wasm=str(p)))
+            for seed in range(12):
+                for swap in (False,True):
+                    with self.subTest(seed=seed,swap=swap):
+                        r,records=run_match(b,bots[::-1] if swap else bots,seed,[2,1] if swap else [1,2],opening_mode='library')
+                        self.assertIn(r['reason'],('five_in_row','board_full'));verify_world(records)
+                        self.assertTrue(all(not c['fault'] for t in records for c in t.get('calls',[])))

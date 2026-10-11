@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { Frame, Entrant } from './types';
+import type { Frame, Entrant, World } from './types';
 import { playerTokens } from './ui';
 
 type Props = { frame: Frame; previous?: Frame; entrants: Entrant[]; overlay?: boolean; selected?: [number, number];
@@ -11,6 +11,7 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
   const entrantIds = entrants.map(e => e.id).join('\n');
   const selectedX = selected?.[0], selectedY = selected?.[1];
   useEffect(() => {
+    const state = frame.state as World;
     const canvas = canvasRef.current!;
     const context = canvas.getContext('2d')!;
     const style = getComputedStyle(canvas);
@@ -37,7 +38,7 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
       context.fillStyle = background; context.fillRect(0, 0, w, h);
       const progress = motion.matches || !animate ? 1 : Math.min(1, (performance.now() - started) / 160);
       for (let y = 0; y < 11; y++) for (let x = 0; x < 13; x++) {
-        const type = frame.state.grid[y * 13 + x];
+        const type = state.grid[y * 13 + x];
         const px = x * cell, py = y * cell, gap = cell * .065;
         context.setLineDash([]);
         if (type === 0) {
@@ -60,8 +61,8 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
         context.beginPath(); context.moveTo(px + cell * .25, py + cell * .5); context.lineTo(px + cell * .75, py + cell * .5);
         context.moveTo(px + cell * .5, py + cell * .25); context.lineTo(px + cell * .5, py + cell * .75); context.stroke();
       }
-      for (const b of frame.state.bombs) {
-        const shared = frame.state.players.some(p => p.x === b.x && p.y === b.y);
+      for (const b of state.bombs) {
+        const shared = state.players.some(p => p.x === b.x && p.y === b.y);
         const offset = shared ? .17 : 0;
         const px = (b.x + .5 + offset) * cell, py = (b.y + .5 + offset) * cell;
         const ownerColor = playerColors[b.owner_id];
@@ -69,15 +70,15 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
         context.beginPath(); context.arc(px, py, cell * (shared ? .23 : .29), 0, Math.PI * 2); context.fill(); context.stroke();
         context.beginPath(); context.moveTo(px + cell * .13, py - cell * .25); context.lineTo(px + cell * .23, py - cell * .39); context.stroke();
         context.fillStyle = text; context.font = `500 ${cell * .23}px ui-monospace, monospace`; context.textAlign = 'center'; context.textBaseline = 'middle';
-        context.fillText(String(Math.max(0, b.explode_at_tick - frame.state.tick)), px, py);
+        context.fillText(String(Math.max(0, b.explode_at_tick - state.tick)), px, py);
       }
-      for (const p of frame.state.players) {
+      for (const p of state.players) {
         const playerColor = playerColors[p.id];
         let x = p.x, y = p.y;
         const move = frame.events.find(e => e.type === 'move' && e.player === p.id);
         if (move && previous && progress < 1) { x = move.origin[0] + (p.x - move.origin[0]) * progress; y = move.origin[1] + (p.y - move.origin[1]) * progress; }
         let px = (x + .5) * cell, py = (y + .5) * cell;
-        const footBomb = frame.state.bombs.some(b => b.x === p.x && b.y === p.y);
+        const footBomb = state.bombs.some(b => b.x === p.x && b.y === p.y);
         if (footBomb) { px -= cell * .17; py -= cell * .17; }
         context.globalAlpha = p.alive ? 1 : .45;
         context.fillStyle = p.alive ? playerColor : muted; context.strokeStyle = background; context.lineWidth = cell * .04;
