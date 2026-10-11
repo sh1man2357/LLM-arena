@@ -14,7 +14,8 @@ test('每个游戏只有一个 0 分基准，未关联选手待定，败于基�
     await expect(page.locator('.bot-list')).toContainText('基准 BOT · 0 分');
   }
   const source=Buffer.from('#include "gomoku.hpp"\nnamespace bot {void init(uint64_t){} Action tick(const GameState&){return Action::resign();}}');
-  const response=await request.post('/api/v1/bots',{headers:{'X-Arena-Local':'1'},multipart:{name:'Rating probe',game_id:'gomoku',file:{name:'bot.cpp',mimeType:'text/plain',buffer:source}}});
+  const probeName=`Rating probe ${crypto.randomUUID()}`;
+  const response=await request.post('/api/v1/bots',{headers:{'X-Arena-Local':'1'},multipart:{name:probeName,game_id:'gomoku',file:{name:'bot.cpp',mimeType:'text/plain',buffer:source}}});
   const bot=await response.json();
   await expect.poll(async()=> (await (await request.get('/api/v1/bots?game_id=gomoku')).json()).items.find((b:any)=>b.id===bot.id)?.status,{timeout:40000}).toBe('ready');
   const play=async(ids:string[])=> {
@@ -25,12 +26,12 @@ test('每个游戏只有一个 0 分基准，未关联选手待定，败于基�
   };
   await play([bot.id,bot.id]);
   await page.goto('/leaderboard');await page.getByLabel('榜单游戏').selectOption('gomoku');
-  await expect(page.getByRole('row').filter({hasText:'Rating probe'})).toContainText('待定');
+  await expect(page.getByRole('row').filter({hasText:probeName})).toContainText('待定');
   const bots=await (await request.get('/api/v1/bots?game_id=gomoku')).json();
   const reference=bots.items.find((b:any)=>b.baseline);
   const run=await play([bot.id,reference.id]);
   await page.reload();
-  const row=page.getByRole('row').filter({hasText:'Rating probe'});
+  const row=page.getByRole('row').filter({hasText:probeName});
   await expect(row.locator('.ranking-score')).toHaveText(/^-\d+\.\d{2}$/);
   await expect(page.getByRole('row').filter({hasText:'基准 BOT'}).locator('.ranking-score')).toHaveText('0.00');
   const board=await (await request.get('/api/v1/leaderboard?game_id=gomoku')).json();
