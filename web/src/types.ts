@@ -20,5 +20,6 @@ export type Match = { id: string; title: string; status: string; entrants: Entra
   opening_mode?: 'empty' | 'library'; pair_id?: string; pair_index?: number; pair_runs?: string[];
   pair?: {complete: boolean; counted: boolean; score: number[] | null; runs: {id: string; status: string; pair_index: number; deleted: boolean}[]};
   verified: boolean; result: Row | null; created: string; map_seed: number; diagnostic?: string };
-export type Ranking = { id: string; name: string; rank: number; matches: number; wins: number;
-  draws: number; losses: number; points: number; mean_score: number; black_mean?: number; white_mean?: number };
+export type Ranking = { id: string; name: string; rank: number | null; matches: number; wins: number;
+  draws: number; losses: number; points: number; mean_score: number | null; baseline: boolean; rating: number | null;
+  black_mean?: number; white_mean?: number };

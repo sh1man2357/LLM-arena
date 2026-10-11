@@ -50,7 +50,7 @@ export function Home() {
       <div className="match-picker">{slots.map((id, slot) => <div className="slot-picker" key={slot}>
         <label><span className="slot-label"><i className="slot-dot" style={{background: game === 'gomoku' ? (slot === 0 ? '#202226' : '#faf7f0') : slotColor(slot)}} aria-hidden="true" />{game === 'gomoku' ? (slot === 0 ? '首盘黑棋' : '首盘白棋') : `Bot ${slot}`}</span>
           <select value={id} onChange={e => setSlots(current => current.map((value, i) => i === slot ? e.target.value : value))}>
-            <option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+            <option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{b.baseline ? '基准 BOT · 0 分' : b.name}</option>)}</select></label>
         {game === 'bomberman' && <button type="button" className="icon-button" aria-label={`移除 Bot ${slot}`} disabled={slots.length <= 2} onClick={() => setSlots(current => current.filter((_, i) => i !== slot))}><X aria-hidden="true" /></button>}
       </div>)}</div>
       {game === 'bomberman' && <button type="button" className="add-slot" disabled={slots.length >= 8} onClick={() => setSlots(current => [...current, (ready.find(b => !current.includes(b.id)) || ready[0])?.id || ''])}><Plus aria-hidden="true" />增加 Bot</button>}
@@ -73,7 +73,7 @@ export function Home() {
       {bots.loading && <p role="status">正在读取 Bot…</p>}
       {bots.data && !gameBots.length && <p className="empty">暂无{gameNames[game]} Bot</p>}
       <ul className="bot-list">{gameBots.map(bot => <li key={bot.id} data-bot-id={bot.id}>
-        <div className="bot-row"><strong>{bot.name}</strong><Badge status={bot.status} /></div>
+        <div className="bot-row"><strong>{bot.baseline ? '基准 BOT · 0 分' : bot.name}</strong><Badge status={bot.status} /></div>
         {bot.diagnostic && <p className="error-text">{bot.diagnostic}</p>}
         {(bot.compile_log?.stderr || bot.compile_log?.stdout) && <details><summary>编译日志<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary><pre>{bot.compile_log.stderr}{bot.compile_log.stdout}</pre></details>}
       </li>)}</ul>

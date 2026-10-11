@@ -17,9 +17,9 @@
 使用尚不存在的输出目录，已有录像不覆盖：
 
 ```powershell
-.\.venv\Scripts\python.exe arena.py match --bot safe=artifacts/work/baselines/safe.wasm --bot random=artifacts/work/baselines/random.wasm --map-seed 1 --output artifacts/work/single-01
+.\.venv\Scripts\python.exe arena.py match --bot candidate=artifacts/work/template.wasm --bot baseline=artifacts/work/baselines/baseline.wasm --map-seed 1 --output artifacts/work/single-01
 .\.venv\Scripts\python.exe arena.py verify artifacts/work/single-01/replay.jsonl
-.\.venv\Scripts\python.exe arena.py verify artifacts/work/single-01/replay.jsonl --wasm artifacts/work/baselines/safe.wasm --wasm artifacts/work/baselines/random.wasm
+.\.venv\Scripts\python.exe arena.py verify artifacts/work/single-01/replay.jsonl --wasm artifacts/work/template.wasm --wasm artifacts/work/baselines/baseline.wasm
 .\.venv\Scripts\python.exe arena.py view artifacts/work/single-01/replay.jsonl --output artifacts/work/single-01/view.txt
 ```
 
@@ -39,7 +39,7 @@ CLI 单局生成的文件用于开发，不自动导入应用或计入本地榜�
 .\.venv\Scripts\python.exe arena.py build sdk/gomoku/template.cpp --game gomoku --output artifacts/work/gomoku-template.wasm
 .\.venv\Scripts\python.exe arena.py qualify artifacts/work/gomoku-template.wasm --game gomoku
 .\.venv\Scripts\python.exe arena.py baselines --game gomoku --output artifacts/work/gomoku-baselines
-.\.venv\Scripts\python.exe arena.py match --game gomoku --bot tactical=artifacts/work/gomoku-baselines/tactical.wasm --bot search=artifacts/work/gomoku-baselines/search.wasm --opening-mode library --map-seed 8 --output artifacts/work/gomoku-pair-01
+.\.venv\Scripts\python.exe arena.py match --game gomoku --bot candidate=artifacts/work/gomoku-template.wasm --bot baseline=artifacts/work/gomoku-baselines/baseline.wasm --opening-mode library --map-seed 8 --output artifacts/work/gomoku-pair-01
 .\.venv\Scripts\python.exe arena.py verify artifacts/work/gomoku-pair-01/replay-first.jsonl
 .\.venv\Scripts\python.exe arena.py view artifacts/work/gomoku-pair-01/replay-first.jsonl --output artifacts/work/gomoku-pair-01/view.txt
 .\.venv\Scripts\python.exe arena.py map 8 --game gomoku --opening-mode library --output artifacts/work/gomoku-opening-8.json

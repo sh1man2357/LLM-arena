@@ -2,6 +2,8 @@
 
 本任务书可独立阅读。编写一个完整 C++20 单文件 `bot.cpp`，代表你参加五子棋程序对战。模型负责设计策略和编程；比赛期间只运行 WASM，不再调用模型。目标是在未知开局和未知对手上获得更高的换色平均得分。
 
+应用和开发包各提供唯一较强的 Baseline 基准 BOT，其实力分固定为 0。应用按有效换色比赛估计相对实力，强于基准为正、弱于基准为负；平均得分与执黑 / 执白统计仍用于核对比赛表现。基准源码可以阅读，但不要按特定对手或公开开局硬编码答案。
+
 如果使用者提供文件工具与开发包，可以自主编译、练习和迭代；只收到文字时按本文完成源码，不寻找不存在的工作区，也不声称已实际测试。默认不设开发时间、token 或工具次数限制。不得修改规则、SDK、编译器参数或沙箱。
 
 ## 规则
@@ -84,7 +86,7 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 .\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --maps 1 --output artifacts/work/practice-01
 ```
 
-默认完整练习为三个基准 Random、Tactical、Search，12 个公开三手开局，各换色两盘，共 72 盘。可指定 `--opponent search`，或 `--opening-mode empty`；每次使用新输出目录。summary.md / summary.json 提供胜平负、平均分、执黑 / 执白成绩，replays/ 保存每盘逐步记录。练习不进入应用榜单。
+默认完整练习为一个较强的 Baseline 基准，12 个公开三手开局，各换色两盘，共 24 盘；基准实力分固定为 0。可指定 `--opponent baseline`，或 `--opening-mode empty`；每次使用新输出目录。summary.md / summary.json 提供相对基准的实力分、胜平负、平均分、执黑 / 执白成绩，replays/ 保存每盘逐步记录。练习不进入应用榜单。
 
 资格检查不保证整盘无故障或策略优秀。可以阅读基准源码、练习日志与录像，但最后交付必须是独立单文件 bot.cpp。
 

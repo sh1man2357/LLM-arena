@@ -10,8 +10,9 @@ from runner.io import ROOT, read_json, sha_file, write_json
 from runner.match import qualify, run_match
 from replay.verify import verify_world
 from runtime.wasm import Backend
+from runner.rating import strengths
 
-BASELINES = ("random", "safe", "heuristic")
+BASELINES = ("baseline",)
 
 
 def baseline_wasm(name, output):
@@ -77,19 +78,21 @@ def practice(source, wasm, output, opponents, maps, players=2, game_id="bomberma
                     draws += slot in top and len(top) > 1
                     losses += slot not in top
             count = wins + draws + losses
+            rating = strengths([('candidate',name,score,1) for score in scores], name)['candidate']
             rows.append(dict(opponent=name, matches=count, wins=wins, draws=draws, losses=losses,
-                             mean_placement=statistics.mean(scores)))
+                             mean_placement=statistics.mean(scores), rating=rating))
             print(f"{name}: W/L/D {wins}/{losses}/{draws}", flush=True)
     summary = dict(status="complete", purpose="public_development_only", maps=len(cases),
                    player_count=players, game_mode='free_for_all',
                    matches=sum(r["matches"] for r in rows), mean_placement=statistics.mean(r["mean_placement"] for r in rows),
+                   rating=rows[0]['rating'], reference_rating=0, rating_method='anchored_bradley_terry',
                    source_sha256=sha_file(source) if source else None, wasm_sha256=sha_file(candidate), opponents=rows)
     write_json(output / "summary.json", summary)
     lines = ["# Public practice", "", "Public development results, separate from the local application leaderboard.", "",
              f"{players} players, free for all. One candidate and {players - 1} independent copies of each baseline, rotating through every spawn slot.", "",
              "Wins: sole first; draws: tied first; losses: all other placements. Mean score uses normalized placement points.", "",
-             "| Opponent | W / L / D | Mean score |", "| --- | --- | --- |"]
-    lines += [f"| {r['opponent']} | {r['wins']} / {r['losses']} / {r['draws']} | {r['mean_placement']:.3f} |" for r in rows]
+             "| Opponent | W / L / D | Mean score | Strength (reference = 0) |", "| --- | --- | --- | --- |"]
+    lines += [f"| {r['opponent']} | {r['wins']} / {r['losses']} / {r['draws']} | {r['mean_placement']:.3f} | {r['rating']:+.2f} |" for r in rows]
     (output / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return summary
 
@@ -100,15 +103,14 @@ def main():
     inputs.add_argument("--source"); inputs.add_argument("--wasm")
     parser.add_argument("--output", required=True)
     parser.add_argument("--game", choices=("bomberman", "gomoku"), default="bomberman")
-    parser.add_argument("--opponent", choices=("all", *BASELINES, "tactical", "search"), default="all")
+    parser.add_argument("--opponent", choices=("baseline",), default="baseline")
     parser.add_argument("--maps", type=int, choices=range(1, 13))
     parser.add_argument("--opening-mode", choices=("empty", "library"), default="library")
     parser.add_argument("--players", type=int, choices=range(2, 9), default=2)
     args = parser.parse_args()
     try:
-        baselines = ("random", "tactical", "search") if args.game == "gomoku" else BASELINES
         result = practice(args.source, args.wasm, args.output,
-                          baselines if args.opponent == "all" else (args.opponent,), args.maps or (12 if args.game == "gomoku" else 10),
+                          (args.opponent,), args.maps or (12 if args.game == "gomoku" else 10),
                           args.players, args.game, args.opening_mode)
         print(f"Complete: {result['matches']} matches. Read {Path(args.output).resolve() / 'summary.md'}")
     except (ValueError, OSError) as exc:

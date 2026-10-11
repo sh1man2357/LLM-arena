@@ -32,8 +32,8 @@ def package(output, game_id="bomberman"):
     names += ["configs/gomoku-public-dev.json", "tools/gomoku_practice.py", "sdk/gomoku/gomoku.hpp", "sdk/gomoku/wrapper.cpp", "sdk/gomoku/template.cpp"]
     for folder in ("engine", "gomoku", "runtime", "runner", "replay"):
         names += [p.relative_to(ROOT).as_posix() for p in sorted((ROOT / folder).glob('*.py'))]
-    names += [f'bots/baselines/{name}' for name in ('random.cpp', 'safe.cpp', 'heuristic.cpp', 'planner.hpp')]
-    names += [f'bots/gomoku/{name}' for name in ('random.cpp', 'tactical.cpp', 'search.cpp', 'planner.hpp')]
+    names += [f'bots/baselines/{name}' for name in ('baseline.cpp', 'champion.hpp', 'planner.hpp')]
+    names += [f'bots/gomoku/{name}' for name in ('baseline.cpp', 'champion.hpp', 'patterns.hpp')]
     names += [p.relative_to(ROOT).as_posix() for p in sorted((ROOT / 'docs/specs').glob('*.md'))]
     # Guide links remain useful; references outside this public package are plain text.
     targets = {name: name.removeprefix('devkit/') for name in names}
@@ -59,7 +59,7 @@ def package(output, game_id="bomberman"):
         files['README.md'] = files['START_HERE.md']
         qualification = {}
         with Backend() as backend:
-            for name in (('random', 'tactical', 'search') if gomoku else ('random', 'safe', 'heuristic')):
+            for name in ('baseline',):
                 target = stage / f'{name}.wasm'
                 folder_name = 'gomoku' if gomoku else 'baselines'
                 meta = compile_bot(ROOT / f'bots/{folder_name}/{name}.cpp', target, game_id)
@@ -78,7 +78,8 @@ def package(output, game_id="bomberman"):
                                            multiplayer_smoke=dict(status='verified', player_count=2 if gomoku else 8, ticks=smoke['ticks']))
                 files[f'bots/{folder_name}/{name}.wasm'] = target.read_bytes()
         import hashlib
-        manifest = dict(format='llm-arena-public-devkit', version=3, game_id=game_id, platform='windows-x64', ruleset='1',
+        manifest = dict(format='llm-arena-public-devkit', version=4, game_id=game_id, platform='windows-x64', ruleset='1',
+                        reference_bot='baseline', reference_rating=0, rating_method='anchored_bradley_terry',
                         game_mode='paired_colors' if gomoku else 'free_for_all', player_counts=[2] if gomoku else list(range(2, 9)),
                         map_generator='1' if gomoku else '2', public_cases=12 if gomoku else 10,
                         toolchain=read_json(ROOT / 'configs/toolchain.json'),
@@ -97,7 +98,7 @@ def package(output, game_id="bomberman"):
         checksum = sha_file(output)
         output.with_suffix('.sha256').write_text(f'{checksum}  {output.name}\n', encoding='utf-8')
     print(f'Public devkit: {output} ({output.stat().st_size} bytes)')
-    print(f'SHA-256: {checksum}; {len(files)} files, {game_id}, three qualified baselines, {manifest["public_cases"]} public cases.')
+    print(f'SHA-256: {checksum}; {len(files)} files, {game_id}, one qualified reference, {manifest["public_cases"]} public cases.')
 
 
 def main():

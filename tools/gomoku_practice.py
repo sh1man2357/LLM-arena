@@ -8,8 +8,9 @@ from runner.match import qualify
 from gomoku.match import run_match
 from replay.verify import verify_world
 from runtime.wasm import Backend
+from runner.rating import strengths
 
-BASELINES = ("random", "tactical", "search")
+BASELINES = ("baseline",)
 
 
 def baseline_wasm(name, output):
@@ -70,16 +71,18 @@ def practice(source, wasm, output, opponents, maps=12, players=2, opening_mode="
                     score = result["players"][slot]["placement_score"]
                     scores.append(score); (white if swap else black).append(score)
                     wins += score == 1; draws += score == .5; losses += score == 0
-            rows.append(dict(opponent=name, matches=len(scores), wins=wins, draws=draws, losses=losses,
+            rating = strengths([('candidate',name,score,1) for score in scores], name)['candidate']
+            rows.append(dict(opponent=name, matches=len(scores), wins=wins, draws=draws, losses=losses, rating=rating,
                              mean_placement=statistics.mean(scores), black_mean=statistics.mean(black), white_mean=statistics.mean(white)))
             print(f"{name}: W/L/D {wins}/{losses}/{draws}", flush=True)
     summary = dict(status="complete", game_id="gomoku", purpose="public_development_only", maps=len(cases),
                    player_count=2, game_mode="paired_colors", opening_mode=opening_mode,
                    matches=sum(r["matches"] for r in rows), mean_placement=statistics.mean(r["mean_placement"] for r in rows),
+                   rating=rows[0]['rating'], reference_rating=0, rating_method='anchored_bradley_terry',
                    source_sha256=sha_file(source) if source else None, wasm_sha256=sha_file(candidate), opponents=rows)
     write_json(output / "summary.json", summary)
     lines = ["# Gomoku public practice", "", "Each opening uses both colors; seeds follow the Bot. These scores are separate from the application leaderboard.", "",
-             "| Opponent | W / L / D | Mean | Black | White |", "| --- | --- | --- | --- | --- |"]
-    lines += [f"| {r['opponent']} | {r['wins']} / {r['losses']} / {r['draws']} | {r['mean_placement']:.3f} | {r['black_mean']:.3f} | {r['white_mean']:.3f} |" for r in rows]
+             "| Opponent | W / L / D | Mean | Black | White | Strength (reference = 0) |", "| --- | --- | --- | --- | --- | --- | --- |"]
+    lines += [f"| {r['opponent']} | {r['wins']} / {r['losses']} / {r['draws']} | {r['mean_placement']:.3f} | {r['black_mean']:.3f} | {r['white_mean']:.3f} | {r['rating']:+.2f} |" for r in rows]
     (output / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return summary

@@ -282,12 +282,12 @@ class CoreServiceTests(unittest.TestCase):
         from runner.compiler import FLAGS
         with patch('service.bots.FLAGS', [*FLAGS, '-g0']):
             changed = prepare_baselines(self.store, self.executor)
-        self.assertEqual(len(changed['inputs']['bot_ids']), 3)
+        self.assertEqual(len(changed['inputs']['bot_ids']), 1)
         self.assertFalse(set(changed['inputs']['bot_ids']) & set(legacy_ids))
 
     def test_bot_list_shows_latest_baseline_and_preserves_imports_and_history(self):
         row = self.store.get('bot', 'a')
-        row.update(baseline=True, source_sha256='source')
+        row.update(baseline=True, name='Baseline', source_sha256='source')
         self.store.put('bot', row)
         duplicate = {**row, 'id': 'duplicate'}
         self.store.put('bot', duplicate)
@@ -305,6 +305,24 @@ class CoreServiceTests(unittest.TestCase):
         # Both aliases remain valid for old matches and reruns.
         run = self.start_run(ids=['a', 'duplicate']).json()
         self.assertTrue(self.finish(run)['verified'])
+
+    def test_corrupted_reference_rebuilds_and_retired_bots_remain_in_storage(self):
+        task = prepare_baselines(self.store, self.executor)
+        execute(self.root, task['id'])
+        identity = task['inputs']['bot_ids'][0]
+        before = self.store.get('bot', identity)
+        Path(before['source']).with_name('champion.hpp').write_text('changed', encoding='utf-8')
+        retired = {**before, 'id':'retired', 'name':'Heuristic'}
+        self.store.put('bot', retired, create=True)
+        repair = prepare_baselines(self.store, self.executor)
+        self.assertEqual(repair['inputs']['bot_ids'], [identity])
+        execute(self.root, repair['id'])
+        after = self.store.get('bot',identity)
+        self.assertEqual(after['wasm_sha256'],before['wasm_sha256'])
+        self.assertEqual(after['created'],before['created'])
+        self.assertIsNone(prepare_baselines(self.store,self.executor))
+        self.assertEqual(len([b for b in self.client.get('/api/v1/bots').json()['items'] if b['baseline']]),1)
+        self.assertEqual(self.store.get('bot','retired'),retired)
 
     def test_interrupted_run_retains_frames_and_has_no_score(self):
         run = self.start_run().json()
@@ -489,7 +507,7 @@ class LeaderboardTests(unittest.TestCase):
         runs = [run(score=1), run(score=1, swapped=True), run(), run('failed'), run('interrupted'), run('running'), run(verified=False)]
         result = leaderboard(bots, runs)
         self.assertEqual(result['valid_matches'], 3)
-        self.assertEqual([r['rank'] for r in result['items']], [1, 1])
+        self.assertEqual([r['rank'] for r in result['items']], [None, None])
         for row in result['items']:
             self.assertEqual((row['wins'], row['draws'], row['losses'], row['mean_score']), (1, 1, 1, .5))
         self.assertNotIn('idle', [r['id'] for r in result['items']])

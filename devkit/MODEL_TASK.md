@@ -4,7 +4,7 @@
 
 **本任务书可独立阅读，理解规则和编写源码不需要打开任何外部链接。** 第 5 节已给出完整 SDK 头文件，第 8 节给出提交格式。文中提到的文件路径都是标准开发包内、相对于解压目录或主办方指定工作区根目录的路径，不指向主办方电脑上的原项目。
 
-如果主办方提供了开发包和可执行工具，你可以在该工作区内编译、练习并查看三个基准 Bot；如果只收到这份文字，就按正文完成源码并在对话中交卷，无需寻找文件或链接，也不要声称已经编译或测试。
+如果主办方提供了开发包和可执行工具，你可以在该工作区内编译、练习并查看基准 BOT；如果只收到这份文字，就按正文完成源码并在对话中交卷，无需寻找文件或链接，也不要声称已经编译或测试。
 
 ## 1. 开发与交付
 
@@ -21,6 +21,8 @@
 目标是提高在未知地图和未知对手上的平均名次分。每个 Bot 各自为战；名次分 =（排名低于自己的对手数 + 0.5 × 与自己并列的对手数）/（参赛人数 - 1）。双人每局胜得 1 分、平得 0.5 分、负得 0 分。存活者优于死者；死亡 Tick 更晚者排名更高；同 Tick 死亡并列；达到时间上限时仍存活者并列。击杀数、炸墙数和行动次数不额外加分。
 
 使用者在本地应用导入 Bot，选择 2～8 个参赛 Bot 运行单局。应用自动编译与检查，失败时显示诊断；修复后重新导入形成新快照。榜单只汇总本地有效单局，不代表统一赛程或长期评级。
+
+游戏只内置一个较强的 Baseline 基准 BOT，其实力分固定为 0。榜单根据有效对战和对手强度估计相对实力：强于基准为正、弱于基准为负；未通过直接或间接对战关联当前基准时显示待定。名次分和胜平负保留为辅助统计。
 
 ## 3. 游戏观察与地图
 
@@ -203,17 +205,17 @@ Action tick(const GameState&) { return Action::WAIT; }
 
 `build` 使用固定 SDK 和统一编译参数；`qualify` 检查结构、导出、内存、初始化和公开状态调用。通过资格检查不保证正式比赛没有运行故障，也不代表策略得分高。
 
-标准开发包包含真实规则引擎、固定 SDK / 编译器配置、受限 WASM 执行器、10 张公开地图，以及 Random、Safe、Heuristic 三个基准 Bot 的源码和冻结 WASM。公开地图清单是 `configs/public-dev.json`；基准源码位于 `bots/baselines/`，Safe 与 Heuristic 共用 `planner.hpp`。拿到这些实际文件后，可以阅读基准策略、查看公开测试日志和 Replay，并修改自己的源码。若复用基准辅助实现，将其合并进单个 `bot.cpp`，不要让最终提交依赖 `planner.hpp`。
+标准开发包包含真实规则引擎、固定 SDK / 编译器配置、受限 WASM 执行器、10 张公开地图，以及一个较强 Baseline 基准 BOT 的源码和冻结 WASM（基准实力分 0）。公开地图清单是 `configs/public-dev.json`；基准入口为 `bots/baselines/baseline.cpp`，辅助策略为 `champion.hpp` 和 `planner.hpp`。拿到这些实际文件后，可以阅读基准策略、查看公开测试日志和 Replay，并修改自己的源码。若复用基准辅助实现，将其合并进单个 `bot.cpp`，不要让最终提交依赖 `planner.hpp`。
 
-对三个基准进行练习，可指定实际参赛人数：
+对基准 BOT 进行练习，可指定实际参赛人数：
 
 ```powershell
 .\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --output artifacts/work/practice-01
 .\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 3 --maps 1 --output artifacts/work/practice-3p
-.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 8 --opponent heuristic --maps 1 --output artifacts/work/practice-8p
+.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 8 --opponent baseline --maps 1 --output artifacts/work/practice-8p
 ```
 
-`--players` 支持 2～8，默认 2；每局一个候选 Bot 和所选基准的 N−1 个独立实例各自为战。每张地图让候选 Bot 依次占据全部 N 个出生位，Seed 跟随实例一起轮换。默认三个基准、十张公开地图、双人换边，共 60 局；例如 `--players 3 --maps 1` 为 9 局，`--players 8 --opponent heuristic --maps 1` 为 8 局。根目录启动脚本默认进行三人环境检查，也可用 `-Players 2` 或 `-Players 8` 指定人数。
+`--players` 支持 2～8，默认 2；每局一个候选 Bot 和所选基准的 N−1 个独立实例各自为战。每张地图让候选 Bot 依次占据全部 N 个出生位，Seed 跟随实例一起轮换。默认一个基准、十张公开地图、双人换边，共 20 局；例如 `--players 3 --maps 1` 为 3 局，`--players 8 --opponent baseline --maps 1` 为 8 局。根目录启动脚本默认进行三人环境检查，也可用 `-Players 2` 或 `-Players 8` 指定人数。
 
 输出 `summary.md` / `summary.json`，以及 `replays/` 下每局的逐 Tick Replay。平均得分按第 2 节名次分计算；独占第一记胜、并列第一记平、其余记负，不能在多人模式下用胜 / 平次数推算平均分。每轮使用新的输出目录。练习与应用使用相同规则和资源限制，练习记录不进入应用榜单；不要按公开地图或特定基准硬编码答案。
 

@@ -18,7 +18,7 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 .\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --maps 1 --output artifacts/work/practice-01
 ```
 
-默认完整练习使用 Random、Tactical、Search 三个基准及 12 种公开开局，每种开局交换黑白，共 72 盘。可用 `--opponent search`、`--maps 1` 缩小范围，`--opening-mode empty` 使用空棋盘。每次使用新输出目录。
+默认完整练习使用一个较强的 Baseline 基准及 12 种公开开局，每种开局交换黑白，共 24 盘；基准实力分固定为 0。可用 `--opponent baseline`、`--maps 1` 缩小范围，`--opening-mode empty` 使用空棋盘。每次使用新输出目录。
 
 输出 `summary.md`、`summary.json` 和每盘录像。将完成的 `bot.cpp` 交给使用者，在竞技场选择“五子棋”并导入。复用 `planner.hpp` 时必须把所需实现合并到单个源码中。
 

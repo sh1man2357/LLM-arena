@@ -9,7 +9,7 @@ test('五子棋导入、换色、开局、回放、榜单与窄屏', async ({pag
   await expect(page.getByRole('combobox', {name: '首盘黑棋', exact: true})).toBeVisible();
   await expect(page.getByRole('button', {name: '增加 Bot', exact: true})).toHaveCount(0);
   const options = await page.getByRole('combobox', {name: '首盘黑棋', exact: true}).locator('option').allTextContents();
-  expect(options).toContain('Search'); expect(options).not.toContain('Safe');
+  expect(options).toContain('基准 BOT · 0 分'); expect(options).not.toContain('Search');
   await page.locator('.import-disclosure > summary').click();
   await expect(page.getByLabel('Bot 所属游戏')).toHaveValue('gomoku');
   await page.getByLabel('Bot 文件').setInputFiles({name:'gomoku-probe.cpp',mimeType:'text/plain',buffer:source});
@@ -74,7 +74,9 @@ test('五子棋导入、换色、开局、回放、榜单与窄屏', async ({pag
 test('五子棋基准完整对局不会超预算', async ({page,request},testInfo) => {
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s=>s.busy),{timeout:40000}).toBe(false);
   const bots=await (await request.get('/api/v1/bots?game_id=gomoku')).json();
-  const ids=['Tactical','Search'].map(name=>bots.items.find((b:any)=>b.name===name && b.baseline && b.status==='ready').id);
+  const baseline=bots.items.filter((b:any)=>b.baseline && b.status==='ready');
+  expect(baseline).toHaveLength(1);
+  const ids=[baseline[0].id,baseline[0].id];
   const response=await request.post('/api/v1/matches',{headers:{'X-Arena-Local':'1'},data:{bot_ids:ids,game_id:'gomoku',opening_mode:'library',map_seed:8}});
   expect(response.status()).toBe(202);const run=await response.json();
   await expect.poll(async () => (await request.get(`/api/v1/matches/${run.id}`)).json().then(r=>r.pair.complete),{timeout:40000}).toBe(true);

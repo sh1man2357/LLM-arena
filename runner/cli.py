@@ -40,7 +40,7 @@ def execute(args):
         folder = Path(args.output).resolve()
         entrants, checks = [], []
         with Backend() as backend:
-            for name in (("random", "tactical", "search") if args.game == "gomoku" else ("random", "safe", "heuristic")):
+            for name in ("baseline",):
                 wasm = folder / f"{name}.wasm"
                 compile_bot(ROOT / f"bots/{'gomoku' if args.game == 'gomoku' else 'baselines'}/{name}.cpp", wasm, args.game)
                 entrants.append(dict(id=name, wasm=str(wasm)))

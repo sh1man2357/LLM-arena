@@ -21,7 +21,7 @@
 | [公开地图](../../configs/public-dev.json) | 十张可复现练习地图 |
 | [练习工具](../../tools/practice.py) | 逐局基准对战、简要统计与轨迹 |
 
-包还包含当前引擎、沙箱、CLI、Replay 校验器和对应游戏三个已检查的基准 WASM。清单版本为 3，记录游戏 ID、文件哈希、工具链和公开案例。炸弹人基准通过双人资格检查和八人世界校验；五子棋基准通过资格检查和完整棋局世界校验。两种 SDK / 二进制协议均为版本 1，以不同协议 magic 区分。
+包还包含当前引擎、沙箱、CLI、Replay 校验器和对应游戏一个已检查的基准 WASM（基准实力分 0）。清单版本为 4，记录游戏 ID、文件哈希、工具链和公开案例。炸弹人基准通过双人资格检查和八人世界校验；五子棋基准通过资格检查和完整棋局世界校验。两种 SDK / 二进制协议均为版本 1，以不同协议 magic 区分。
 
 ## 模型执行
 
@@ -39,16 +39,16 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 
 ```powershell
 .\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --output artifacts/work/practice-01
-.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --opponent random --maps 1 --output artifacts/work/practice-02
+.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --opponent baseline --maps 1 --output artifacts/work/practice-02
 .\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 3 --maps 1 --output artifacts/work/practice-3p
-.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 8 --opponent heuristic --maps 1 --output artifacts/work/practice-8p
+.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 8 --opponent baseline --maps 1 --output artifacts/work/practice-8p
 ```
 
-`--players N` 支持 2～8，默认 2。每局一个候选 Bot 与所选基准的 N−1 个独立实例各自为战，每张地图依次轮换全部 N 个出生位，种子随实例移动。十个公开地图 Seed 各提供八个独立 Bot Seed，双人的前两个种子保持原值；地图地形随人数生成。默认三个基准、每个十张公开地图、每图双人换边，共 60 局；三人一张地图对三个基准共 9 局，八人一张地图对一个基准共 8 局。
+`--players N` 支持 2～8，默认 2。每局一个候选 Bot 与所选基准的 N−1 个独立实例各自为战，每张地图依次轮换全部 N 个出生位，种子随实例移动。十个公开地图 Seed 各提供八个独立 Bot Seed，双人的前两个种子保持原值；地图地形随人数生成。默认一个基准、十张公开地图、每图双人换边，共 20 局；三人一张地图共 3 局，八人一张地图对一个基准共 8 局。
 
-练习直接调用单局执行器，不创建批次。summary.md / summary.json 提供人数、各对手的胜 / 平 / 负和平均名次分，replays/ 保存每局记录。独占第一记胜，并列第一记平，其余记负；多人平均分直接累计名次分，不用 `(胜 + 0.5 × 平) / 局数` 推算。
+练习直接调用单局执行器，不创建批次。summary.md / summary.json 提供相对 0 分基准的实力分、人数、胜 / 平 / 负和平均名次分，replays/ 保存每局记录。独占第一记胜，并列第一记平，其余记负；多人平均分直接累计名次分，不用 `(胜 + 0.5 × 平) / 局数` 推算。
 
-每轮使用新输出目录，基准 WASM 核对包清单哈希。练习遵守与应用相同的规则和资源限制，但独立于应用榜单。复用基准辅助代码时合并进单个 bot.cpp，不让最终文件依赖 planner.hpp。
+每轮使用新输出目录，基准 WASM 核对包清单哈希。练习遵守与应用相同的规则和资源限制，但独立于应用榜单。复用基准辅助代码时合并进单个 bot.cpp，不让最终文件依赖额外辅助头文件。
 
 模型完成后将 bot.cpp 交给使用者，在应用首页导入即可。
 
@@ -58,7 +58,7 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 
 ```powershell
 .\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --output artifacts/work/gomoku-practice-01
-.\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --opponent search --maps 1 --output artifacts/work/gomoku-practice-02
+.\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --opponent baseline --maps 1 --output artifacts/work/gomoku-practice-02
 ```
 
-五子棋固定两人，默认三个基准、12 个公开三手开局，每种换色两盘，共 72 盘。支持 `--opening-mode empty`。统计按每盘胜 1、平 0.5、负 0 分，并分别显示执黑 / 执白成绩。编译和 qualify 必须使用 `--game gomoku`；提交的 bot.cpp 包含 gomoku.hpp。详见[五子棋规则](../specs/gomoku.md)。
+五子棋固定两人，默认一个较强基准、12 个公开三手开局，每种换色两盘，共 24 盘。支持 `--opening-mode empty`。统计按每盘胜 1、平 0.5、负 0 分，并分别显示执黑 / 执白成绩。编译和 qualify 必须使用 `--game gomoku`；提交的 bot.cpp 包含 gomoku.hpp。详见[五子棋规则](../specs/gomoku.md)。

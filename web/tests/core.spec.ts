@@ -7,8 +7,10 @@ test('八人各自为战：增减槽位、直播、排名与录像', async ({pag
   page.on('pageerror', error => errors.push(error.message));
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 40000}).toBe(false);
   const bots = await (await request.get('/api/v1/bots?game_id=bomberman')).json();
-  const safe = bots.items.find((b: any) => b.name === 'Safe' && b.baseline && b.status === 'ready');
-  expect(safe).toBeTruthy();
+  expect(bots.items.filter((b:any)=>b.baseline)).toHaveLength(1);
+  const uploaded = await request.post('/api/v1/bots', {headers:{'X-Arena-Local':'1'}, multipart:{name:'Safety probe', file:{name:'bot.cpp',mimeType:'text/plain',buffer:source}}});
+  const safe = await uploaded.json();
+  await expect.poll(async () => (await (await request.get('/api/v1/bots?game_id=bomberman')).json()).items.find((b:any)=>b.id===safe.id)?.status,{timeout:40000}).toBe('ready');
   await page.goto('/');
   await expect(page.getByRole('button', {name: '移除 Bot 0'})).toBeDisabled();
   await page.getByRole('button', {name: '增加 Bot', exact: true}).click();
@@ -173,7 +175,7 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   const rankings = await (await request.get('/api/v1/leaderboard')).json();
   const own = rankings.items.filter((row: any) => ids.includes(row.id));
   expect(own).toHaveLength(2);
-  expect(own.map((row: any) => [row.rank, row.matches, row.draws, row.mean_score])).toEqual([[1, 1, 1, .5], [1, 1, 1, .5]]);
+  expect(own.map((row: any) => [row.rank, row.rating, row.matches, row.draws, row.mean_score])).toEqual([[null, null, 1, 1, .5], [null, null, 1, 1, .5]]);
   await page.screenshot({path: testInfo.outputPath('leaderboard-mobile.png'), fullPage: true});
   expect(errors).toEqual([]);
 });
@@ -201,7 +203,8 @@ test('导入失败与已删除页面、API', async ({page, request}) => {
 
 test('真实棋盘的脚下炸弹、爆炸与终局画面', async ({page, request}, testInfo) => {
   const bots = await (await request.get('/api/v1/bots?game_id=bomberman')).json();
-  const entrants = ['Heuristic', 'Random'].map(name => bots.items.find((bot: any) => bot.name === name && bot.baseline && bot.status === 'ready'));
+  const baseline = bots.items.find((bot:any)=>bot.baseline && bot.status==='ready');
+  const entrants = [baseline, baseline];
   expect(entrants.every(Boolean)).toBe(true);
   const created = await request.post('/api/v1/matches', {
     headers: {'X-Arena-Local': '1'}, data: {bot_ids: entrants.map(bot => bot.id), map_seed: 1},

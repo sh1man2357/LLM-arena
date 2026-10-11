@@ -46,24 +46,26 @@ class GomokuToolsTests(unittest.TestCase):
     def test_practice_frozen_baselines_pairing_and_hashes(self):
         write_json(self.root / "configs/gomoku-public-dev.json", read_json(ROOT / "configs/gomoku-public-dev.json"))
         files = {}
-        for name in ("random", "tactical", "search"):
+        for name in ("baseline",):
             p = self.root / f"bots/gomoku/{name}.wasm"; p.parent.mkdir(parents=True, exist_ok=True); p.write_bytes(self.b.read_bytes())
             files[p.relative_to(self.root).as_posix()] = dict(sha256=sha_file(p))
         write_json(self.root / "devkit-manifest.json", dict(game_id="gomoku", files=files))
         with patch("tools.gomoku_practice.ROOT", self.root):
-            summary = practice(None, self.a, self.root / "practice", ("random", "tactical", "search"), 1)
-            self.assertEqual(summary["matches"], 6)
+            summary = practice(None, self.a, self.root / "practice", ("baseline",), 1)
+            self.assertEqual(summary["matches"], 2)
             self.assertEqual(summary["mean_placement"], .5)
-            for name in ("random", "tactical", "search"):
+            self.assertEqual(summary['rating'],0)
+            self.assertEqual(summary['reference_rating'],0)
+            for name in ("baseline",):
                 first, swapped = [read(self.root / f"practice/replays/{name}-00-{side}.jsonl") for side in ("first", "swap")]
                 self.assertEqual(first[0]["bot_seeds"], swapped[0]["bot_seeds"][::-1])
                 verify_world(first); verify_world(swapped)
-            p = self.root / "bots/gomoku/random.wasm"; p.write_bytes(p.read_bytes()+b"changed")
+            p = self.root / "bots/gomoku/baseline.wasm"; p.write_bytes(p.read_bytes()+b"changed")
             with self.assertRaisesRegex(ValueError, "frozen devkit"):
-                practice(None, self.a, self.root / "changed", ("random",), 1)
+                practice(None, self.a, self.root / "changed", ("baseline",), 1)
             for players in (1, 3, True):
                 with self.assertRaisesRegex(ValueError, "two players"):
-                    practice(None, self.a, self.root / "invalid", ("random",), 1, players)
+                    practice(None, self.a, self.root / "invalid", ("baseline",), 1, players)
 
     def test_public_package_root_entrypoint_manifest_and_real_sdk(self):
         path = self.root / "gomoku.zip"
@@ -76,6 +78,9 @@ class GomokuToolsTests(unittest.TestCase):
             self.assertFalse(any(n.startswith(("artifacts/", ".venv/", ".tools/", "service/")) for n in names))
             z.extractall(extracted)
         manifest = read_json(extracted / "devkit-manifest.json")
+        self.assertEqual(set(manifest['qualifications']),{'baseline'})
+        self.assertEqual(manifest['reference_rating'],0)
+        self.assertEqual(manifest['version'],4)
         self.assertEqual(manifest["game_id"], "gomoku"); self.assertEqual(manifest["public_cases"], 12)
         for name, row in manifest["files"].items():
             data = (extracted / name).read_bytes()

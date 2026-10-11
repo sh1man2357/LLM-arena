@@ -9,7 +9,7 @@ from runner.io import ROOT, read_json, sha_file
 from service.store import utc_now
 
 MAX_SOURCE_BYTES = 1024 * 1024
-BASELINES = ("random", "safe", "heuristic")
+BASELINES = ("baseline",)
 
 
 def public_bot(row):
@@ -49,12 +49,13 @@ def baseline_records(store, game_id="bomberman"):
     version = dict(flags=FLAGS, compiler_sha256=sha_file(compiler_path()),
                    sdk_sha256={name: sha_file(sdk / name) for name in (header, 'wrapper.cpp')},
                    toolchain=read_json(ROOT / 'configs/toolchain.json'))
-    planner_sha = sha_file(ROOT / f'bots/{folder}/planner.hpp')
+    headers = ('champion.hpp', 'patterns.hpp') if game_id == 'gomoku' else ('champion.hpp', 'planner.hpp')
+    header_sha = {name: sha_file(ROOT / f'bots/{folder}/{name}') for name in headers}
     existing = store.list('bot')
-    for name in (("random", "tactical", "search") if game_id == "gomoku" else BASELINES):
+    for name in BASELINES:
         source = ROOT / f"bots/{folder}/{name}.cpp"
         sha = sha_file(source)
-        identity = f"baseline-{'gomoku-' if game_id == 'gomoku' else ''}{name}-" + digest(dict(source=sha, planner=planner_sha, **version))[:16]
+        identity = f"baseline-{'gomoku-' if game_id == 'gomoku' else ''}{name}-" + digest(dict(source=sha, headers=header_sha, **version))[:16]
         # Reuse intact legacy snapshots whose build inputs match, regardless of their old ID.
         reusable = False
         for candidate in existing:
@@ -66,7 +67,7 @@ def baseline_records(store, game_id="bomberman"):
                 metadata = read_json(wasm.with_suffix('.metadata.json'))
                 if (all(metadata.get(k) == v for k, v in version.items())
                         and sha_file(candidate['source']) == sha
-                        and sha_file(Path(candidate['source']).with_name('planner.hpp')) == planner_sha
+                        and all(sha_file(Path(candidate['source']).with_name(name)) == expected for name, expected in header_sha.items())
                         and sha_file(wasm) == candidate['wasm_sha256']):
                     reusable = True
                     break
@@ -79,21 +80,21 @@ def baseline_records(store, game_id="bomberman"):
         except KeyError:
             row = dict(id=identity, name=name.title(), game_id=game_id, status="processing", baseline=True,
                        source=str(source), source_sha256=sha, created=utc_now(), diagnostic=None, compile_log=None)
-        if row["status"] != "ready":
-            rows.append(row)
+        rows.append(row)
     return rows
 
 
 def listed_bots(rows):
-    """Offer the latest baseline version while retaining every stored snapshot."""
+    """One current reference per game; retired snapshots remain available to replays."""
     latest = {}
     for row in rows:
-        if row.get('baseline'):
-            key = (row.get('game_id', 'bomberman'), row['name'])
+        if row.get('baseline') and row['name'] == 'Baseline':
+            key = row.get('game_id', 'bomberman')
             previous = latest.get(key)
             if previous is None or (row['created'], row['id']) > (previous['created'], previous['id']):
                 latest[key] = row
-    return [row for row in rows if not row.get('baseline') or row['id'] == latest[(row.get('game_id', 'bomberman'), row['name'])]['id']]
+    return [row for row in rows if not row.get('baseline') or
+            (row['name'] == 'Baseline' and row['id'] == latest[row.get('game_id', 'bomberman')]['id'])]
 
 
 def prepare_baselines(store, executor, game_id="bomberman"):
@@ -108,7 +109,9 @@ def prepare_baselines(store, executor, game_id="bomberman"):
             folder.mkdir(parents=True, exist_ok=True)
             snapshot = folder / "bot.cpp"
             snapshot.write_bytes(source.read_bytes())
-            (folder / "planner.hpp").write_bytes((ROOT / f"bots/{folder_name}/planner.hpp").read_bytes())
+            headers = ('champion.hpp', 'patterns.hpp') if row.get('game_id') == 'gomoku' else ('champion.hpp', 'planner.hpp')
+            for name in headers:
+                (folder / name).write_bytes((ROOT / f"bots/{folder_name}/{name}").read_bytes())
             row["source"] = str(snapshot)
             row.update(status="processing", diagnostic=None)
             store.put("bot", row, db=db)

@@ -122,4 +122,4 @@ class GomokuServiceTests(unittest.TestCase):
         execute(self.root, task["id"])
         for game in ("gomoku", "bomberman"):
             rows = self.client.get(f"/api/v1/bots?game_id={game}").json()["items"]
-            self.assertEqual(len([r for r in rows if r["baseline"] and r["status"] == "ready"]), 3)
+            self.assertEqual(len([r for r in rows if r["baseline"] and r["status"] == "ready"]), 1)

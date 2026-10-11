@@ -1,10 +1,14 @@
 """Local statistics from verified core runs; no tournament or publication model."""
 from fractions import Fraction
 import math
+from runner.rating import strengths
+from service.bots import listed_bots
 
 
 def leaderboard(bots, runs, game_id="bomberman"):
     bots = [b for b in bots if b.get("game_id", "bomberman") == game_id]
+    visible = listed_bots(bots)
+    reference = next((b['id'] for b in visible if b.get('baseline')), None)
     runs = [r for r in runs if r.get("game_id", "bomberman") == game_id]
     if game_id == "gomoku":
         by_id = {r["id"]: r for r in runs}
@@ -22,9 +26,10 @@ def leaderboard(bots, runs, game_id="bomberman"):
                     and [e["id"] for e in legs[0]["entrants"]] == list(reversed([e["id"] for e in legs[1]["entrants"]])))
         runs = [r for r in runs if eligible(r)]
     rows = {b["id"]: dict(id=b["id"], name=b["name"], matches=0, wins=0, draws=0, losses=0,
-                         points=Fraction(0), mean_score=None, rank=None,
+                         points=Fraction(0), mean_score=None, rank=None, baseline=b.get('baseline',False), rating=None,
                          black_matches=0, black_points=0, white_matches=0, white_points=0) for b in bots}
     valid_matches = 0
+    comparisons = []
     for run in runs:
         result = run.get("result") or {}
         if run["status"] != "completed" or not run.get("verified") or not result.get("valid"):
@@ -41,6 +46,10 @@ def leaderboard(bots, runs, game_id="bomberman"):
                 or not math.isclose(sum(scores.values()), count / 2, abs_tol=1e-9)):
             continue
         valid_matches += 1
+        for i, a in enumerate(entrants):
+            for b in entrants[i+1:]:
+                score_a, score_b = scores[a['slot']], scores[b['slot']]
+                comparisons.append((a['id'],b['id'],1 if score_a>score_b else .5 if score_a==score_b else 0,1/(count-1)))
         top = max(scores.values())
         tied = sum(s == top for s in scores.values()) > 1
         for entrant in entrants:
@@ -57,17 +66,22 @@ def leaderboard(bots, runs, game_id="bomberman"):
                 color = "black" if entrant["slot"] == 0 else "white"
                 row[color + "_matches"] += 1
                 row[color + "_points"] += score
-    ranked = [r for r in rows.values() if r["matches"]]
+    ratings = strengths(comparisons, reference)
+    visible_ids = {b['id'] for b in visible}
+    ranked = [r for r in rows.values() if r['id'] in visible_ids and (r["matches"] or r['id']==reference)]
     def ratio(row):
         return row["points"] / row["matches"]
-    ranked.sort(key=lambda r: (-ratio(r), r["name"], r["id"]))
+    for row in ranked:
+        row['rating'] = ratings.get(row['id'])
+    ranked.sort(key=lambda r: (r['rating'] is None, -(r['rating'] or 0), r["name"], r["id"]))
     last, rank = None, 0
     for index, row in enumerate(ranked, 1):
-        score = ratio(row)
+        score = row['rating']
         rank = index if score != last else rank
-        row.update(rank=rank, mean_score=float(score), points=float(row["points"]))
+        row.update(rank=rank if score is not None else None,
+                   mean_score=float(ratio(row)) if row['matches'] else None, points=float(row["points"]))
         if game_id == "gomoku":
             for color in ("black", "white"):
                 row[color + "_mean"] = row[color + "_points"] / row[color + "_matches"] if row[color + "_matches"] else None
         last = score
-    return dict(items=ranked, valid_matches=valid_matches)
+    return dict(items=ranked, valid_matches=valid_matches, reference_id=reference, rating_method='anchored_bradley_terry')
