@@ -13,7 +13,7 @@ from runner.io import ROOT, read_json, sha_file, write_lines
 
 def components():
     files = {}
-    for folder in ("engine", "runtime", "runner", "replay", "sdk", "bots", "configs"):
+    for folder in ("engine", "gomoku", "runtime", "runner", "replay", "sdk", "bots", "configs"):
         for path in sorted((ROOT / folder).rglob("*")):
             if path.is_file() and path.suffix in (".py", ".hpp", ".cpp", ".json") and "__pycache__" not in path.parts:
                 files[path.relative_to(ROOT).as_posix()] = sha_file(path)
@@ -23,7 +23,12 @@ def components():
                 source_hash=digest(files), source_files=files)
 
 
-def qualify(backend, path):
+def qualify(backend, path, game_id="bomberman"):
+    if game_id == "gomoku":
+        from gomoku.match import qualify as gomoku_qualify
+        return gomoku_qualify(backend, path)
+    if game_id != "bomberman":
+        raise ValueError("Unknown game")
     module = backend.load(path)
     instance = backend.instance(module, 1)
     try:

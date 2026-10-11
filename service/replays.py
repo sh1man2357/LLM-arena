@@ -19,6 +19,10 @@ def decode(data):
 
 
 def validate_shape(records):
+    if records and records[0].get("game_id") == "gomoku":
+        from gomoku.replay import project as gomoku_project
+        gomoku_project(records, partial=True)
+        return
     if not 1 <= len(records) <= 502:
         raise ValueError("Replay requires a header and at most 500 ticks plus result")
     h = records[0]
@@ -66,6 +70,9 @@ def visual_event(previous, record, rules):
 
 
 def project(records, *, partial=False, source_hash=None):
+    if records and records[0].get("game_id") == "gomoku":
+        from gomoku.replay import project as gomoku_project
+        return gomoku_project(records, partial=partial, source_hash=source_hash)
     validate_shape(records)
     h = records[0]
     terminal = records[-1].get("type") == "result"

@@ -18,6 +18,9 @@ def require(condition, message):
 
 
 def verify_world(records):
+    if records and records[0].get("game_id") == "gomoku":
+        from gomoku.replay import verify_world as gomoku_verify
+        return gomoku_verify(records)
     require(len(records) >= 2, "Replay must include header and result")
     header, result = records[0], records[-1]
     require(header.get("type") == "header" and header.get("schema_version") == 1, "Invalid Replay header")
@@ -71,6 +74,12 @@ def verify_bot(backend, records, wasm_paths):
     for e, path in zip(header["entrants"], wasm_paths):
         require(e["wasm_sha256"] == sha_file(path), "WASM hash mismatch")
         entrants.append(dict(id=e["id"], wasm=str(path)))
+    if header.get("game_id") == "gomoku":
+        from gomoku.match import run_match as gomoku_run
+        _, rerun = gomoku_run(backend, entrants, header["map_seed"], [int(s, 16) for s in header["bot_seeds"]],
+                             header["match_id"], opening_mode=header["opening_mode"])
+        require(rerun == records, "Gomoku Bot rerun differs from recording")
+        return dict(status="bot_verified", match_id=header["match_id"])
     _, rerun = run_match(backend, entrants, header["map_seed"], [int(s, 16) for s in header["bot_seeds"]],
                          header["match_id"], Rules(**header["rules"]),
                          init_fuel=header["budget"]["init_fuel"], tick_fuel=header["budget"]["tick_fuel"])

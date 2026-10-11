@@ -134,6 +134,7 @@ class BotInstance:
         self.store = wasmtime.Store(backend.engine)
         self.store.set_limits(memory_size=MEMORY_LIMIT, table_elements=65536, instances=1, memories=1, tables=1)
         self.tick_fuel = tick_fuel
+        self.action_max = 5
         self.store.set_fuel(init_fuel)
         self.store.set_epoch_deadline(200)
         try:
@@ -167,7 +168,7 @@ class BotInstance:
         self.store.set_epoch_deadline(200)
         try:
             action = self.exports["arena_tick"](self.store, self.input_ptr, len(observation))
-            fault = None if 0 <= action <= 5 else "invalid_action"
+            fault = None if 0 <= action <= self.action_max else "invalid_action"
             return dict(raw_action=action, fault=fault, fuel_used=self.tick_fuel-self.store.get_fuel())
         except wasmtime.Trap as exc:
             if exc.trap_code == wasmtime.TrapCode.INTERRUPT:

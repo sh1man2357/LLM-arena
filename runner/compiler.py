@@ -18,13 +18,17 @@ def compiler_path():
     return compiler
 
 
-def compile_bot(source, output):
+def compile_bot(source, output, game_id="bomberman"):
+    if game_id not in ("bomberman", "gomoku"):
+        raise ValueError("Unknown game")
+    sdk = ROOT / "sdk" / "gomoku" if game_id == "gomoku" else ROOT / "sdk"
+    header = "gomoku.hpp" if game_id == "gomoku" else "arena.hpp"
     source, output = Path(source).resolve(), Path(output).resolve()
     if not source.is_file() or source.stat().st_size > 1024 * 1024:
         raise ValueError("Bot source must exist and be <= 1 MiB")
     output.parent.mkdir(parents=True, exist_ok=True)
     compiler = compiler_path()
-    command = [str(compiler), *FLAGS, "-I", str(ROOT / "sdk"), str(ROOT / "sdk/wrapper.cpp"),
+    command = [str(compiler), *FLAGS, "-I", str(sdk), str(sdk / "wrapper.cpp"),
                str(source), "-MMD", "-MF", str(output.with_suffix(".deps")),
                "-o", str(output.with_suffix(".tmp.wasm"))]
     result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", timeout=60)
@@ -44,7 +48,7 @@ def compile_bot(source, output):
         if path.is_file():
             dependencies[str(path.resolve())] = sha_file(path)
     metadata = dict(source=str(source), source_sha256=sha_file(source), wasm_sha256=sha_file(output),
-                    sdk_sha256={name: sha_file(ROOT / "sdk" / name) for name in ("arena.hpp", "wrapper.cpp")},
+                    sdk_sha256={name: sha_file(sdk / name) for name in (header, "wrapper.cpp")},
                     compiler_version=version.strip(), compiler_sha256=sha_file(compiler), flags=FLAGS,
                     dependencies=dependencies, wasm=str(output), toolchain=read_json(ROOT / "configs/toolchain.json"))
     write_json(output.with_suffix(".metadata.json"), metadata)
