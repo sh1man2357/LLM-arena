@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+from typing import Literal
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, Form, Request, UploadFile
@@ -17,6 +18,7 @@ from runner.match import components
 from service import APP_VERSION
 from service.bots import MAX_SOURCE_BYTES, import_bot, listed_bots, prepare_baselines, public_bot
 from service.jobs import BusyError, Executor
+from service.history import filter_runs, manage_runs
 from service.leaderboard import leaderboard
 from service.replays import decode, project
 from service.store import Store, utc_now
@@ -31,6 +33,23 @@ class MatchInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     bot_ids: list[str] = Field(min_length=2, max_length=8)
     map_seed: int | None = Field(default=None, ge=0, le=4294967295)
+
+
+MatchStatus = Literal["pending", "running", "completed", "failed", "interrupted"]
+
+
+class MatchTitle(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=100)
+
+
+class MatchManagement(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: Literal["trash", "restore"]
+    ids: list[str] = Field(default_factory=list, max_length=100)
+    all_finished: bool = False
+    q: str = Field(default="", max_length=100)
+    status: MatchStatus | None = None
 
 
 def public_match(row):
@@ -140,6 +159,12 @@ def create_app(data_root=None, *, demo=False, workers=False):
             result.append({k: bot[k] for k in ("id", "name", "wasm", "wasm_sha256")})
         return result
 
+    def visible_run(identity):
+        row = store.get("run", identity)
+        if row.get("deleted_at"):
+            raise KeyError(identity)
+        return row
+
     def new_match(ids, map_seed, key, request_data, bot_seeds=None, entrants=None):
         entrants = entrants or frozen_bots(ids)
         identity = "run-" + secrets.token_hex(8)
@@ -153,7 +178,10 @@ def create_app(data_root=None, *, demo=False, workers=False):
                                   status="pending", ticks=0, verified=False, result=None, map_seed=seed,
                                   created=utc_now(), task_id=task["id"], diagnostic=None), create=True, db=db)
         task = executor.create("match", inputs, key, request=request_data, resource=resource)
-        return public_match(store.get("run", task["inputs"]["match_id"]))
+        row = store.get("run", task["inputs"]["match_id"])
+        if row.get("deleted_at"):
+            raise FileExistsError("该请求对应的对局已在回收站，请恢复记录或创建新对局。")
+        return public_match(row)
 
     @app.post("/api/v1/matches", status_code=202)
     def create_match(body: MatchInput, request: Request):
@@ -161,7 +189,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
 
     @app.post("/api/v1/matches/{identity}/rerun", status_code=202)
     def rerun(identity: str, request: Request):
-        original = store.get("run", identity)
+        original = visible_run(identity)
         inputs = store.get("task", original["task_id"])["inputs"]
         for bot in inputs["entrants"]:
             if not Path(bot["wasm"]).is_file() or sha_file(bot["wasm"]) != bot["wasm_sha256"]:
@@ -171,19 +199,38 @@ def create_app(data_root=None, *, demo=False, workers=False):
                          inputs["bot_seeds"], inputs["entrants"])
 
     @app.get("/api/v1/matches")
-    def matches(offset: int = 0, limit: int = 30):
-        rows = store.list("run")
+    def matches(offset: int = 0, limit: int = 30, q: str = "", status: MatchStatus | None = None,
+                trashed: bool = False):
+        rows = filter_runs(store.list("run"), q=q, status=status, trashed=trashed)
         rows.sort(key=lambda r: (r["created"], r["id"]), reverse=True)
         limit, offset = max(1, min(limit, 100)), max(0, offset)
         return dict(items=[public_match(r) for r in rows[offset:offset + limit]], total=len(rows))
 
+    @app.post("/api/v1/matches/manage")
+    def manage_matches(body: MatchManagement):
+        return manage_runs(store, body.action, body.ids, all_finished=body.all_finished,
+                           q=body.q, status=body.status)
+
+    @app.patch("/api/v1/matches/{identity}")
+    def rename_match(identity: str, body: MatchTitle):
+        title = body.title.strip()
+        if not title:
+            raise ValueError("对局名称不能为空。")
+        def change(row):
+            if row.get("deleted_at"):
+                raise KeyError(identity)
+            row["title"] = title
+        row = store.update("run", identity, change)
+        store.emit(identity, "run", dict(status=row["status"]))
+        return public_match(row)
+
     @app.get("/api/v1/matches/{identity}")
     def match(identity: str):
-        return public_match(store.get("run", identity))
+        return public_match(visible_run(identity))
 
     @app.get("/api/v1/matches/{identity}/frames")
     def frames(identity: str, after_seq: int = -1, attempt_id: str | None = None):
-        row = store.get("run", identity)
+        row = visible_run(identity)
         partial = row["status"] in ("pending", "running")
         path = Path(row.get("live_path", ""))
         ui = dict(frames=[], result=None, partial=partial)
@@ -211,7 +258,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
 
     @app.get("/api/v1/leaderboard")
     def rankings():
-        return leaderboard(store.list("bot"), store.list("run"))
+        return leaderboard(store.list("bot"), filter_runs(store.list("run")))
 
     @app.get("/api/v1/events")
     async def events(request: Request, after: int | None = None):

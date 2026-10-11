@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, ChevronDown, Play, Plus, Upload, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronDown, Play, Plus, Upload, X } from 'lucide-react';
 import { api, useResource } from './api';
 import { useRevision } from './App';
-import { Badge, ErrorPanel, outcome, slotColor } from './ui';
+import { Badge, ErrorPanel, slotColor } from './ui';
+import { History } from './History';
 import type { Bot, Match } from './types';
 
 export function Home() {
   const revision = useRevision(), navigate = useNavigate();
-  const [refresh, setRefresh] = useState(0), [offset, setOffset] = useState(0);
+  const [refresh, setRefresh] = useState(0);
   const bots = useResource<{items: Bot[]}>('/api/v1/bots', revision + refresh);
-  const runs = useResource<{items: Match[]; total: number}>(`/api/v1/matches?offset=${offset}&limit=20`, revision + refresh);
   const status = useResource<{busy: boolean; operation: string | null}>('/api/v1/status', revision + refresh);
   const [file, setFile] = useState<File>(), [name, setName] = useState('');
   const [slots, setSlots] = useState(['', '']), [seed, setSeed] = useState('');
@@ -31,7 +31,7 @@ export function Home() {
     catch (error) { setMessage((error as Error).message); }
     finally { guard.current = false; setWorking(false); }
   }
-  const resources = [bots, runs, status];
+  const resources = [bots, status];
   const error = resources.find(r => r.error);
   return <><div className="page-heading"><h1>对战</h1></div>
     {error && <ErrorPanel message={error.error} onRetry={() => resources.forEach(r => r.retry())} />}
@@ -71,10 +71,5 @@ export function Home() {
         {(bot.compile_log?.stderr || bot.compile_log?.stdout) && <details><summary>编译日志<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary><pre>{bot.compile_log.stderr}{bot.compile_log.stdout}</pre></details>}
       </li>)}</ul>
     </div></section>
-    <section className="content-section history" id="history" aria-labelledby="history-title"><div className="section-heading"><h2 id="history-title">对局记录</h2></div><div className="section-body">
-      {runs.loading && <p role="status">正在读取运行记录…</p>}
-      {runs.data && !runs.data.items.length && <p className="empty">暂无对局</p>}
-      <ul className="run-list">{runs.data?.items.map(run => <li key={run.id}><Link to={`/matches/${run.id}`}><div><strong>{run.title}</strong><span className="run-meta">{new Date(run.created).toLocaleString()}{run.status === 'completed' && run.result?.valid ? ` · ${outcome(run)}` : ''}</span></div><Badge status={run.status} /><ArrowRight className="row-arrow" aria-hidden="true" /></Link></li>)}</ul>
-      {runs.data && runs.data.total > 20 && <div className="pagination"><button disabled={!offset} onClick={() => setOffset(o => Math.max(0, o - 20))}>上一页</button><span>{offset + 1}～{Math.min(offset + 20, runs.data.total)} / {runs.data.total}</span><button disabled={offset + 20 >= runs.data.total} onClick={() => setOffset(o => o + 20)}>下一页</button></div>}
-    </div></section></>;
+    <History /></>;
 }

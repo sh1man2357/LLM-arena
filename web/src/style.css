@@ -86,6 +86,21 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflo
 .run-meta { display: block; font-size: 14px; color: var(--muted); }
 .row-arrow { color: var(--muted); }
 .pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; font-size: 14px; color: var(--muted); }
+.history-tabs, .history-toolbar, .history-row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.history-tabs { margin-bottom: 16px; }
+.history-tabs button[aria-pressed=true] { background: var(--surface); border-color: var(--accent); color: var(--accent); }
+.history-filters { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; }
+.history-hint { color: var(--muted); font-size: 14px; margin: 12px 0 16px; }
+.history-toolbar { margin-bottom: 16px; font-size: 14px; }
+.history-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.history-check input { width: 18px; height: 18px; min-height: 0; padding: 0; accent-color: var(--accent); flex-shrink: 0; }
+.history-row { display: flex; align-items: center; gap: 12px; }
+.managed-runs .run-info { display: flex; flex: 1; min-width: 0; align-items: center; gap: 12px; padding: 18px 0; }
+.managed-runs li:first-child .run-info { padding-top: 18px; }
+.run-info > div { flex: 1; min-width: 0; }
+.history-row-actions { flex-shrink: 0; }
+.history-rename { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; padding: 0 0 16px 30px; }
+.history-rename label { flex: 1 1 200px; min-width: 0; }
 .viewer-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .viewer-heading button { border: 0; color: var(--muted); }
 .back-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
@@ -163,4 +178,8 @@ tbody tr:hover { background: var(--surface); }
   tbody th { min-width: 80px; max-width: 140px; }
   .pagination { gap: 8px; }
   .pagination button { padding: 8px 10px; }
+  .history-filters { grid-template-columns: minmax(0, 1fr); }
+  .history-row { flex-wrap: wrap; gap: 0 12px; padding-bottom: 12px; }
+  .history-row-actions { margin-left: 30px; width: calc(100% - 30px); }
+  .history-rename { padding-left: 0; }
 }

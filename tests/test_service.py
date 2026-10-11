@@ -327,6 +327,101 @@ class CoreServiceTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/v1/matches').json()['total'], 0)
         self.assertEqual(self.client.get('/api/v1/leaderboard').json()['valid_matches'], 0)
 
+    def test_history_rename_search_and_pagination_preserve_frozen_inputs(self):
+        run = self.start_run(seed=123).json()
+        self.finish(run)
+        original = self.store.get('run', run['id'])
+        task = self.store.get('task', original['task_id'])
+        recording = Path(original['live_path']).read_bytes()
+        response = self.client.patch(f"/api/v1/matches/{run['id']}", headers=HEADERS,
+                                     json={'title': '  Final Round  '})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['title'], 'Final Round')
+        for query in ('final', 'ROUND', 'a', '123', run['id']):
+            rows = self.client.get('/api/v1/matches', params={'q': query, 'status': 'completed'}).json()
+            self.assertEqual(rows['total'], 1, query)
+        self.assertEqual(self.client.get('/api/v1/matches?q=missing').json()['total'], 0)
+        self.assertEqual(self.client.get('/api/v1/matches?status=running').json()['total'], 0)
+        self.assertEqual(self.client.get('/api/v1/matches?offset=1&limit=1&q=final').json(), {'items': [], 'total': 1})
+        self.assertEqual(self.store.get('task', original['task_id']), task)
+        self.assertEqual(Path(original['live_path']).read_bytes(), recording)
+        for title in ('', '   ', 'x' * 101):
+            self.assertEqual(self.client.patch(f"/api/v1/matches/{run['id']}", headers=HEADERS,
+                                              json={'title': title}).status_code, 422)
+
+    def test_history_trash_restore_persists_and_updates_leaderboard(self):
+        run = self.start_run().json(); final = self.finish(run)
+        recording = Path(final['live_path']).read_bytes()
+        for kind in ('match', 'backup', 'tournament'):
+            self.store.put(kind, {'id': 'legacy', 'status': 'completed'})
+        response = self.client.post('/api/v1/matches/manage', headers=HEADERS,
+                                    json={'action': 'trash', 'ids': [run['id'], run['id']]})
+        self.assertEqual(response.json(), {'changed': 1})
+        self.assertEqual(self.client.get('/api/v1/matches').json()['total'], 0)
+        self.assertEqual(self.client.get('/api/v1/matches?trashed=true').json()['total'], 1)
+        for suffix in ('', '/frames'):
+            self.assertEqual(self.client.get(f"/api/v1/matches/{run['id']}{suffix}").status_code, 404)
+        self.assertEqual(self.client.post(f"/api/v1/matches/{run['id']}/rerun", headers=HEADERS).status_code, 404)
+        self.assertEqual(self.client.patch(f"/api/v1/matches/{run['id']}", headers=HEADERS,
+                                          json={'title': 'hidden'}).status_code, 404)
+        self.assertEqual(self.start_run().status_code, 409)  # An old idempotency key must not recreate a hidden run.
+        self.assertEqual(self.client.get('/api/v1/leaderboard').json()['valid_matches'], 0)
+        with TestClient(create_app(self.root)) as reopened:
+            self.assertEqual(reopened.get('/api/v1/matches?trashed=true').json()['total'], 1)
+            self.assertEqual(reopened.post('/api/v1/matches/manage', headers=HEADERS,
+                                          json={'action': 'restore', 'ids': [run['id']]}).json(), {'changed': 1})
+        self.assertEqual(self.client.get('/api/v1/matches').json()['total'], 1)
+        self.assertEqual(self.client.get('/api/v1/leaderboard').json()['valid_matches'], 1)
+        self.assertTrue(self.client.get(f"/api/v1/matches/{run['id']}/frames").json()['verified'])
+        self.assertEqual(Path(final['live_path']).read_bytes(), recording)
+        self.assertEqual(self.start_run().json()['id'], run['id'])
+        self.assertTrue(any(e['payload'].get('status') == 'restored' for e in self.store.events()))
+        for kind in ('match', 'backup', 'tournament'):
+            self.assertEqual(self.store.get(kind, 'legacy'), {'id': 'legacy', 'status': 'completed'})
+
+    def test_history_bulk_trash_rolls_back_on_active_missing_and_finishing_tasks(self):
+        first = self.start_run().json(); self.finish(first)
+        active = self.start_run(key='active').json()
+        for ids, code in (([first['id'], active['id']], 409), ([first['id'], 'missing'], 404)):
+            response = self.client.post('/api/v1/matches/manage', headers=HEADERS,
+                                        json={'action': 'trash', 'ids': ids})
+            self.assertEqual(response.status_code, code)
+            self.assertNotIn('deleted_at', self.store.get('run', first['id']))
+        self.store.update('run', active['id'], lambda r: r.update(status='completed'))
+        # Final frames can already be published while the worker task is still finishing.
+        self.assertEqual(self.client.post('/api/v1/matches/manage', headers=HEADERS,
+                                          json={'action': 'trash', 'ids': [active['id']]}).status_code, 409)
+        self.assertNotIn('deleted_at', self.store.get('run', active['id']))
+
+    def test_history_clear_covers_all_pages_respects_filters_and_skips_active(self):
+        first = self.start_run().json(); final = self.finish(first)
+        for i in range(24):
+            self.store.put('run', {**final, 'id': f'copy-{i}', 'title': 'Practice' if i < 23 else 'Keep'})
+        active = self.start_run(key='active').json()
+        self.store.update('run', active['id'], lambda r: r.update(title='Practice'))
+        response = self.client.post('/api/v1/matches/manage', headers=HEADERS,
+                                    json={'action': 'trash', 'all_finished': True, 'q': 'Practice'})
+        self.assertEqual(response.json(), {'changed': 23})
+        self.assertEqual(self.client.get('/api/v1/matches?trashed=true&limit=20').json()['total'], 23)
+        self.assertEqual(len(self.client.get('/api/v1/matches?trashed=true&offset=20').json()['items']), 3)
+        self.assertEqual(self.client.get('/api/v1/matches').json()['total'], 3)
+        self.assertNotIn('deleted_at', self.store.get('run', active['id']))
+        restored = self.client.post('/api/v1/matches/manage', headers=HEADERS,
+                                   json={'action': 'restore', 'ids': ['copy-0', 'copy-1']})
+        self.assertEqual(restored.json(), {'changed': 2})
+
+    def test_history_mutations_require_local_intent_and_validate_scope(self):
+        for method, path, body in (('patch', '/api/v1/matches/missing', {'title': 'name'}),
+                                   ('post', '/api/v1/matches/manage', {'action': 'trash', 'all_finished': True})):
+            self.assertEqual(getattr(self.client, method)(path, json=body).status_code, 403)
+            self.assertEqual(getattr(self.client, method)(path, headers={**HEADERS, 'Origin': 'https://evil.example'},
+                                                         json=body).status_code, 403)
+        for body in ({'action': 'trash'}, {'action': 'restore', 'all_finished': True},
+                     {'action': 'trash', 'all_finished': True, 'ids': ['one']}, {'action': 'erase', 'ids': ['one']},
+                     {'action': 'trash', 'ids': ['one'] * 101}):
+            self.assertEqual(self.client.post('/api/v1/matches/manage', headers=HEADERS, json=body).status_code, 422)
+        self.assertEqual(self.client.get('/api/v1/matches?status=invalid').status_code, 422)
+
     def test_removed_routes_are_not_available(self):
         for path in ('sessions', 'submissions', 'receipts', 'entrants', 'tournaments', 'jobs', 'imports', 'backups', 'exports/old'):
             self.assertEqual(self.client.get('/api/v1/' + path).status_code, 404, path)
