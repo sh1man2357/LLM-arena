@@ -1,8 +1,51 @@
-param([switch]$Apply, [switch]$IncludeGenerated, [switch]$ResetLocal)
+param([switch]$Apply, [switch]$IncludeGenerated, [switch]$ResetLocal, [switch]$OldDevkitsOnly)
 $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $taskPrefix = $taskRoot.TrimEnd('\') + '\'
 $taskNames = @('artifacts\work', 'web\test-results', 'web\playwright-report')
+if ($OldDevkitsOnly) {
+    if ($IncludeGenerated -or $ResetLocal) { throw '-OldDevkitsOnly cannot be combined with broader cleanup options.' }
+    $taskNames = @()
+    $taskDistribution = [IO.Path]::GetFullPath((Join-Path $taskRoot 'artifacts\distribution'))
+    if (Test-Path -LiteralPath $taskDistribution) {
+        if ((Resolve-Path -LiteralPath $taskDistribution).Path -ne $taskDistribution -or
+            ((Get-Item -LiteralPath $taskDistribution -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "Unexpected distribution directory: $taskDistribution"
+        }
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $taskPackages = @()
+        foreach ($taskZip in (Get-ChildItem -LiteralPath $taskDistribution -Filter 'llm-arena-*.zip' -File)) {
+            if ($taskZip.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Reparse point: $($taskZip.FullName)" }
+            $taskArchive = [IO.Compression.ZipFile]::OpenRead($taskZip.FullName)
+            try {
+                $taskManifestEntry = $taskArchive.GetEntry('devkit-manifest.json')
+                if (-not $taskManifestEntry) { continue }
+                $taskReader = [IO.StreamReader]::new($taskManifestEntry.Open())
+                try { $taskManifest = $taskReader.ReadToEnd() | ConvertFrom-Json } finally { $taskReader.Dispose() }
+                if ($taskManifest.format -ne 'llm-arena-public-devkit') { continue }
+                $taskGame = if ($taskManifest.game_id) { $taskManifest.game_id } else { 'bomberman' }
+                if ($taskGame -notin @('bomberman', 'gomoku')) { continue }
+                $taskPackages += [PSCustomObject]@{ Game = $taskGame; File = $taskZip }
+            } finally { $taskArchive.Dispose() }
+        }
+        foreach ($taskGroup in ($taskPackages | Group-Object Game)) {
+            $taskOrdered = @($taskGroup.Group | Sort-Object @{ Expression = { $_.File.LastWriteTimeUtc }; Descending = $true }, @{ Expression = { $_.File.Name }; Descending = $true })
+            $taskKeep = $taskOrdered[0].File
+            $taskChecksum = [IO.Path]::ChangeExtension($taskKeep.FullName, '.sha256')
+            if (-not (Test-Path -LiteralPath $taskChecksum -PathType Leaf)) { throw "Latest package checksum missing: $taskChecksum" }
+            $taskExpectedHash = ((Get-Content -LiteralPath $taskChecksum -Raw).Trim() -split '\s+')[0]
+            if ($taskExpectedHash -notmatch '^[a-fA-F0-9]{64}$' -or (Get-FileHash -LiteralPath $taskKeep.FullName -Algorithm SHA256).Hash -ne $taskExpectedHash) {
+                throw "Latest package checksum mismatch: $($taskKeep.FullName)"
+            }
+            Write-Output "Keep $($taskGroup.Name): $($taskKeep.Name) and its SHA-256 file"
+            foreach ($taskOld in ($taskOrdered | Select-Object -Skip 1)) {
+                $taskNames += $taskOld.File.FullName.Substring($taskPrefix.Length)
+                $taskOldChecksum = [IO.Path]::ChangeExtension($taskOld.File.FullName, '.sha256')
+                if (Test-Path -LiteralPath $taskOldChecksum -PathType Leaf) { $taskNames += $taskOldChecksum.Substring($taskPrefix.Length) }
+            }
+        }
+    }
+}
 if ($IncludeGenerated) {
     $taskNames += @('artifacts\acceptance', 'artifacts\distribution', 'web\dist')
     $taskNames += @(Get-ChildItem -LiteralPath (Join-Path $taskRoot 'web') -Filter '*.tsbuildinfo' -File -Force |
@@ -69,5 +112,9 @@ if ($Apply) {
     }
     Write-Output ('Removed {0} targets and {1} files; freed {2:N3} GiB.' -f $taskTargets.Count, $taskFiles, ($taskBytes / 1GB))
 } else {
-    Write-Output 'Preview only. Use -Apply after stopping test instances. -IncludeGenerated adds archives, distribution packages, frontend builds and source caches. -ResetLocal also deletes ALL default organizer data.'
+    if ($OldDevkitsOnly) {
+        Write-Output 'Preview only. Use -OldDevkitsOnly -Apply to remove only older distribution packages and their checksum files; keep the newest per game by file modification time.'
+    } else {
+        Write-Output 'Preview only. Use -Apply after stopping test instances. -IncludeGenerated adds archives, distribution packages, frontend builds and source caches. -ResetLocal also deletes ALL default organizer data.'
+    }
 }

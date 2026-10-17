@@ -58,3 +58,5 @@ powershell -ExecutionPolicy Bypass -File tools\cleanup-test-data.ps1
 ```
 
 确认不再需要的测试产物并停止测试实例后，才使用 -Apply。-IncludeGenerated 增加构建与分发产物；-ResetLocal 会删除默认本机全部数据，需要用户明确要求。本轮简化不执行这些删除。保留 .venv、.tools、web/node_modules 与既有主办方数据。
+
+只整理历史任务包时，先运行 `powershell -ExecutionPolicy Bypass -File tools\cleanup-test-data.ps1 -OldDevkitsOnly` 预览，再加 `-Apply` 执行。该模式只处理 `artifacts/distribution/` 中已识别的开发包及对应 SHA-256 文件，按文件修改时间为每个游戏保留最新一份，删除前验证保留包的校验和。它不清理测试目录、前端构建或主办方数据，也不能与其他清理范围选项组合。
