@@ -25,7 +25,8 @@ HEADERS = {'X-Arena-Local': '1'}
 class CoreServiceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name)
+        # Windows runners may expose TEMP via an 8.3 alias; Store resolves it.
+        self.root = Path(self.temp.name).resolve()
         self.app = create_app(self.root)
         self.store, self.executor = self.app.state.store, self.app.state.executor
         self.client = TestClient(self.app)
