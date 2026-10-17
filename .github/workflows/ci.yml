@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.19.0'
+      - name: Install locked npm
+        run: npm.cmd install --global npm@11.17.0 --no-audit --no-fund
+      - name: Install from a fresh checkout and build
+        run: ./tools/setup-ui.ps1 -Python (Get-Command python.exe).Source
+      - name: Python tests
+        run: ./.venv/Scripts/python.exe -m unittest discover -v
+      - name: Documentation checks
+        run: ./.venv/Scripts/python.exe tools/check_docs.py
+      - name: Public repository checks
+        run: ./.venv/Scripts/python.exe tools/check_repository.py
+      - name: Frontend protocol tests
+        working-directory: web
+        run: npm.cmd run test:protocol
+      - name: Browser tests on an isolated instance
+        run: ./tools/test-browser.ps1
+      - name: Build public development kits
+        run: |
+          ./.venv/Scripts/python.exe tools/build_devkit.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./.venv/Scripts/python.exe tools/build_devkit.py --game gomoku
+      - name: Retain test logs and development kits
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-validation
+          path: |
+            web/test-results/
+            artifacts/work/browser-*/server*.log
+            artifacts/distribution/
+          retention-days: 7
+          if-no-files-found: ignore

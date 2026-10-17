@@ -12,7 +12,9 @@ if ($NodeDirectory) {
     $taskNode = Join-Path $NodeDirectory 'node.exe'
     $taskNpm = Join-Path $NodeDirectory 'npm.cmd'
 } else {
-    $taskNode = (Get-Command node.exe -ErrorAction Stop).Source
+    $taskNodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
+    if (-not $taskNodeCommand) { throw "Node.js $($taskRuntime.node) required. Install Node.js or pass -NodeDirectory." }
+    $taskNode = $taskNodeCommand.Source
     $taskNpm = Join-Path (Split-Path -Parent $taskNode) 'npm.cmd'
 }
 if (-not (Test-Path -LiteralPath $taskNpm)) { throw 'npm.cmd is required alongside node.exe.' }
@@ -21,13 +23,8 @@ $taskNpmVersion = & $taskNpm --version
 if ($taskNodeVersion.Trim() -ne ('v' + $taskRuntime.node) -or $taskNpmVersion.Trim() -ne $taskRuntime.npm) {
     throw "Verified runtime required: Node $($taskRuntime.node), npm $($taskRuntime.npm)."
 }
-if (-not $Python) {
-    $taskBundled = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
-    if (Test-Path -LiteralPath $taskBundled) { $Python = $taskBundled }
-    else { $Python = (Get-Command python.exe -ErrorAction Stop).Source }
-}
-& $Python -c 'import sys; assert sys.version_info[:2] == (3,12), "Python 3.12 required"'
-if ($LASTEXITCODE -ne 0) { throw 'Python version check failed.' }
+. (Join-Path $PSScriptRoot 'python-runtime.ps1')
+$Python = Resolve-ArenaPython -Python $Python
 & $Python -m venv .venv
 if ($LASTEXITCODE -ne 0) { throw 'Virtual environment setup failed.' }
 $taskPython = Join-Path $taskRoot '.venv\Scripts\python.exe'

@@ -1,17 +1,28 @@
 # LLM Arena
 
+[![CI](https://github.com/sh1man2357/LLM-arena/actions/workflows/ci.yml/badge.svg)](https://github.com/sh1man2357/LLM-arena/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 本机运行的模型 Bot 竞技场，支持 2～8 人炸弹人混战和双人自由五子棋。导入 C++20 Bot，自动编译为 WASM，选择参赛 Bot 后运行并观看；运行过程自动保存为录像。五子棋 Bot 对战自动打两盘换色，也支持选择黑白执子、点击落子的人机单盘。各游戏独立筛选和计分，人机对局不计入 Bot 榜单。直播与录像使用同一个播放器，播放速度不影响结算。
 
 ## 快速启动
 
-支持 Windows x64、Python 3.12、Node 24.19.0 / npm 11.17.0。在项目根目录执行：
+目前支持 **Windows x64**。先安装 [Python 3.12](https://www.python.org/downloads/windows/)、[Node.js 24.19.0 / npm 11.17.0](https://nodejs.org/dist/v24.19.0/) 和 Git。macOS / Linux 尚未验收，不要求安装 Codex。
+
+首次获取并启动：
 
 ```powershell
+git clone https://github.com/sh1man2357/LLM-arena.git
+cd LLM-arena
 powershell -ExecutionPolicy Bypass -File tools\setup-ui.ps1
 powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 ```
 
 默认打开 `http://127.0.0.1:8787`，在控制台按 Enter 停止。启动按当前源码准备炸弹人和五子棋各一个 Baseline 参考 BOT（实力分固定为 0），不自动开赛。
+
+首次安装需要访问 PyPI、npm 和 GitHub；WASI SDK 压缩包约 625 MiB，解压需要额外空间。安装仅写入项目目录，不修改系统 PATH。版本检测失败或使用离线缓存时，参见[安装与启动](docs/guides/getting-started.md)。
+
+服务仅供本机使用；C++ 编译阶段没有文件系统沙箱，只导入可信源码。安全范围见 [SECURITY.md](SECURITY.md)。
 
 ## 核心操作
 
@@ -35,6 +46,8 @@ powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 | 编译、单局和复现检查 | [CLI 指南](docs/guides/cli.md) |
 | 给模型分发 Bot 开发材料 | [开发包](docs/guides/model-development.md) |
 | 开发与验证 | [开发指南](docs/guides/development.md) |
+| 参与贡献与报告问题 | [贡献指南](CONTRIBUTING.md) |
+| 更新记录 | [Changelog](CHANGELOG.md) |
 | 规则、架构和简化方案 | [文档目录](docs/README.md) |
 
 任务材料维护在 `devkit/`。生成对外开发包：
@@ -49,3 +62,7 @@ powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 五子棋开发包输出为 `artifacts/distribution/llm-arena-gomoku-devkit.zip`，使用独立任务书与 SDK，根目录仍有执行入口。规则与协议见[五子棋规格](docs/specs/gomoku.md)。
 
 `engine/` 和 `gomoku/` 是规则引擎，`sdk/` 与 `runtime/` 提供 Bot 接口和沙箱，`runner/` 与 `replay/` 提供运行与校验，`service/` 与 `web/` 提供本地应用。数据、日志、任务 ZIP、缓存和构建产物均在 Git 忽略目录生成。
+
+## 许可证
+
+本项目采用 [MIT License](LICENSE)。第三方依赖及开发包运行库的授权见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，开发包包含相应许可文本。

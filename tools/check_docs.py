@@ -9,7 +9,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--links-only', action='store_true', help='Compatibility alias for current document checks')
     parser.parse_args()
-    files = [ROOT / 'README.md', ROOT / 'AGENTS.md', *sorted((ROOT / 'docs').rglob('*.md')), *sorted((ROOT / 'devkit').glob('*.md'))]
+    files = [ROOT / name for name in ('README.md', 'AGENTS.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md') if (ROOT / name).exists()]
+    files += [*sorted((ROOT / 'docs').rglob('*.md')), *sorted((ROOT / 'devkit').glob('*.md'))]
     links = 0
     for path in files:
         text = path.read_text(encoding='utf-8')

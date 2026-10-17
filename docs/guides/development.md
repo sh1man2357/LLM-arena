@@ -9,6 +9,7 @@
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -v
 .\.venv\Scripts\python.exe tools\check_docs.py
+.\.venv\Scripts\python.exe tools\check_repository.py
 ```
 
 在 web 目录执行：
@@ -38,6 +39,14 @@ $env:TMP = $taskTemp
 
 ## 浏览器检查
 
+自动启动独立测试实例、执行浏览器测试并关闭实例：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\test-browser.ps1
+```
+
+脚本默认使用新建的 `artifacts/work/browser-*` 数据目录，拒绝主服务端口 8787、工作目录以外的数据目录和已有数据目录。只关闭自己创建的进程，保留日志和测试结果。也可按下面的手动方式指定专用实例。
+
 只使用专用实例，不连接主办方数据。先在项目根目录启动：
 
 ```powershell
@@ -52,6 +61,12 @@ npm.cmd test
 ```
 
 测试验证真实 .cpp 导入、运行与回看、榜单、窄屏和已删除入口。测试会创建 Bot 与运行记录，截图和结果在 web/test-results。更换实例时使用新的数据目录；测试服务器停止后保留输出供复核。
+
+## 公开发布检查
+
+CI 在 Windows runner 上从空 checkout 安装 Python / npm 依赖和 WASI SDK，执行全部检查并构建两个开发包。Action 固定到提交 SHA，工作流只具有读取仓库内容的权限。
+
+`check_repository.py` 检查已跟踪路径、全部可达历史中的产物 / 私有路径、超过 100 MiB 的对象，以及常见凭据格式；输出只包含路径和对象标识，不输出疑似凭据内容。模式扫描不能替代对个人数据和第三方授权的人工复核。仓库不提交数据与安装缓存，开发包必须包含项目许可证、第三方说明和编译运行库许可文本。
 
 ## 清理
 

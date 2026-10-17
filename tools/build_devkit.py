@@ -24,8 +24,9 @@ def package(output, game_id="bomberman"):
     if output.exists() or output.with_suffix('.sha256').exists():
         raise ValueError("Choose a new ZIP path; existing distribution files are not overwritten")
     names = ["devkit/START_HERE.md", "devkit/start-devkit.ps1", "devkit/MODEL_TASK.md", "arena.py", "requirements.lock", "configs/toolchain.json", "configs/public-dev.json",
-             "tools/setup.ps1", "tools/bootstrap.py", "tools/devkit_ready.py", "tools/practice.py", "tools/build_devkit.py", "sdk/arena.hpp", "sdk/wrapper.cpp", "sdk/template.cpp",
+             "tools/setup.ps1", "tools/python-runtime.ps1", "tools/bootstrap.py", "tools/devkit_ready.py", "tools/practice.py", "tools/build_devkit.py", "sdk/arena.hpp", "sdk/wrapper.cpp", "sdk/template.cpp",
              "docs/guides/model-development.md"]
+    names += ["LICENSE", "THIRD_PARTY_NOTICES.md", *[p.relative_to(ROOT).as_posix() for p in sorted((ROOT / 'licenses').glob('*.txt'))]]
     if gomoku:
         names = [n for n in names if n not in ("devkit/START_HERE.md", "devkit/MODEL_TASK.md")]
         names += ["devkit/GOMOKU_START_HERE.md", "devkit/GOMOKU_MODEL_TASK.md"]

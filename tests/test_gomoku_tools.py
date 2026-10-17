@@ -73,7 +73,8 @@ class GomokuToolsTests(unittest.TestCase):
         extracted = self.root / "unpacked"
         with zipfile.ZipFile(path) as z:
             names = z.namelist()
-            for name in ("README.md", "START_HERE.md", "MODEL_TASK.md", "start-devkit.ps1", "arena.py"):
+            for name in ("README.md", "START_HERE.md", "MODEL_TASK.md", "start-devkit.ps1", "arena.py",
+                         "LICENSE", "THIRD_PARTY_NOTICES.md", "licenses/musl-COPYRIGHT.txt", "tools/python-runtime.ps1"):
                 self.assertIn(name, names)
             self.assertFalse(any(n.startswith(("artifacts/", ".venv/", ".tools/", "service/")) for n in names))
             z.extractall(extracted)
