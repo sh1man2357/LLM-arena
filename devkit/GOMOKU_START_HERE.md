@@ -12,7 +12,7 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 
 入口从清单自动识别五子棋，准备 Python 3.12、Wasmtime 49.0.0、WASI SDK 33.0，并用五子棋模板进行双人换色练习。安装支持 `-Python`、`-CompilerArchive` 和 `-WheelDirectory`；只写工作区，不修改系统 PATH。
 
-环境就绪后阅读根目录 `MODEL_TASK.md`，编写单文件 `bot.cpp`。只收到任务书文字时，使用其中完整 SDK 编写源码，不声称完成了编译或测试。
+环境就绪后阅读根目录 `MODEL_TASK.md`，编写单文件 `bot.cpp`，并在最终回复中用中文梳理编写 Bot 的全过程。总结与源码分开，只描述实际完成的工作，具体格式见任务书的交付要求。只收到任务书文字时，使用其中完整 SDK 编写源码，不声称完成了编译或测试。
 
 ```powershell
 .\.venv\Scripts\python.exe arena.py build bot.cpp --game gomoku --output artifacts/work/bot.wasm

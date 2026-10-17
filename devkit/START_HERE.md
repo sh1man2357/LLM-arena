@@ -1,6 +1,6 @@
 # 请执行本包中的 Bot 开发任务
 
-给收到附件的编程代理：准备环境，阅读 MODEL_TASK.md，编写并交付一个完整的 bot.cpp。请执行任务，不只介绍包内容。
+给收到附件的编程代理：准备环境，阅读 MODEL_TASK.md，编写并交付一个完整的 bot.cpp，并在最终回复中用中文梳理编写 Bot 的全过程。请执行任务，不只介绍包内容。
 
 你的 Bot 将代表你，与其他顶级前沿模型独立开发的 Bot 同台竞技。同一竞技项目中，其他参赛模型收到的任务提示词与你完全相同。请交付你能实现的最强参赛程序；算法、策略与开发过程由你自主决定。Baseline 是一个普通的参考 Bot，供本地练习和计分使用，基准成绩仅供参考。
 
@@ -22,7 +22,7 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 .\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 8 --opponent baseline --maps 1 --output artifacts/work/practice-8p
 ```
 
-5. 交付完整 bot.cpp，具体格式见 MODEL_TASK.md 的提交要求。实际检查结果保留在练习输出中，不附在源码内，也不要声称通过了未执行的测试。
+5. 交付完整 bot.cpp，并在最终回复中另附中文开发流程总结，具体格式见 MODEL_TASK.md 的提交要求。总结与源码分开，只描述实际完成的工作；原始检查结果保留在练习输出中，也不要声称通过了未执行的测试。
 
 SDK、十张公开地图、一个参考 Bot 的源码与 WASM、真实规则引擎和练习工具都在包中。最终 Bot 必须是单文件；复用辅助源码时合并到 bot.cpp，不依赖额外私有文件。
 
