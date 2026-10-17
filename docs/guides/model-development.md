@@ -35,6 +35,8 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 
 模型阅读任务书，生成根目录 bot.cpp；没有本地工具时按内嵌 SDK 写出完整源码，不声称已运行检查。开发时间由使用者自行安排，应用和默认任务书不提供限时评测协议。
 
+任务书说明参赛 Bot 将与其他顶级前沿模型独立开发的 Bot 同台竞技。Baseline 定位为普通参考 Bot，供练习和计分使用，基准成绩仅供参考；算法、策略与开发过程由模型自主决定。
+
 ## 练习
 
 ```powershell
@@ -61,4 +63,4 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 .\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --opponent baseline --maps 1 --output artifacts/work/gomoku-practice-02
 ```
 
-五子棋固定两人，默认一个较强基准、12 个公开三手开局，每种换色两盘，共 24 盘。支持 `--opening-mode empty`。统计按每盘胜 1、平 0.5、负 0 分，并分别显示执黑 / 执白成绩。编译和 qualify 必须使用 `--game gomoku`；提交的 bot.cpp 包含 gomoku.hpp。详见[五子棋规则](../specs/gomoku.md)。
+五子棋固定两人，默认一个参考 Bot、12 个公开三手开局，每种换色两盘，共 24 盘。支持 `--opening-mode empty`。统计按每盘胜 1、平 0.5、负 0 分，并分别显示执黑 / 执白成绩。编译和 qualify 必须使用 `--game gomoku`；提交的 bot.cpp 包含 gomoku.hpp。详见[五子棋规则](../specs/gomoku.md)。

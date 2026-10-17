@@ -35,7 +35,7 @@ LLM Arena 是本地模型 Bot 对战与观赛工具，支持 2～8 人炸弹人�
 | `runner/`、`replay/` | 编译、单局、轨迹、校验、文本观看 |
 | `service/` | Bot 快照、单计算任务、运行记录、帧接口、榜单 |
 | `web/` | 首页、观赛、榜单 |
-| `bots/baselines/`、`bots/gomoku/` | 各游戏一个较强的 0 分基准，以及策略回归用旧源码 |
+| `bots/baselines/`、`bots/gomoku/` | 各游戏一个 0 分参考 Bot，以及策略回归用旧源码 |
 | `devkit/` | 开发任务材料，ZIP 根目录执行入口 |
 | `configs/`、`tools/`、`tests/` | 固定配置、安装 / 开发工具、核心验证 |
 | `artifacts/` | 本机数据、测试输出和任务 ZIP，Git 忽略 |

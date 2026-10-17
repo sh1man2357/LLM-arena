@@ -11,7 +11,7 @@ powershell -ExecutionPolicy Bypass -File tools\setup-ui.ps1
 powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 ```
 
-默认打开 `http://127.0.0.1:8787`，在控制台按 Enter 停止。启动按当前源码准备炸弹人和五子棋各一个较强的 Baseline 基准 BOT（实力分固定为 0），不自动开赛。
+默认打开 `http://127.0.0.1:8787`，在控制台按 Enter 停止。启动按当前源码准备炸弹人和五子棋各一个 Baseline 参考 BOT（实力分固定为 0），不自动开赛。
 
 ## 核心操作
 
