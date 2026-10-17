@@ -13,6 +13,11 @@ MAX_SOURCE_BYTES = 1024 * 1024
 BASELINES = ("baseline",)
 
 
+def baseline_key(row):
+    # Legacy snapshots used their display name as the built-in strategy key.
+    return row.get("baseline_key") or row["name"].lower()
+
+
 def public_bot(row):
     return dict(game_id=row.get("game_id", "bomberman"), **{k: row.get(k) for k in ("id", "name", "status", "baseline", "created", "source_sha256",
                                   "wasm_sha256", "diagnostic", "compile_log", "description", "deleted_at")})
@@ -38,10 +43,10 @@ def edit_bot(store, identity, fields):
     def change(row):
         if row.get("deleted_at"):
             raise KeyError(identity)
-        if row.get("baseline"):
-            raise FileExistsError("内置基准 Bot 不支持编辑。")
         if row["status"] == "processing":
             raise FileExistsError("Bot 正在编译，请完成后再编辑。")
+        if row.get("baseline"):
+            row["baseline_key"] = baseline_key(row)
         row.update(fields)
     row = store.update("bot", identity, change)
     store.emit(identity, "bot", dict(status=row["status"]))
@@ -131,7 +136,7 @@ def baseline_records(store, game_id="bomberman"):
         # Reuse intact legacy snapshots whose build inputs match, regardless of their old ID.
         reusable = False
         for candidate in existing:
-            if not (candidate.get('baseline') and candidate.get('game_id', 'bomberman') == game_id and candidate['name'] == name.title()
+            if not (candidate.get('baseline') and candidate.get('game_id', 'bomberman') == game_id and baseline_key(candidate) == name
                     and candidate['status'] == 'ready' and candidate.get('source_sha256') == sha):
                 continue
             try:
@@ -152,6 +157,7 @@ def baseline_records(store, game_id="bomberman"):
         except KeyError:
             row = dict(id=identity, name=name.title(), game_id=game_id, status="processing", baseline=True,
                        source=str(source), source_sha256=sha, created=utc_now(), diagnostic=None, compile_log=None)
+        row["baseline_key"] = name
         rows.append(row)
     return rows
 
@@ -160,13 +166,13 @@ def listed_bots(rows, *, trashed=False):
     """One current reference per game; retired snapshots remain available to replays."""
     latest = {}
     for row in rows:
-        if row.get('baseline') and row['name'] == 'Baseline':
+        if row.get('baseline') and baseline_key(row) in BASELINES:
             key = row.get('game_id', 'bomberman')
             previous = latest.get(key)
             if previous is None or (row['created'], row['id']) > (previous['created'], previous['id']):
                 latest[key] = row
     return [row for row in rows if bool(row.get("deleted_at")) == trashed and (not row.get('baseline') or
-            (row['name'] == 'Baseline' and row['id'] == latest[row.get('game_id', 'bomberman')]['id']))]
+            (baseline_key(row) in BASELINES and row['id'] == latest[row.get('game_id', 'bomberman')]['id']))]
 
 
 def prepare_baselines(store, executor, game_id="bomberman"):
@@ -176,7 +182,7 @@ def prepare_baselines(store, executor, game_id="bomberman"):
     def resource(task, db):
         for row in rows:
             folder_name = "gomoku" if row.get("game_id") == "gomoku" else "baselines"
-            source = ROOT / f"bots/{folder_name}/{row['name'].lower()}.cpp"
+            source = ROOT / f"bots/{folder_name}/{baseline_key(row)}.cpp"
             folder = store.root / "bots" / row["id"]
             folder.mkdir(parents=True, exist_ok=True)
             snapshot = folder / "bot.cpp"

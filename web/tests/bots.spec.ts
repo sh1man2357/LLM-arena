@@ -27,7 +27,9 @@ test('Bot 信息编辑、筛选、参赛保护、批量删除与恢复', async (
     const first = page.locator(`[data-bot-id="${ids[0]}"]`);
     await expect(first.getByRole('button', {name: /^删除 Bot/})).toBeDisabled();
     await expect(first).toContainText('使用中');
-    await expect(page.getByRole('button', {name: '编辑 Bot Baseline', exact: true})).toHaveCount(0);
+    const reference = page.locator('[data-bot-id]').filter({has: page.locator('.baseline-mark')});
+    await expect(reference.getByRole('button', {name: /^编辑 Bot/})).toBeEnabled();
+    await expect(reference.getByRole('button', {name: /^删除 Bot/})).toBeDisabled();
     await first.getByRole('button', {name: /^编辑 Bot/}).click();
     await page.getByLabel('Bot 名称', {exact: true}).fill(`${prefix}-新版`);
     await page.getByLabel('Bot 备注').fill('模型 X\n第 2 版策略，用于人机练习。');

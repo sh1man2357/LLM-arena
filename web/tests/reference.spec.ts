@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('每个游戏只有一个 0 分基准，未关联选手待定，败于基准后为负分', async ({page,request},testInfo) => {
+test('基准可改名且不可删除，保留标记及 0 分地位', async ({page,request},testInfo) => {
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await expect.poll(async()=> (await (await request.get('/api/v1/status')).json()).busy,{timeout:40000}).toBe(false);
   for(const game of ['bomberman','gomoku']) {
@@ -11,7 +11,31 @@ test('每个游戏只有一个 0 分基准，未关联选手待定，败于基�
     const board=await (await request.get(`/api/v1/leaderboard?game_id=${game}`)).json();
     expect(board.items.find((r:any)=>r.id===reference.id).rating).toBe(0);
     await page.goto('/');await page.getByLabel('游戏',{exact:true}).selectOption(game);
-    await expect(page.locator('.bot-list')).toContainText('基准 BOT · 0 分');
+    const baseline = page.locator(`[data-bot-id="${reference.id}"]`);
+    const name = `${game} 自定义基准`;
+    await expect(baseline.locator('.baseline-mark')).toHaveText('基准 BOT · 0 分');
+    await expect(baseline.getByRole('checkbox')).toBeDisabled();
+    await expect(baseline.getByRole('button', {name: /^删除 Bot/})).toBeDisabled();
+    await baseline.getByRole('button', {name: /^编辑 Bot/}).click();
+    await page.getByLabel('Bot 名称', {exact:true}).fill(name);
+    await page.getByLabel('Bot 备注').fill('改名后仍为实力基准');
+    await page.getByRole('button', {name:'保存 Bot 信息',exact:true}).click();
+    await expect(baseline.locator('strong')).toHaveText(name);
+    await expect(baseline.locator('.baseline-mark')).toBeVisible();
+    const picker = page.getByRole('combobox', {name:game==='gomoku'?'首盘黑棋':'Bot 0',exact:true});
+    await expect(picker.locator(`option[value="${reference.id}"]`)).toHaveText(`${name} · 基准 BOT · 0 分`);
+    if(game==='gomoku') {
+      await page.getByLabel('对战模式').selectOption('human');
+      await expect(page.getByLabel('对手 Bot').locator(`option[value="${reference.id}"]`)).toHaveText(`${name} · 基准 BOT · 0 分`);
+    }
+    await page.reload();
+    await expect(baseline.locator('strong')).toHaveText(name);
+    const deleted=await request.post('/api/v1/bots/manage',{headers:{'X-Arena-Local':'1'},data:{action:'trash',ids:[reference.id]}});
+    expect(deleted.status()).toBe(409);
+    await page.goto('/leaderboard');await page.getByLabel('榜单游戏').selectOption(game);
+    const baselineRow=page.getByRole('row').filter({hasText:name});
+    await expect(baselineRow.locator('.baseline-mark')).toBeVisible();
+    await expect(baselineRow.locator('.ranking-score')).toHaveText('0.00');
   }
   const source=Buffer.from('#include "gomoku.hpp"\nnamespace bot {void init(uint64_t){} Action tick(const GameState&){return Action::resign();}}');
   const probeName=`Rating probe ${crypto.randomUUID()}`;

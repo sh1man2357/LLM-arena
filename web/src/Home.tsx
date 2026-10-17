@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Play, Plus, Upload, X } from 'lucide-react';
 import { api, useResource } from './api';
 import { useRevision } from './App';
-import { ErrorPanel, slotColor } from './ui';
+import { botLabel, ErrorPanel, slotColor } from './ui';
 import { BotManager } from './BotManager';
 import { History } from './History';
 import type { Bot, Match, GameId } from './types';
@@ -53,12 +53,12 @@ export function Home() {
       {game === 'gomoku' && <label className="game-picker">对战模式<select value={mode} onChange={e => setMode(e.target.value)}><option value="bots">Bot 对战</option><option value="human">人机对战</option></select></label>}
       <p className="form-hint">{human ? '15 × 15 自由五子棋 · 单盘，点击棋盘落子，自动保存录像，不计入 Bot 榜单。' : game === 'gomoku' ? '15 × 15 自由五子棋 · 自动进行两盘换色对战，支持自我对弈。' : `${slots.length} 个 Bot 各自为战 · 支持 2～8 人。回合结束存活 +1 分，击杀 +100 分，按总积分排名。`}</p>
       <div className="match-picker">{human ? <>
-        <label>对手 Bot<select value={slots[0]} onChange={e => setSlots([e.target.value, slots[1]])}><option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{b.baseline ? '基准 BOT · 0 分' : b.name}</option>)}</select></label>
+        <label>对手 Bot<select value={slots[0]} onChange={e => setSlots([e.target.value, slots[1]])}><option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{botLabel(b)}</option>)}</select></label>
         <label>你的执子<select value={humanSlot} onChange={e => setHumanSlot(Number(e.target.value))}><option value={0}>黑棋 · 先手</option><option value={1}>白棋 · 后手</option></select></label>
       </> : slots.map((id, slot) => <div className="slot-picker" key={slot}>
         <label><span className="slot-label"><i className="slot-dot" style={{background: game === 'gomoku' ? (slot === 0 ? '#202226' : '#faf7f0') : slotColor(slot)}} aria-hidden="true" />{game === 'gomoku' ? (slot === 0 ? '首盘黑棋' : '首盘白棋') : `Bot ${slot}`}</span>
           <select value={id} onChange={e => setSlots(current => current.map((value, i) => i === slot ? e.target.value : value))}>
-            <option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{b.baseline ? '基准 BOT · 0 分' : b.name}</option>)}</select></label>
+            <option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{botLabel(b)}</option>)}</select></label>
         {game === 'bomberman' && <button type="button" className="icon-button" aria-label={`移除 Bot ${slot}`} disabled={slots.length <= 2} onClick={() => setSlots(current => current.filter((_, i) => i !== slot))}><X aria-hidden="true" /></button>}
       </div>)}</div>
       {game === 'bomberman' && <button type="button" className="add-slot" disabled={slots.length >= 8} onClick={() => setSlots(current => [...current, (ready.find(b => !current.includes(b.id)) || ready[0])?.id || ''])}><Plus aria-hidden="true" />增加 Bot</button>}

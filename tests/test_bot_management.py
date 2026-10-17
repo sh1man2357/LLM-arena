@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import copy
+from pathlib import Path
 import threading
 import unittest
 from unittest.mock import patch
@@ -8,6 +9,8 @@ from runner.io import sha_file
 from runner.match import components
 from service.app import create_app
 from service.bots import manage_bots
+from service.bots import prepare_baselines
+from service.worker import main as execute
 from tests import test_service
 
 HEADERS = test_service.HEADERS
@@ -82,7 +85,8 @@ class BotManagementTests(unittest.TestCase):
         for fields in (dict(action='delete', ids=['a']), dict(action='trash', ids=[]), dict(action='trash', ids=['a']*101)):
             self.assertEqual(self.client.post('/api/v1/bots/manage', headers=HEADERS, json=fields).status_code, 422)
         self.store.update('bot', 'b', lambda b: b.update(baseline=True, name='Baseline'))
-        self.assertEqual(self.edit('b', name='No').status_code, 409)
+        self.assertEqual(self.edit('b', name='自定义基准').status_code, 200)
+        self.assertEqual(self.store.get('bot', 'b')['baseline_key'], 'baseline')
         self.assertEqual(self.manage('trash', ['a', 'b']).status_code, 409)
         self.assertFalse(self.store.get('bot', 'a').get('deleted_at'))
         self.store.update('bot', 'b', lambda b: b.update(baseline=False, status='processing'))
@@ -91,6 +95,40 @@ class BotManagementTests(unittest.TestCase):
         self.assertFalse(self.store.get('bot', 'a').get('deleted_at'))
         self.assertEqual(self.manage('trash', ['a', 'missing']).status_code, 404)
         self.assertFalse(self.store.get('bot', 'a').get('deleted_at'))
+
+    def test_renamed_baselines_keep_identity_rating_and_repair_source_for_both_games(self):
+        task = prepare_baselines(self.store, self.executor, 'all')
+        execute(self.root, task['id'])
+        references = [b for b in self.store.list('bot') if b.get('baseline')]
+        for reference in references:
+            game, identity = reference['game_id'], reference['id']
+            # Exercise pre-marker snapshots as well as current records.
+            self.store.update('bot', identity, lambda b: b.pop('baseline_key'))
+            renamed = self.edit(identity, name=f'{game} 自定义参考', description='计分基准')
+            self.assertEqual(renamed.status_code, 200)
+            self.assertEqual(self.store.get('bot', identity)['baseline_key'], 'baseline')
+            listed = self.client.get(f'/api/v1/bots?game_id={game}').json()['items']
+            self.assertEqual([b['id'] for b in listed if b['baseline']], [identity])
+            ranking = self.client.get(f'/api/v1/leaderboard?game_id={game}').json()
+            self.assertEqual(ranking['reference_id'], identity)
+            row = next(r for r in ranking['items'] if r['id'] == identity)
+            self.assertEqual((row['name'], row['rating']), (f'{game} 自定义参考', 0))
+            self.assertEqual(self.manage('trash', [identity]).status_code, 409)
+            self.assertEqual(self.edit(identity, baseline_key='random').status_code, 422)
+        before = copy.deepcopy(self.store.list('bot'))
+        self.assertIsNone(prepare_baselines(self.store, self.executor, 'all'))
+        self.assertEqual(self.store.list('bot'), before)
+        # A damaged artifact must rebuild from the canonical source, not the edited label.
+        reference = references[0]
+        Path(reference['wasm']).write_bytes(b'damaged')
+        repair = prepare_baselines(self.store, self.executor, 'all')
+        self.assertEqual(repair['inputs']['bot_ids'], [reference['id']])
+        execute(self.root, repair['id'])
+        repaired = self.store.get('bot', reference['id'])
+        self.assertEqual(repaired['name'], f"{reference['game_id']} 自定义参考")
+        self.assertEqual(repaired['description'], '计分基准')
+        self.assertEqual(repaired['wasm_sha256'], reference['wasm_sha256'])
+        self.assertIsNone(prepare_baselines(self.store, self.executor, 'all'))
 
     def test_active_match_and_human_match_cannot_lose_bot(self):
         run = self.start_run().json()

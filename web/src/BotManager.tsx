@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { useRevision } from './App';
 import { api, useResource } from './api';
-import { Badge, ErrorPanel, labels } from './ui';
+import { Badge, BaselineMark, ErrorPanel, labels } from './ui';
 import type { Bot, GameId } from './types';
 import { gameNames } from './games';
 
@@ -59,7 +59,7 @@ export function BotManager({game, bots, loading, refresh, onChanged}: {
         <option value="">全部状态</option>{['ready', 'processing', 'failed'].map(value => <option value={value} key={value}>{labels[value]}</option>)}
       </select></label>
     </div>
-    <p className="history-hint">{trashed ? '恢复后可重新选择参赛。历史对局和统计保留。' : '可编辑名称和备注；删除移入回收站。内置基准只读，编译中或参赛中的 Bot 暂不可删除。'}</p>
+    <p className="history-hint">{trashed ? '恢复后可重新选择参赛。历史对局和统计保留。' : '可编辑名称和备注；删除移入回收站。基准 Bot 可改名、不可删除；编译中或参赛中的 Bot 暂不可删除。'}</p>
     {bin.error && <ErrorPanel message={bin.error} onRetry={bin.retry} />}
     {error && <p className="notice error" role="alert">{error}</p>}
     {message && <p className="notice" role="status">{message}</p>}
@@ -74,14 +74,14 @@ export function BotManager({game, bots, loading, refresh, onChanged}: {
       <div className="bot-manager-row">
         <label className="history-check"><input type="checkbox" aria-label={`选择 Bot ${bot.name}`} checked={selected.includes(bot.id)} disabled={working || (!trashed && !!protectedBot(bot))}
           onChange={e => setSelected(previous => e.target.checked ? [...previous, bot.id] : previous.filter(id => id !== bot.id))} /></label>
-        <div className="bot-summary"><div className="bot-row"><strong>{bot.baseline ? '基准 BOT · 0 分' : bot.name}</strong><Badge status={bot.status} /></div>
+        <div className="bot-summary"><div className="bot-row"><div className="bot-name"><strong>{bot.name}</strong>{bot.baseline && <BaselineMark />}</div><Badge status={bot.status} /></div>
           {bot.description && <p className="bot-description">{bot.description}</p>}
           <span className="run-meta">{gameNames[game]} · {new Date(bot.created).toLocaleString()}{bot.in_use ? ' · 使用中' : ''}{trashed ? ' · 已删除' : ''}</span>
         </div>
-        {!bot.baseline && <div className="bot-actions">
+        <div className="bot-actions">
           {!trashed && <button className="icon-button" aria-label={`编辑 Bot ${bot.name}`} title={bot.status === 'processing' ? '编译完成后可编辑' : '编辑信息'} disabled={working || bot.status === 'processing'} onClick={() => {setEditing(bot.id); setName(bot.name); setDescription(bot.description || ''); setError('');}}><Pencil aria-hidden="true" /></button>}
-          <button className="icon-button" aria-label={`${trashed ? '恢复' : '删除'} Bot ${bot.name}`} title={trashed ? '恢复 Bot' : protectedBot(bot) ? '编译或对局完成后可删除' : '移入回收站'} disabled={working || (!trashed && !!protectedBot(bot))} onClick={() => manage([bot.id])}>{trashed ? <RotateCcw aria-hidden="true" /> : <Trash2 aria-hidden="true" />}</button>
-        </div>}
+          <button className="icon-button" aria-label={`${trashed ? '恢复' : '删除'} Bot ${bot.name}`} title={bot.baseline ? '基准 Bot 不可删除' : trashed ? '恢复 Bot' : protectedBot(bot) ? '编译或对局完成后可删除' : '移入回收站'} disabled={working || bot.baseline || (!trashed && !!protectedBot(bot))} onClick={() => manage([bot.id])}>{trashed ? <RotateCcw aria-hidden="true" /> : <Trash2 aria-hidden="true" />}</button>
+        </div>
       </div>
       {editing === bot.id && !trashed && <form className="bot-edit" onSubmit={e => {e.preventDefault(); void mutate(async () => {
         await api<Bot>(`/api/v1/bots/${bot.id}`, {method: 'PATCH', headers: {'X-Arena-Local': '1'}, body: JSON.stringify({name: name.trim(), description: description.trim()})});

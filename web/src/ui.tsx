@@ -18,6 +18,10 @@ export function playerStateLabel(player: {alive: boolean; death_tick: number | n
 export function Badge({status}: {status: string}) {
   return <span className={`badge ${status}`}>{labels[status] || status}</span>;
 }
+export function BaselineMark() {
+  return <span className="baseline-mark" title="实力基准，固定为 0 分；可编辑名称和备注，不可删除。">基准 BOT · 0 分</span>;
+}
+export const botLabel = (bot: {name: string; baseline: boolean}) => `${bot.name}${bot.baseline ? ' · 基准 BOT · 0 分' : ''}`;
 export function State({title, children}: {title: string; children?: ReactNode}) {
   return <div className="state-panel" role="status"><h2>{title}</h2>{children}</div>;
 }

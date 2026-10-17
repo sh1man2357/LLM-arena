@@ -9,7 +9,7 @@ test('五子棋导入、换色、开局、回放、榜单与窄屏', async ({pag
   await expect(page.getByRole('combobox', {name: '首盘黑棋', exact: true})).toBeVisible();
   await expect(page.getByRole('button', {name: '增加 Bot', exact: true})).toHaveCount(0);
   const options = await page.getByRole('combobox', {name: '首盘黑棋', exact: true}).locator('option').allTextContents();
-  expect(options).toContain('基准 BOT · 0 分'); expect(options).not.toContain('Search');
+  expect(options.some(name => name.includes('基准 BOT · 0 分'))).toBe(true); expect(options).not.toContain('Search');
   await page.locator('.import-disclosure > summary').click();
   await expect(page.getByLabel('Bot 所属游戏')).toHaveValue('gomoku');
   await page.getByLabel('Bot 文件').setInputFiles({name:'gomoku-probe.cpp',mimeType:'text/plain',buffer:source});

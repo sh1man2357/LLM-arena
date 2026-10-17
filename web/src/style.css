@@ -60,6 +60,8 @@ main { max-width: 1024px; margin: 0 auto; padding: 24px 32px 64px; }
 .bot-list li { padding: 16px 0; border-top: 1px solid var(--line); }
 .bot-row { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
 .bot-row > strong { min-width: 0; }
+.bot-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; overflow-wrap: anywhere; }
+.baseline-mark { display: inline-block; color: var(--accent); border: 1px solid var(--accent); border-radius: 16px; padding: 1px 8px; font-size: 12px; line-height: 1.6; white-space: nowrap; }
 .bot-manager { margin-top: 24px; }
 .bot-manager-row { display: flex; align-items: start; gap: 12px; }
 .bot-summary { flex: 1; min-width: 0; }

@@ -333,6 +333,7 @@ class CoreServiceTests(unittest.TestCase):
         before = self.store.get('bot', identity)
         Path(before['source']).with_name('champion.hpp').write_text('changed', encoding='utf-8')
         retired = {**before, 'id':'retired', 'name':'Heuristic'}
+        retired.pop('baseline_key', None)  # Legacy retired strategies predate the stable key.
         self.store.put('bot', retired, create=True)
         repair = prepare_baselines(self.store, self.executor)
         self.assertEqual(repair['inputs']['bot_ids'], [identity])
