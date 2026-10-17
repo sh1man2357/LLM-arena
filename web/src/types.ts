@@ -12,11 +12,12 @@ export type GomokuWorld = { tick: number; grid: number[]; moves: {x: number; y: 
 export type Frame = { seq: number; tick: number | null; state: World | GomokuWorld; events: Row[];
   actions: {id: number; action: number}[]; calls: Row[];
   visual: {coverage: {x: number; y: number; owners: number[]}[]; exploded_bombs: Row[]; blocked_moves: number[]} };
-export type Entrant = { id: string; name?: string; slot: number; wasm_sha256: string };
+export type Entrant = { id: string; name?: string; slot: number; wasm_sha256: string | null; kind?: 'human' | 'bot' };
 export type Replay = { frames: Frame[]; entrants: Entrant[]; rules: Row; initialization: Row[]; game_id?: GameId;
   width: number; height: number; result: Row | null; verified: boolean; partial: boolean;
   attempt_id: string; last_seq?: number; resync_required?: boolean };
 export type Match = { id: string; title: string; status: string; entrants: Entrant[]; ticks: number; game_id?: GameId;
+  mode?: 'human' | null; human_slot?: number | null; waiting_tick?: number | null;
   opening_mode?: 'empty' | 'library'; pair_id?: string; pair_index?: number; pair_runs?: string[];
   pair?: {complete: boolean; counted: boolean; score: number[] | null; runs: {id: string; status: string; pair_index: number; deleted: boolean}[]};
   verified: boolean; result: Row | null; created: string; map_seed: number; diagnostic?: string };

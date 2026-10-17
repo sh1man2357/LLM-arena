@@ -65,6 +65,8 @@ class LiveSink:
 def run_single(store, task, inputs=None):
     inputs = inputs or task["inputs"]
     for bot in inputs["entrants"]:
+        if bot.get("kind") == "human":
+            continue
         if sha_file(bot["wasm"]) != bot["wasm_sha256"]:
             raise ValueError("Bot 编译产物已改变，请重新导入。")
     sink = LiveSink(store, inputs["match_id"])
@@ -74,7 +76,9 @@ def run_single(store, task, inputs=None):
                 from gomoku.match import run_match as gomoku_run
                 result, _ = gomoku_run(backend, inputs["entrants"], inputs["map_seed"],
                                       [int(s, 16) for s in inputs["bot_seeds"]], inputs["match_id"],
-                                      opening_mode=inputs["opening_mode"], record_sink=sink)
+                                      opening_mode=inputs["opening_mode"], record_sink=sink,
+                                      human_slot=inputs.get("human_slot"),
+                                      human_action=human_actions(store, inputs["match_id"]) if inputs.get("mode") == "human" else None)
             else:
                 result, _ = run_match(backend, inputs["entrants"], inputs["map_seed"],
                                   [int(s, 16) for s in inputs["bot_seeds"]], inputs["match_id"],
@@ -93,6 +97,25 @@ def run_single(store, task, inputs=None):
         if not sink.stream.closed:
             sink.close()
         store.emit(sink.identity, "run", dict(status=store.get("run", sink.identity)["status"]))
+
+
+def human_actions(store, identity):
+    """Keep the Bot instance alive while accepting one durable input per turn."""
+    def wait(world):
+        store.update("run", identity, lambda r: r.update(waiting_tick=world.tick))
+        store.emit(identity, "run", dict(status="running"))
+        while True:
+            row = store.get("run", identity)
+            if row["status"] != "running":
+                raise ValueError("人机对局已结束。")
+            command = row.get("human_input")
+            if command is not None:
+                if command["tick"] != world.tick:
+                    raise ValueError("人类落子轮次不一致。")
+                store.update("run", identity, lambda r: r.update(waiting_tick=None, human_input=None))
+                return command["action"]
+            time.sleep(.1)
+    return wait
 
 
 def main(data_root, task_id):

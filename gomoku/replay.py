@@ -17,9 +17,14 @@ def project(records, *, partial=False, source_hash=None):
     require(h["rules"] == RULES and h["budget"] == dict(init_fuel=INIT_FUEL, tick_fuel=MOVE_FUEL), "Unsupported Gomoku contract")
     require(isinstance(h["match_id"], str) and re.fullmatch(r"[A-Za-z0-9_-]{1,100}", h["match_id"]), "Invalid match identity")
     require(len(h["entrants"]) == len(h["bot_seeds"]) == 2, "Expected two entrants/seeds")
+    human_slot = h.get("human_slot")
+    require((h.get("mode") is None and human_slot is None) or
+            (h.get("mode") == "human" and type(human_slot) is int and human_slot in (0, 1)), "Invalid human mode")
     for i, e in enumerate(h["entrants"]):
         require(e.get("slot") == i and isinstance(e.get("id"), str) and re.fullmatch(r"[A-Za-z0-9_-]{1,100}", e["id"])
-                and isinstance(e.get("wasm_sha256"), str) and re.fullmatch(r"[a-f0-9]{64}", e["wasm_sha256"]), "Invalid entrant")
+                and ((i == human_slot and e.get("kind") == "human" and e.get("wasm_sha256") is None) or
+                     (i != human_slot and e.get("kind") in (None, "bot") and isinstance(e.get("wasm_sha256"), str)
+                      and re.fullmatch(r"[a-f0-9]{64}", e["wasm_sha256"]))), "Invalid entrant")
         require(isinstance(h["bot_seeds"][i], str) and re.fullmatch(r"[a-f0-9]{16}", h["bot_seeds"][i]), "Invalid Bot seed")
     terminal = records[-1].get("type") == "result"
     outcome = records[-1] if terminal else None
@@ -28,6 +33,8 @@ def project(records, *, partial=False, source_hash=None):
     stats = [empty_stats(), empty_stats()]
     for i, init in enumerate(h["initialization"]):
         require(init.get("id") == i and init.get("status") in ("ok", "eliminated"), "Invalid initialization")
+        if i == human_slot:
+            require(init.get("status") == "ok" and init.get("fuel_used") == 0, "Invalid human initialization")
         if init["status"] == "ok":
             require(type(init.get("fuel_used")) is int and 0 <= init["fuel_used"] <= INIT_FUEL, "Invalid initialization fuel")
         else:
@@ -48,6 +55,10 @@ def project(records, *, partial=False, source_hash=None):
         require(type(call.get("id")) is int and call["id"] == world.turn_id and type(call.get("fuel_used")) is int
                 and 0 <= call["fuel_used"] <= MOVE_FUEL, "Invalid call metadata")
         calls = {call["id"]: {k: v for k, v in call.items() if k != "id"}}
+        if call["id"] == human_slot:
+            action = call.get("raw_action")
+            require(call.get("fault") is None and call["fuel_used"] == 0 and type(action) is int
+                    and 0 <= action <= SIZE*SIZE and (action == SIZE*SIZE or world.grid[action] == 0), "Invalid human action")
         actions, events = world.step(calls)
         account(stats, calls, events)
         require(record["actions"] == [dict(id=i, action=a) for i, a in actions.items()] and record["events"] == events
@@ -72,7 +83,7 @@ def project(records, *, partial=False, source_hash=None):
             and re.fullmatch(r"[a-f0-9]{64}", components["source_hash"]), "Invalid components")
     return dict(schema_version=1, projection_version=1, game_id="gomoku", source_sha256=source_hash,
                 match_id=h["match_id"], width=SIZE, height=SIZE,
-                entrants=[{k: e[k] for k in ("id", "slot", "wasm_sha256")} for e in h["entrants"]], rules=RULES.copy(),
+                entrants=[{k: e[k] for k in ("id", "slot", "wasm_sha256", "kind") if k in e} for e in h["entrants"]], rules=RULES.copy(),
                 budget=h["budget"], initialization=[{k: r[k] for k in ("id", "status", "fuel_used") if k in r} for r in h["initialization"]],
                 verified=verified, partial=not terminal, frames=frames, result=public_result, components=components)
 

@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import type { Frame, GomokuWorld } from './types';
 
-export function GomokuBoard({frame, numbers}: {frame: Frame; numbers: boolean}) {
+export function GomokuBoard({frame, numbers, interactive = false, onMove}: {
+  frame: Frame; numbers: boolean; interactive?: boolean; onMove?: (action: number) => void;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   const state = frame.state as GomokuWorld;
   useEffect(() => {
@@ -47,5 +49,9 @@ export function GomokuBoard({frame, numbers}: {frame: Frame; numbers: boolean}) 
     return () => observer.disconnect();
   }, [state, numbers]);
   const last = state.moves.at(-1);
-  return <canvas ref={ref} className="board gomoku-board" role="img" aria-label={`五子棋棋盘，已落 ${state.moves.length} 子${last ? `，上一手 ${String.fromCharCode(65+last.x)}${last.y+1}` : ''}。黑白双方状态见棋盘上方。`} />;
+  return <div className="gomoku-surface"><canvas ref={ref} className="board gomoku-board" role="img" aria-label={`五子棋棋盘，已落 ${state.moves.length} 子${last ? `，上一手 ${String.fromCharCode(65+last.x)}${last.y+1}` : ''}。黑白双方状态见棋盘上方。`} />
+    {onMove && <div className="gomoku-input" role="group" aria-label="选择落子位置">{state.grid.map((stone, action) => <button
+      key={action} type="button" aria-label={`${String.fromCharCode(65+action%15)}${Math.floor(action/15)+1}${stone ? '，已有棋子' : '，落子'}`}
+      disabled={!interactive || !!stone} onClick={() => onMove(action)} />)}</div>}
+  </div>;
 }

@@ -37,6 +37,18 @@ class MatchInput(BaseModel):
     opening_mode: Literal["empty", "library"] = "empty"
 
 
+class HumanMatchInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    bot_id: str = Field(min_length=1, max_length=100)
+    human_slot: int = Field(default=0, ge=0, le=1, strict=True)
+
+
+class HumanAction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tick: int = Field(ge=0, le=225, strict=True)
+    action: int = Field(ge=0, le=225, strict=True)
+
+
 MatchStatus = Literal["pending", "running", "completed", "failed", "interrupted"]
 
 
@@ -57,7 +69,8 @@ class MatchManagement(BaseModel):
 
 def public_match(row):
     return dict(game_id=row.get("game_id", "bomberman"), **{k: row.get(k) for k in ("id", "title", "entrants", "status", "ticks", "result", "verified",
-                                   "created", "finished", "map_seed", "diagnostic", "source_sha256", "opening_mode", "pair_id", "pair_index", "pair_runs")})
+                                   "created", "finished", "map_seed", "diagnostic", "source_sha256", "opening_mode", "pair_id", "pair_index", "pair_runs",
+                                   "mode", "human_slot", "waiting_tick")})
 
 
 def create_app(data_root=None, *, demo=False, workers=False):
@@ -222,10 +235,59 @@ def create_app(data_root=None, *, demo=False, workers=False):
         return new_match(body.bot_ids, body.map_seed, request.headers.get("idempotency-key"), body.model_dump(),
                          game_id=body.game_id, opening_mode=body.opening_mode)
 
+    def new_human_match(body, key, request_data):
+        bot = frozen_bots([body.bot_id], "gomoku")[0]
+        human = dict(id="human", name="你", kind="human", wasm_sha256=None)
+        entrants = [human, bot] if body.human_slot == 0 else [bot, human]
+        identity = "run-" + secrets.token_hex(8)
+        inputs = dict(match_id=identity, entrants=entrants, map_seed=0,
+                      bot_seeds=[f"{secrets.randbits(64):016x}" for _ in entrants],
+                      components=components("gomoku"), game_id="gomoku", opening_mode="empty",
+                      mode="human", human_slot=body.human_slot)
+        def resource(task, db):
+            store.put("run", dict(id=identity, title=" vs ".join(e["name"] for e in entrants),
+                                 game_id="gomoku", mode="human", human_slot=body.human_slot, opening_mode="empty",
+                                 entrants=[dict(id=e["id"], name=e["name"], slot=i, kind=e.get("kind", "bot"),
+                                                wasm_sha256=e["wasm_sha256"]) for i, e in enumerate(entrants)],
+                                 status="pending", ticks=0, verified=False, result=None, map_seed=0,
+                                 created=utc_now(), task_id=task["id"], diagnostic=None, waiting_tick=None), create=True, db=db)
+        task = executor.create("match", inputs, key, request=request_data, resource=resource)
+        return show_match(visible_run(task["inputs"]["match_id"]))
+
+    @app.post("/api/v1/human-matches", status_code=202)
+    def create_human_match(body: HumanMatchInput, request: Request):
+        return new_human_match(body, request.headers.get("idempotency-key"), body.model_dump())
+
+    @app.post("/api/v1/matches/{identity}/actions")
+    def human_move(identity: str, body: HumanAction):
+        command = body.model_dump()
+        def accept(row):
+            if row.get("deleted_at"):
+                raise KeyError(identity)
+            if row.get("mode") != "human":
+                raise FileExistsError("本局不是人机对局。")
+            if row.get("last_human_input") == command:
+                return  # A retry after a lost response must not place a second stone.
+            if row["status"] != "running" or row.get("waiting_tick") != body.tick or row.get("human_input"):
+                raise FileExistsError("当前不能落子，请回到最新棋盘，等待轮到你。")
+            records = decode(Path(row["live_path"]).read_bytes())
+            state = records[-1].get("state", records[0]["initial_state"])
+            if state["reason"] or state["tick"] != body.tick or state["turn_color"] != row["human_slot"] + 1:
+                raise FileExistsError("棋局已变化，请回到最新棋盘。")
+            if body.action < 225 and state["grid"][body.action]:
+                raise ValueError("这里已有棋子，请选择空位。")
+            row.update(human_input=command, last_human_input=command)
+        row = store.update("run", identity, accept)
+        return show_match(row)
+
     @app.post("/api/v1/matches/{identity}/rerun", status_code=202)
     def rerun(identity: str, request: Request):
         original = visible_run(identity)
         inputs = store.get("task", original["task_id"])["inputs"]
+        if inputs.get("mode") == "human":
+            bot = inputs["entrants"][1-inputs["human_slot"]]
+            return new_human_match(HumanMatchInput(bot_id=bot["id"], human_slot=inputs["human_slot"]),
+                                   request.headers.get("idempotency-key"), dict(rerun=identity))
         for bot in inputs["entrants"]:
             if not Path(bot["wasm"]).is_file() or sha_file(bot["wasm"]) != bot["wasm_sha256"]:
                 raise FileExistsError("原 Bot 产物已改变，无法按原输入重新运行。")

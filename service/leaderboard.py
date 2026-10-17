@@ -9,7 +9,7 @@ def leaderboard(bots, runs, game_id="bomberman"):
     bots = [b for b in bots if b.get("game_id", "bomberman") == game_id]
     visible = listed_bots(bots)
     reference = next((b['id'] for b in visible if b.get('baseline')), None)
-    runs = [r for r in runs if r.get("game_id", "bomberman") == game_id]
+    runs = [r for r in runs if r.get("game_id", "bomberman") == game_id and r.get("mode") != "human"]
     if game_id == "gomoku":
         by_id = {r["id"]: r for r in runs}
         def eligible(row):

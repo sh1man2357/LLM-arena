@@ -62,7 +62,7 @@ export function History({game = 'bomberman'}: {game?: GameId}) {
           <option value="">全部状态</option>{['pending', 'running', 'completed', 'failed', 'interrupted'].map(value => <option key={value} value={value}>{labels[value]}</option>)}
         </select></label>
       </div>
-      <p className="history-hint">{trashed ? '恢复后可重新观看录像，并重新计入榜单。' : '删除的对局进入回收站，不计入榜单；准备中和运行中的对局不可删除。'}</p>
+      <p className="history-hint">{trashed ? '恢复后可重新观看录像，符合计分条件的对局重新计入榜单。' : '删除的对局进入回收站，不计入榜单；准备中和运行中的对局不可删除。'}</p>
       {runs.error && <ErrorPanel message={runs.error} onRetry={runs.retry} />}
       {error && <div className="notice error" role="alert">{error}</div>}
       {message && <div className="notice" role="status">{message}</div>}
@@ -78,7 +78,7 @@ export function History({game = 'bomberman'}: {game?: GameId}) {
         <div className="history-row">
           <label className="history-check"><input type="checkbox" aria-label={`选择对局 ${run.title}`} disabled={working || (!trashed && active(run))} checked={selected.includes(run.id)} onChange={e => setSelected(previous => e.target.checked ? [...previous, run.id] : previous.filter(id => id !== run.id))} /></label>
           {trashed ? <div className="run-info"><div><strong>{run.title}</strong><span className="run-meta">{new Date(run.created).toLocaleString()}</span></div><Badge status={run.status} /></div>
-            : <Link className="run-info" to={`/matches/${run.id}`}><div><strong>{run.title}</strong><span className="run-meta">{new Date(run.created).toLocaleString()}{run.status === 'completed' && run.result?.valid ? ` · ${outcome(run)}` : ''}<br />{gameNames[run.game_id || 'bomberman']}{run.game_id === 'gomoku' ? ` · 第 ${(run.pair_index || 0)+1} 盘` : ''} · Seed {run.map_seed}</span></div><Badge status={run.status} /><ArrowRight className="row-arrow" aria-hidden="true" /></Link>}
+            : <Link className="run-info" to={`/matches/${run.id}`}><div><strong>{run.title}</strong><span className="run-meta">{new Date(run.created).toLocaleString()}{run.status === 'completed' && run.result?.valid ? ` · ${outcome(run)}` : ''}<br />{gameNames[run.game_id || 'bomberman']}{run.mode === 'human' ? ' · 人机对战 · 不计榜单' : <>{run.game_id === 'gomoku' ? ` · 第 ${(run.pair_index || 0)+1} 盘` : ''} · Seed {run.map_seed}</>}</span></div><Badge status={run.status} /><ArrowRight className="row-arrow" aria-hidden="true" /></Link>}
           <div className="history-row-actions">
             {!trashed && <button className="icon-button" aria-label={`重命名对局 ${run.title}`} title="重命名" disabled={working} onClick={() => {setEditing(run.id); setTitle(run.title); setError('');}}><Pencil aria-hidden="true" /></button>}
             <button className="icon-button" aria-label={`${trashed ? '恢复' : '删除'}对局 ${run.title}`} title={trashed ? '恢复' : active(run) ? '对局结束后可删除' : '移入回收站'} disabled={working || (!trashed && active(run))} onClick={() => manage([run.id])}>{trashed ? <RotateCcw aria-hidden="true" /> : <Trash2 aria-hidden="true" />}</button>

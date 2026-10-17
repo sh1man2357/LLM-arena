@@ -69,6 +69,7 @@ def verify_world(records):
 def verify_bot(backend, records, wasm_paths):
     verify_world(records)
     header = records[0]
+    require(header.get("mode") != "human", "Human matches support world verification only; start a new game to play again")
     require(header["components"] == components(header.get("game_id", "bomberman"), Rules.from_record(header["rules"]).scoring_version if header.get("game_id") != "gomoku" else 1), "Current source/toolchain version differs from Replay")
     require(len(wasm_paths) == len(header["entrants"]), "Expected one WASM per spawn slot")
     entrants = []

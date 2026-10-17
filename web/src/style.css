@@ -186,6 +186,12 @@ tbody tr:hover { background: var(--surface); }
 /* Game selection and turn-based board share the existing player and playback layout. */
 .game-picker { display: grid; gap: .5rem; max-width: 20rem; margin-bottom: 1.5rem; }
 .gomoku-board { aspect-ratio: 1; }
+.gomoku-surface { position: relative; }
+.gomoku-input { position: absolute; inset: 3.125%; display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr); }
+.gomoku-input button { min-height: 0; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; }
+.gomoku-input button:hover:not(:disabled), .gomoku-input button:focus-visible { background: rgb(199 64 32 / .35); outline: 2px solid #c74020; outline-offset: -3px; }
+.human-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.human-controls p { margin: 0; }
 .stone-label { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; font-size: .85rem; }
 .stone-label.black { background: #202226; color: #faf7f0; border: 1px solid #666; }
 .stone-label.white { background: #faf7f0; color: #202226; }

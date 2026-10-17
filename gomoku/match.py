@@ -27,27 +27,35 @@ def qualify(backend, path):
 
 
 def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", *, opening_mode="empty",
-              replay_path=None, record_sink=None):
+              replay_path=None, record_sink=None, human_slot=None, human_action=None):
     from runner.match import components
     if len(entrants) != 2 or len(bot_seeds) != 2:
         raise ValueError("Gomoku requires two Bots and two seeds")
+    if human_slot is not None and (type(human_slot) is not int or human_slot not in (0, 1) or human_action is None):
+        raise ValueError("Human matches require one human slot and an action provider")
     world = World(opening(map_seed, opening_mode))
-    modules = [backend.load(e["wasm"]) for e in entrants]
+    modules = [None if i == human_slot else backend.load(e["wasm"]) for i, e in enumerate(entrants)]
     stats = [empty_stats(), empty_stats()]
     init, instances = [], {}
     header = dict(type="header", schema_version=1, game_id="gomoku", match_id=match_id,
                   components=components("gomoku"), rules=RULES.copy(), map_seed=map_seed, opening_mode=opening_mode,
                   map=dict(width=SIZE, height=SIZE, moves=deepcopy(world.moves)),
                   bot_seeds=[f"{s:016x}" for s in bot_seeds],
-                  entrants=[dict(id=e["id"], slot=i, wasm_sha256=sha_file(e["wasm"])) for i, e in enumerate(entrants)],
+                  entrants=[dict(id=e["id"], slot=i, wasm_sha256=sha_file(e["wasm"])) if i != human_slot else
+                            dict(id=e["id"], slot=i, kind="human", wasm_sha256=None) for i, e in enumerate(entrants)],
                   budget=dict(init_fuel=INIT_FUEL, tick_fuel=MOVE_FUEL), initialization=init,
                   initial_state=world.state(), initial_state_hash=world.state_hash())
+    if human_slot is not None:
+        header.update(mode="human", human_slot=human_slot)
     records = [header]
     def emit(record):
         if record_sink:
             record_sink(deepcopy(record))
     try:
         for pid, module in enumerate(modules):
+            if pid == human_slot:
+                init.append(dict(id=pid, status="ok", fuel_used=0))
+                continue
             try:
                 instances[pid] = backend.instance(module, bot_seeds[pid], INIT_FUEL, MOVE_FUEL)
                 instances[pid].action_max = RESIGN
@@ -60,7 +68,8 @@ def run_match(backend, entrants, map_seed, bot_seeds, match_id="single", *, open
         emit(header)
         while not world.reason:
             t, before, pid = world.tick, world.state_hash(), world.turn_id
-            calls = {pid: instances[pid].call(encode(world, pid))}
+            calls = {pid: dict(raw_action=human_action(world), fault=None, fuel_used=0) if pid == human_slot
+                     else instances[pid].call(encode(world, pid))}
             actions, events = world.step(calls)
             account(stats, calls, events)
             records.append(dict(type="tick", tick=t, before_hash=before,

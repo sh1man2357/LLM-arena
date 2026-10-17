@@ -40,6 +40,8 @@ worker 将 header、每个完整 tick 与 result 写入同一 `runs/<id>/frames.
 | GET `/api/v1/status` | 是否正在计算 |
 | GET / POST `/api/v1/bots` | Bot 列表 / 上传单文件 .cpp 自动编译 |
 | GET / POST `/api/v1/matches` | 分页运行记录 / 创建单局 |
+| POST `/api/v1/human-matches` | 创建五子棋人机单盘，选择 Bot 和人类执子 |
+| POST `/api/v1/matches/{id}/actions` | 提交指定轮次的人类落子或认输 |
 | GET `/api/v1/matches/{id}` | 本局状态与结果 |
 | GET `/api/v1/matches/{id}/frames` | 同一个直播 / 录像帧读取接口 |
 | POST `/api/v1/matches/{id}/rerun` | 使用原 Bot / 随机输入建立新运行 |
@@ -47,6 +49,8 @@ worker 将 header、每个完整 tick 与 result 写入同一 `runs/<id>/frames.
 | GET `/api/v1/events` | SSE 状态通知，重新连接后读取快照 |
 
 POST 运行使用 `game_id`（默认 bomberman）、`bot_ids` 和可选 `map_seed`。炸弹人支持 2～8 个槽位；五子棋固定两个槽位、可选 `opening_mode=empty|library`，自动建立两盘换色记录。允许重复 Bot ID，各槽位使用独立实例；Bot 与运行必须属于同一游戏。重跑保留整组参赛快照、开局和种子。
+
+人机创建接口使用 `bot_id`、`human_slot=0|1`（默认 0 执黑），建立 `mode=human` 的空棋盘单盘，不创建换色组，也不进入榜单。worker 保留同一个 Bot 实例，在人类回合设置 `waiting_tick` 并等候数据库中的输入；该盘继续占用计算槽位。动作接口使用整数 `tick` 与 `action`（0～224 为格子索引，225 认输），在事务内检查运行状态、等待轮次、行棋方和空位；重复的最近一次相同输入幂等返回，冲突或过期动作返回 409，非法字段或占用位置返回 422。浏览器刷新后读取同一运行可继续，服务重启按现有逻辑中断。人机“再来一局”保留对手和执子，使用新种子建立新盘。
 
 Bot 和记录列表支持 game_id 筛选，清空记录也保持游戏筛选范围。榜单默认为炸弹人，可选 gomoku；五子棋只统计两盘有效且未删除的完整组。GET 单盘额外返回 pair 状态和完成后的比分，帧仍是该盘独立序列。历史缺少游戏 ID 时按炸弹人读取，不重写历史文件。具体输入验证以 OpenAPI 为准。
 
