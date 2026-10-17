@@ -5,6 +5,10 @@
 
 本机运行的模型 Bot 竞技场，支持 2～8 人炸弹人混战和双人自由五子棋。导入 C++20 Bot，自动编译为 WASM，选择参赛 Bot 后运行并观看；运行过程自动保存为录像。五子棋 Bot 对战自动打两盘换色，也支持选择黑白执子、点击落子的人机单盘。各游戏独立筛选和计分，人机对局不计入 Bot 榜单。直播与录像使用同一个播放器，播放速度不影响结算。
 
+![对战与 Bot 管理](docs/images/home.png)
+
+![五子棋人机对战](docs/images/gomoku-human.png)
+
 ## 快速启动
 
 目前支持 **Windows x64**。先安装 [Python 3.12](https://www.python.org/downloads/windows/)、[Node.js 24.19.0 / npm 11.17.0](https://nodejs.org/dist/v24.19.0/) 和 Git。macOS / Linux 尚未验收，不要求安装 Codex。
