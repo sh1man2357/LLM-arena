@@ -16,7 +16,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from runner.io import ROOT, sha_file
 from runner.match import components
 from service import APP_VERSION
-from service.bots import MAX_SOURCE_BYTES, import_bot, listed_bots, prepare_baselines, public_bot
+from service.bots import (MAX_SOURCE_BYTES, active_bot_ids, edit_bot, import_bot, listed_bots,
+                          manage_bots, prepare_baselines, public_bot, require_available_bots)
 from service.jobs import BusyError, Executor
 from service.history import filter_runs, manage_runs
 from service.leaderboard import leaderboard
@@ -65,6 +66,18 @@ class MatchManagement(BaseModel):
     q: str = Field(default="", max_length=100)
     status: MatchStatus | None = None
     game_id: Literal["bomberman", "gomoku"] | None = None
+
+
+class BotEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(default="", max_length=100)
+    description: str = Field(default="", max_length=1000)
+
+
+class BotManagement(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: Literal["trash", "restore"]
+    ids: list[str] = Field(min_length=1, max_length=100)
 
 
 def public_match(row):
@@ -147,8 +160,18 @@ def create_app(data_root=None, *, demo=False, workers=False):
         return dict(busy=active is not None, operation=active["kind"] if active else None)
 
     @app.get("/api/v1/bots")
-    def bots(game_id: Literal["bomberman", "gomoku"] | None = None):
-        return dict(items=[public_bot(row) for row in listed_bots(store.list("bot")) if not game_id or row.get("game_id", "bomberman") == game_id])
+    def bots(game_id: Literal["bomberman", "gomoku"] | None = None, trashed: bool = False):
+        active = active_bot_ids(store.list("task"))
+        return dict(items=[dict(public_bot(row), in_use=row["id"] in active) for row in listed_bots(store.list("bot"), trashed=trashed)
+                           if not game_id or row.get("game_id", "bomberman") == game_id])
+
+    @app.patch("/api/v1/bots/{identity}")
+    def update_bot(identity: str, body: BotEdit):
+        return public_bot(edit_bot(store, identity, body.model_dump(exclude_unset=True)))
+
+    @app.post("/api/v1/bots/manage")
+    def manage_bot_list(body: BotManagement):
+        return manage_bots(store, body.action, body.ids)
 
     @app.post("/api/v1/bots", status_code=202)
     async def upload_bot(request: Request, file: UploadFile, name: str = Form(default=""),
@@ -169,6 +192,8 @@ def create_app(data_root=None, *, demo=False, workers=False):
         result = []
         for identity in ids:  # Preserve the user's spawn order.
             bot = store.get("bot", identity)
+            if bot.get("deleted_at"):
+                raise FileExistsError("Bot 已在回收站，请先恢复后再开始对局。")
             if bot.get("game_id", "bomberman") != game_id:
                 raise ValueError("Bot 所属游戏与对局不一致。")
             if bot["status"] != "ready" or not bot.get("wasm"):
@@ -205,6 +230,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
                                    map_seed=seed, bot_seeds=inputs["bot_seeds"] if i == 0 else list(reversed(inputs["bot_seeds"])),
                                    game_id=game_id, opening_mode=opening_mode) for i in range(2)]
         def resource(task, db):
+            require_available_bots(store, ids, db)
             for index, leg in enumerate(inputs.get("legs", [inputs])):
                 participants = leg["entrants"]
                 store.put("run", dict(id=leg["match_id"], title=" vs ".join(e["name"] for e in participants),
@@ -245,6 +271,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
                       components=components("gomoku"), game_id="gomoku", opening_mode="empty",
                       mode="human", human_slot=body.human_slot)
         def resource(task, db):
+            require_available_bots(store, [body.bot_id], db)
             store.put("run", dict(id=identity, title=" vs ".join(e["name"] for e in entrants),
                                  game_id="gomoku", mode="human", human_slot=body.human_slot, opening_mode="empty",
                                  entrants=[dict(id=e["id"], name=e["name"], slot=i, kind=e.get("kind", "bot"),

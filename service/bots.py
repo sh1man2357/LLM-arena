@@ -1,5 +1,6 @@
 """Bot snapshots imported directly, without receipts or participant identities."""
 import hashlib
+import json
 import secrets
 from pathlib import Path
 
@@ -14,7 +15,75 @@ BASELINES = ("baseline",)
 
 def public_bot(row):
     return dict(game_id=row.get("game_id", "bomberman"), **{k: row.get(k) for k in ("id", "name", "status", "baseline", "created", "source_sha256",
-                                  "wasm_sha256", "diagnostic", "compile_log")})
+                                  "wasm_sha256", "diagnostic", "compile_log", "description", "deleted_at")})
+
+
+def active_bot_ids(tasks):
+    identities = set()
+    for task in tasks:
+        if task["status"] not in ("pending", "running"):
+            continue
+        inputs = task["inputs"]
+        if inputs.get("bot_id"):
+            identities.add(inputs["bot_id"])
+        identities.update(inputs.get("bot_ids", []))
+        identities.update(e["id"] for e in inputs.get("entrants", []) if e.get("kind") != "human")
+    return identities
+
+
+def edit_bot(store, identity, fields):
+    fields = {k: v.strip() for k, v in fields.items()}
+    if not fields or ("name" in fields and not 1 <= len(fields["name"]) <= 100):
+        raise ValueError("Bot 名称须为 1～100 字符。")
+    def change(row):
+        if row.get("deleted_at"):
+            raise KeyError(identity)
+        if row.get("baseline"):
+            raise FileExistsError("内置基准 Bot 不支持编辑。")
+        if row["status"] == "processing":
+            raise FileExistsError("Bot 正在编译，请完成后再编辑。")
+        row.update(fields)
+    row = store.update("bot", identity, change)
+    store.emit(identity, "bot", dict(status=row["status"]))
+    return row
+
+
+def manage_bots(store, action, ids):
+    if not ids:
+        raise ValueError("请先选择 Bot。")
+    changed = []
+    with store.connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        tasks = [json.loads(r[0]) for r in db.execute("SELECT body FROM records WHERE kind='task'")]
+        active = active_bot_ids(tasks)
+        for identity in dict.fromkeys(ids):
+            row = store.get("bot", identity, db=db)
+            if row.get("baseline"):
+                raise FileExistsError("内置基准 Bot 不支持删除或恢复。")
+            if action == "trash":
+                if row["status"] == "processing" or identity in active:
+                    raise FileExistsError("Bot 正在编译或参赛，请完成后再删除。")
+                if row.get("deleted_at"):
+                    continue
+                row["deleted_at"] = utc_now()
+            elif action == "restore":
+                if not row.get("deleted_at"):
+                    continue
+                row.pop("deleted_at")
+            else:
+                raise ValueError("Unknown Bot management action")
+            store.put("bot", row, db=db)
+            changed.append(identity)
+    for identity in changed:
+        store.emit(identity, "bot", dict(status="trashed" if action == "trash" else "restored"))
+    return dict(changed=len(changed))
+
+
+def require_available_bots(store, identities, db):
+    """Serialize starting a new match against moving its Bots to the bin."""
+    for identity in set(identities):
+        if store.get("bot", identity, db=db).get("deleted_at"):
+            raise FileExistsError("Bot 已在回收站，请先恢复后再开始对局。")
 
 
 def import_bot(store, executor, source, name, key=None, game_id="bomberman"):
@@ -38,7 +107,10 @@ def import_bot(store, executor, source, name, key=None, game_id="bomberman"):
         store.put("bot", row, create=True, db=db)
     task = executor.create("compile", dict(bot_id=identity), key,
                            request=dict(source_sha256=row["source_sha256"], name=name, game_id=game_id), resource=resource)
-    return store.get("bot", task["inputs"]["bot_id"])
+    imported = store.get("bot", task["inputs"]["bot_id"])
+    if imported.get("deleted_at"):
+        raise FileExistsError("该请求对应的 Bot 已在回收站，请先恢复或重新导入。")
+    return imported
 
 
 def baseline_records(store, game_id="bomberman"):
@@ -84,7 +156,7 @@ def baseline_records(store, game_id="bomberman"):
     return rows
 
 
-def listed_bots(rows):
+def listed_bots(rows, *, trashed=False):
     """One current reference per game; retired snapshots remain available to replays."""
     latest = {}
     for row in rows:
@@ -93,8 +165,8 @@ def listed_bots(rows):
             previous = latest.get(key)
             if previous is None or (row['created'], row['id']) > (previous['created'], previous['id']):
                 latest[key] = row
-    return [row for row in rows if not row.get('baseline') or
-            (row['name'] == 'Baseline' and row['id'] == latest[row.get('game_id', 'bomberman')]['id'])]
+    return [row for row in rows if bool(row.get("deleted_at")) == trashed and (not row.get('baseline') or
+            (row['name'] == 'Baseline' and row['id'] == latest[row.get('game_id', 'bomberman')]['id']))]
 
 
 def prepare_baselines(store, executor, game_id="bomberman"):

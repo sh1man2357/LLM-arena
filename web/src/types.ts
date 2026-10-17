@@ -1,6 +1,7 @@
 export type Row = Record<string, any>;
 export type GameId = 'bomberman' | 'gomoku';
 export type Bot = { id: string; name: string; status: string; baseline: boolean; created: string; game_id?: GameId;
+  description?: string | null; deleted_at?: string | null; in_use?: boolean;
   diagnostic?: string; compile_log?: { stderr?: string; stdout?: string } };
 export type Player = { id: number; x: number; y: number; alive: boolean; death_tick: number | null; score?: number; kills?: number };
 export type Bomb = { id: number; owner_id: number; x: number; y: number; explode_at_tick: number; range: number };

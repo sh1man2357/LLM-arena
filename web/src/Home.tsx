@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Play, Plus, Upload, X } from 'lucide-react';
 import { api, useResource } from './api';
 import { useRevision } from './App';
-import { Badge, ErrorPanel, slotColor } from './ui';
+import { ErrorPanel, slotColor } from './ui';
+import { BotManager } from './BotManager';
 import { History } from './History';
 import type { Bot, Match, GameId } from './types';
 import { gameNames, savedGame } from './games';
@@ -77,13 +78,8 @@ export function Home() {
         const chosen = e.target.files?.[0]; setFile(chosen); setName(chosen?.name.replace(/\.cpp$/i, '') || '');
       }} /></label><label>名称<input value={name} maxLength={100} onChange={e => setName(e.target.value)} placeholder="默认使用文件名" /></label>
         <button disabled={busy || !file}><Upload aria-hidden="true" />导入 Bot</button></form></details>
-      {bots.loading && <p role="status">正在读取 Bot…</p>}
-      {bots.data && !gameBots.length && <p className="empty">暂无{gameNames[game]} Bot</p>}
-      <ul className="bot-list">{gameBots.map(bot => <li key={bot.id} data-bot-id={bot.id}>
-        <div className="bot-row"><strong>{bot.baseline ? '基准 BOT · 0 分' : bot.name}</strong><Badge status={bot.status} /></div>
-        {bot.diagnostic && <p className="error-text">{bot.diagnostic}</p>}
-        {(bot.compile_log?.stderr || bot.compile_log?.stdout) && <details><summary>编译日志<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary><pre>{bot.compile_log.stderr}{bot.compile_log.stdout}</pre></details>}
-      </li>)}</ul>
+      <BotManager key={game} game={game} bots={bots.data ? gameBots : undefined} loading={bots.loading}
+        refresh={refresh} onChanged={() => setRefresh(r => r + 1)} />
     </div></section>
     <History game={game} /></>;
 }
