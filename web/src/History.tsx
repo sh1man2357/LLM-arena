@@ -49,8 +49,9 @@ export function History({game = 'bomberman'}: {game?: GameId}) {
     });
   }
   function changePage(next: number) { setOffset(next); setSelected([]); setEditing(undefined); }
-  return <section className="content-section history" id="history" aria-labelledby="history-title">
-    <div className="section-heading"><h2 id="history-title">对局记录</h2></div>
+  return <section className="section history" id="history" aria-labelledby="history-title">
+    <div className="section-head"><h2 id="history-title">对局记录<span className="count">{runs.data?.total ?? ''}</span></h2>
+      <span className="muted" style={{fontSize: 11.5}}>{trashed ? '恢复后重新计入榜单' : '删除移入回收站，可随时恢复'}</span></div>
     <div className="section-body">
       <div className="history-tabs" aria-label="记录范围">
         <button aria-pressed={!trashed} disabled={working} onClick={() => {setTrashed(false); resetView();}}>全部记录</button>

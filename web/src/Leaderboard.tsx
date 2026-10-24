@@ -12,7 +12,8 @@ export function Leaderboard() {
   return <><div className="page-heading"><h1>本地榜单</h1></div>
     <label className="game-picker">榜单游戏<select aria-label="榜单游戏" value={game} onChange={e => {setGame(e.target.value as GameId);sessionStorage.setItem('arena.game',e.target.value);}}>{Object.entries(gameNames).map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></label>
     {data.error && <ErrorPanel message={data.error} onRetry={data.retry} />}
-    <section aria-label="Bot 排名">
+    <section className="section" aria-label="Bot 排名">
+      <div className="section-head"><h2>排名</h2><span className="muted" style={{fontSize: 11.5}}>{data.data ? `${data.data.valid_matches} 场有效对局` : ''}</span></div>
       {data.loading && <p role="status">正在读取榜单…</p>}
       {data.data && !data.data.items.length && <p className="empty" role="status">暂无成绩</p>}
       {!!data.data?.items.length && <div className="table-scroll"><table><thead><tr><th>名次</th><th>Bot</th><th>实力分</th><th>局数</th><th>胜 / 平 / 负</th><th>平均名次分</th>{game === 'gomoku' && <><th>执黑</th><th>执白</th></>}</tr></thead><tbody>

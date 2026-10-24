@@ -16,10 +16,12 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
     const context = canvas.getContext('2d')!;
     const style = getComputedStyle(canvas);
     const color = (token: string) => style.getPropertyValue(token).trim();
-    const background = color('--board-bg'), grid = color('--board-grid'), hard = color('--tile-hard');
+    const background = color('--board-bg'), floor = color('--board-floor') || background, hard = color('--tile-hard');
     const soft = style.getPropertyValue('--tile-soft').trim(), softEdge = style.getPropertyValue('--tile-soft-edge').trim();
+    const surface = color('--board-surface') || '#fff';
     const playerColors = playerTokens.map(token => color(`--player-${token}`));
-    const ink = color('--bg'), text = color('--text'), muted = color('--muted'), accent = color('--accent'), blast = color('--blast-fill');
+    const playerInks = playerTokens.map(token => color(`--player-${token}-ink`) || surface);
+    const text = color('--text'), muted = color('--muted'), accent = color('--accent'), blast = color('--blast-fill');
     const motion = matchMedia('(prefers-reduced-motion: reduce)');
     let raf = 0;
     // Metadata/name updates and selection changes must not rewind a confirmed move.
@@ -39,18 +41,20 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
       const progress = motion.matches || !animate ? 1 : Math.min(1, (performance.now() - started) / 160);
       for (let y = 0; y < 11; y++) for (let x = 0; x < 13; x++) {
         const type = state.grid[y * 13 + x];
-        const px = x * cell, py = y * cell, gap = cell * .065;
+        const px = x * cell, py = y * cell, gap = Math.max(dpr, cell * .028), size = cell - gap * 2;
         context.setLineDash([]);
         if (type === 0) {
-          context.strokeStyle = grid; context.lineWidth = dpr;
-          context.strokeRect(px + dpr / 2, py + dpr / 2, cell - dpr, cell - dpr);
+          context.fillStyle = floor;
+          context.fillRect(px + gap, py + gap, size, size);
         } else if (type === 1) {
-          context.fillStyle = hard; context.fillRect(px + gap, py + gap, cell - gap * 2, cell - gap * 2);
+          context.fillStyle = hard; context.fillRect(px + gap, py + gap, size, size);
+          context.fillStyle = 'rgba(255,255,255,.16)';
+          context.fillRect(px + gap, py + gap, size, Math.max(dpr, cell * .035));
         } else {
-          context.fillStyle = soft; context.fillRect(px + gap, py + gap, cell - gap * 2, cell - gap * 2);
-          context.strokeStyle = softEdge; context.lineWidth = Math.max(dpr, cell * .025);
-          context.setLineDash([cell * .11, cell * .07]);
-          context.strokeRect(px + gap, py + gap, cell - gap * 2, cell - gap * 2);
+          context.fillStyle = soft; context.fillRect(px + gap, py + gap, size, size);
+          context.strokeStyle = softEdge; context.lineWidth = Math.max(dpr, cell * .022);
+          context.setLineDash([cell * .1, cell * .065]);
+          context.strokeRect(px + gap, py + gap, size, size);
         }
       }
       context.setLineDash([]);
@@ -66,10 +70,11 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
         const offset = shared ? .17 : 0;
         const px = (b.x + .5 + offset) * cell, py = (b.y + .5 + offset) * cell;
         const ownerColor = playerColors[b.owner_id];
-        context.fillStyle = ink; context.strokeStyle = ownerColor; context.lineWidth = cell * .035;
+        context.fillStyle = surface; context.strokeStyle = ownerColor; context.lineWidth = cell * .035;
         context.beginPath(); context.arc(px, py, cell * (shared ? .23 : .29), 0, Math.PI * 2); context.fill(); context.stroke();
-        context.beginPath(); context.moveTo(px + cell * .13, py - cell * .25); context.lineTo(px + cell * .23, py - cell * .39); context.stroke();
-        context.fillStyle = text; context.font = `500 ${cell * .23}px ui-monospace, monospace`; context.textAlign = 'center'; context.textBaseline = 'middle';
+        context.fillStyle = ownerColor;
+        context.beginPath(); context.arc(px + cell * .17, py - cell * .26, cell * .05, 0, Math.PI * 2); context.fill();
+        context.fillStyle = ownerColor; context.font = `700 ${cell * .21}px ui-monospace, monospace`; context.textAlign = 'center'; context.textBaseline = 'middle';
         context.fillText(String(Math.max(0, b.explode_at_tick - state.tick)), px, py);
       }
       for (const p of state.players) {
@@ -81,7 +86,7 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
         const footBomb = state.bombs.some(b => b.x === p.x && b.y === p.y);
         if (footBomb) { px -= cell * .17; py -= cell * .17; }
         context.globalAlpha = p.alive ? 1 : .45;
-        context.fillStyle = p.alive ? playerColor : muted; context.strokeStyle = background; context.lineWidth = cell * .04;
+        context.fillStyle = p.alive ? playerColor : muted; context.strokeStyle = surface; context.lineWidth = Math.max(dpr * 1.5, cell * .05);
         context.beginPath();
         if (p.id % 2 === 0) { context.arc(px, py, cell * (footBomb ? .23 : .29), 0, Math.PI * 2); }
         else {
@@ -89,7 +94,7 @@ export function Board({ frame, previous, entrants, overlay = true, selected, onS
           context.moveTo(px, py - radius); context.lineTo(px + radius, py); context.lineTo(px, py + radius); context.lineTo(px - radius, py); context.closePath();
         }
         context.fill(); context.stroke();
-        context.fillStyle = ink; context.font = `600 ${cell * .24}px ui-monospace, monospace`; context.textAlign = 'center'; context.textBaseline = 'middle';
+        context.fillStyle = p.alive ? playerInks[p.id] : surface; context.font = `700 ${cell * .24}px ui-monospace, monospace`; context.textAlign = 'center'; context.textBaseline = 'middle';
         context.fillText(p.alive ? String(p.id) : '×', px, py);
         context.globalAlpha = 1;
       }

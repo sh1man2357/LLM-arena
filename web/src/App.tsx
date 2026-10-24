@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Link, NavLink, Route, Routes } from 'react-router-dom';
-import { Grid2X2, Swords, Trophy } from 'lucide-react';
 import { Home } from './Home';
 import { Viewer } from './Viewer';
 import { Leaderboard } from './Leaderboard';
@@ -27,8 +26,8 @@ export function App() {
     return () => { clearInterval(timer); clearTimeout(trailing); events.close(); };
   }, []);
   return <Revision.Provider value={revision}><a className="skip-link" href="#main-content">跳到主要内容</a>
-    <header className="topbar"><Link className="brand" to="/" aria-label="LLM Arena 首页"><Grid2X2 aria-hidden="true" /><span>LLM ARENA</span></Link>
-      <nav aria-label="主要页面"><NavLink to="/" end><Swords aria-hidden="true" />对战</NavLink><NavLink to="/leaderboard"><Trophy aria-hidden="true" />榜单</NavLink></nav></header>
+    <header className="topbar"><Link className="brand" to="/" aria-label="LLM Arena 首页"><span className="brand-mark" aria-hidden="true"><i /><i /><i /><i /></span>LLM ARENA</Link>
+      <nav aria-label="主要页面"><NavLink to="/" end>对战</NavLink><NavLink to="/leaderboard">榜单</NavLink></nav></header>
     {!connected && <div className="connection-banner" role="status">正在连接服务…</div>}
     <main id="main-content"><Routes><Route path="/" element={<Home />} />
       <Route path="/matches/:id" element={<Viewer />} /><Route path="/leaderboard" element={<Leaderboard />} />

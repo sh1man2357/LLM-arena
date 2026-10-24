@@ -12,6 +12,7 @@ export const labels: Record<string, string> = {
 };
 export const playerTokens = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'];
 export const slotColor = (slot: number) => `var(--player-${playerTokens[slot]})`;
+export const slotInk = (slot: number) => `var(--player-${playerTokens[slot]}-ink)`;
 export function playerStateLabel(player: {alive: boolean; death_tick: number | null}) {
   return player.alive ? '存活' : player.death_tick === -1 ? '初始化出局' : `第 ${player.death_tick} 回合出局`;
 }

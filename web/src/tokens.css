@@ -1,24 +1,53 @@
 :root {
-  --bg: #0D0D0D;
-  --surface: #161616;
-  --text: #E9E8E3;
-  --muted: #969691;
-  --accent: #F0DB69;
-  --player-zero: #E9E8E3;
-  --player-one: #F0DB69;
-  --player-two: #77C9EB;
-  --player-three: #E997BC;
-  --player-four: #91D6A2;
-  --player-five: #B3A0EF;
-  --player-six: #F5AD70;
-  --player-seven: #64D8CB;
-  --red: #E97975;
-  --line: #30302D;
-  --board-bg: #111110;
-  --board-grid: #242421;
-  --tile-hard: #55554E;
-  --tile-soft: #242421;
-  --tile-soft-edge: #7D7D72;
-  --blast-fill: #F0DB6933;
-  color-scheme: dark;
+  color-scheme: light;
+
+  /* 纸面与墨色 */
+  --bg: #F3F0E9;
+  --surface: #FFFFFF;
+  --surface-2: #FAF8F3;
+  --surface-3: #F0EBE1;
+  --hover: #FBF8F2;
+  --line: #E2DACB;
+  --line-2: #CBC2B0;
+  --text: #17160F;
+  --muted: #6B6557;
+  --faint: #9C9482;
+
+  /* 红色只表示进行中与失败 */
+  --accent: #C0392B;
+  --accent-soft: #FBEAE7;
+  --live: #C3362B;
+  --ok: #2E7D4F;
+  --warn: #A96A12;
+  --danger: #B32D22;
+  --focus: #17160F;
+
+  /* 形状与层次 */
+  --radius-card: 4px;
+  --radius-control: 4px;
+  --shadow-1: none;
+  --shadow-2: 0 12px 30px rgba(23, 22, 15, .14);
+
+  /* 棋盘绘制：Board.tsx 从计算样式读取这些变量 */
+  --board-bg: #D8CFBD;
+  --board-floor: #EDE7DA;
+  --board-grid: #D8CFBD;
+  --tile-hard: #6E6757;
+  --tile-soft: #DED4BF;
+  --tile-soft-edge: #A3947A;
+  --board-surface: #FFFFFF;
+  --blast-fill: rgba(192, 57, 43, .18);
+
+  /* 八名选手：编号墨色单独给出，避免浅底看不清 */
+  --player-zero: #26251F; --player-zero-ink: #FFFFFF;
+  --player-one: #E0A02A; --player-one-ink: #2A1D03;
+  --player-two: #2A6DB5; --player-two-ink: #FFFFFF;
+  --player-three: #BE3F73; --player-three-ink: #FFFFFF;
+  --player-four: #3C7D55; --player-four-ink: #FFFFFF;
+  --player-five: #6151B8; --player-five-ink: #FFFFFF;
+  --player-six: #B85F2A; --player-six-ink: #FFFFFF;
+  --player-seven: #1C8080; --player-seven-ink: #FFFFFF;
+
+  --sans: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
 }

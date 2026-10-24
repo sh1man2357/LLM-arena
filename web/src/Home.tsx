@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Play, Plus, Upload, X } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, ChevronDown, Play, Plus, Upload, X } from 'lucide-react';
 import { api, useResource } from './api';
 import { useRevision } from './App';
-import { botLabel, ErrorPanel, slotColor } from './ui';
+import { botLabel, ErrorPanel, slotColor, slotInk } from './ui';
 import { BotManager } from './BotManager';
 import { History } from './History';
 import type { Bot, Match, GameId } from './types';
@@ -15,6 +15,7 @@ export function Home() {
   const [game, setGame] = useState<GameId>(savedGame), [opening, setOpening] = useState('empty');
   const bots = useResource<{items: Bot[]}>('/api/v1/bots', revision + refresh);
   const status = useResource<{busy: boolean; operation: string | null}>('/api/v1/status', revision + refresh);
+  const running = useResource<{items: Match[]}>('/api/v1/matches?limit=1&status=running', revision + refresh);
   const [file, setFile] = useState<File>(), [name, setName] = useState('');
   const [slots, setSlots] = useState(['', '']), [seed, setSeed] = useState('');
   const [mode, setMode] = useState('bots'), [humanSlot, setHumanSlot] = useState(0);
@@ -24,6 +25,7 @@ export function Home() {
   const importKey = useRef(crypto.randomUUID()), runKey = useRef(crypto.randomUUID());
   const gameBots = bots.data?.items.filter(b => (b.game_id || 'bomberman') === game) || [];
   const ready = gameBots.filter(b => b.status === 'ready');
+  const runningMatch = running.data?.items[0];
   function changeGame(value: GameId) { setGame(value); sessionStorage.setItem('arena.game', value); setSlots(['','']); setMessage(''); }
   useEffect(() => {
     setSlots(current => current.map((id, i) => ready.some(b => b.id === id) ? id : ready[i % Math.max(1,ready.length)]?.id || ''));
@@ -43,43 +45,67 @@ export function Home() {
   return <><div className="page-heading"><h1>对战</h1></div>
     {error && <ErrorPanel message={error.error} onRetry={() => resources.forEach(r => r.retry())} />}
     {message && <div className="notice error" role="alert">{message}</div>}
-    <label className="game-picker">游戏<select aria-label="游戏" value={game} onChange={e => changeGame(e.target.value as GameId)}>{Object.entries(gameNames).map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></label>
-    {status.data?.busy && <p className="notice" role="status">{status.data.operation === 'match' ? '对局运行中。' : '正在编译 Bot。'}</p>}
-    <section className="content-section" id="new-match" aria-labelledby="run-title"><div className="section-heading"><h2 id="run-title">新对局</h2></div><div className="section-body"><form className="run-form" onSubmit={e => { e.preventDefault(); void act(async () => {
+    {runningMatch && <div className="running-bar">
+      <i className="live-dot" aria-hidden="true" />
+      <span className="live-label">正在运行</span>
+      <b>{runningMatch.title}</b>
+      <span className="muted">{gameNames[runningMatch.game_id || 'bomberman']} · {runningMatch.entrants.length} 名</span>
+      <Link className="watch" to={`/matches/${runningMatch.id}`}>观看<ArrowRight aria-hidden="true" /></Link>
+    </div>}
+    <form className="match-card" onSubmit={e => { e.preventDefault(); void act(async () => {
       const match = await api<Match>(human ? '/api/v1/human-matches' : '/api/v1/matches', {method: 'POST', headers: {'X-Arena-Local': '1', 'Idempotency-Key': runKey.current},
         body: JSON.stringify(human ? {bot_id: slots[0], human_slot: humanSlot} : {bot_ids: slots, game_id: game, ...(game === 'gomoku' ? {opening_mode: opening} : {}), ...(seed === '' ? {} : {map_seed: Number(seed)})})});
       navigate(`/matches/${match.id}`, {state: {autoplay: true}});
     }); }}>
-      {game === 'gomoku' && <label className="game-picker">对战模式<select value={mode} onChange={e => setMode(e.target.value)}><option value="bots">Bot 对战</option><option value="human">人机对战</option></select></label>}
-      <p className="form-hint">{human ? '15 × 15 自由五子棋 · 单盘，点击棋盘落子，自动保存录像，不计入 Bot 榜单。' : game === 'gomoku' ? '15 × 15 自由五子棋 · 自动进行两盘换色对战，支持自我对弈。' : `${slots.length} 个 Bot 各自为战 · 支持 2～8 人。回合结束存活 +1 分，击杀 +100 分，按总积分排名。`}</p>
-      <div className="match-picker">{human ? <>
-        <label>对手 Bot<select value={slots[0]} onChange={e => setSlots([e.target.value, slots[1]])}><option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{botLabel(b)}</option>)}</select></label>
-        <label>你的执子<select value={humanSlot} onChange={e => setHumanSlot(Number(e.target.value))}><option value={0}>黑棋 · 先手</option><option value={1}>白棋 · 后手</option></select></label>
-      </> : slots.map((id, slot) => <div className="slot-picker" key={slot}>
-        <label><span className="slot-label"><i className="slot-dot" style={{background: game === 'gomoku' ? (slot === 0 ? '#202226' : '#faf7f0') : slotColor(slot)}} aria-hidden="true" />{game === 'gomoku' ? (slot === 0 ? '首盘黑棋' : '首盘白棋') : `Bot ${slot}`}</span>
-          <select value={id} onChange={e => setSlots(current => current.map((value, i) => i === slot ? e.target.value : value))}>
-            <option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{botLabel(b)}</option>)}</select></label>
-        {game === 'bomberman' && <button type="button" className="icon-button" aria-label={`移除 Bot ${slot}`} disabled={slots.length <= 2} onClick={() => setSlots(current => current.filter((_, i) => i !== slot))}><X aria-hidden="true" /></button>}
-      </div>)}</div>
-      {game === 'bomberman' && <button type="button" className="add-slot" disabled={slots.length >= 8} onClick={() => setSlots(current => [...current, (ready.find(b => !current.includes(b.id)) || ready[0])?.id || ''])}><Plus aria-hidden="true" />增加 Bot</button>}
-      <div className="run-actions">{!human && <details><summary>{game === 'gomoku' ? '开局设置' : '地图设置'}<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary>
-        {game === 'gomoku' && <label>开局<select aria-label="开局" value={opening} onChange={e => setOpening(e.target.value)}><option value="empty">空棋盘</option><option value="library">固定开局库（三手）</option></select></label>}
-        <label>{game === 'gomoku' ? '开局 Seed' : '地图 Seed'}<input type="number" min="0" max="4294967295" step="1" value={seed} onChange={e => setSeed(e.target.value)} placeholder="随机" /></label></details>}<button className="primary" disabled={busy || (human ? !slots[0] : slots.some(id => !id))}><Play aria-hidden="true" />开始对战</button></div>
-      {bots.data && !ready.length && <p className="form-hint">请先<a href="#bots">导入 Bot</a>。</p>}
-    </form></div></section>
-    <section className="content-section" id="bots" aria-labelledby="bots-title"><div className="section-heading"><h2 id="bots-title">Bot</h2></div><div className="section-body">
+      <div className="match-top">
+        <span className="label">新对局</span>
+        <label className="inline-field">游戏<select aria-label="游戏" value={game} onChange={e => changeGame(e.target.value as GameId)}>{Object.entries(gameNames).map(([id,label]) => <option key={id} value={id}>{label}</option>)}</select></label>
+        {game === 'gomoku' && <label className="inline-field">对战模式<select aria-label="对战模式" value={mode} onChange={e => setMode(e.target.value)}><option value="bots">Bot 对战</option><option value="human">人机对战</option></select></label>}
+        {!human && <details className="settings"><summary>{game === 'gomoku' ? '开局设置' : '地图设置'}<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary>
+          {game === 'gomoku' && <label>开局<select aria-label="开局" value={opening} onChange={e => setOpening(e.target.value)}><option value="empty">空棋盘</option><option value="library">固定开局库（三手）</option></select></label>}
+          <label>{game === 'gomoku' ? '开局 Seed' : '地图 Seed'}<input type="number" min="0" max="4294967295" step="1" value={seed} onChange={e => setSeed(e.target.value)} placeholder="随机" /></label></details>}
+      </div>
+      <div className="match-main">
+        <div className="match-picker">
+          {human ? <>
+            <label className="human-field">对手 Bot<select aria-label="对手 Bot" value={slots[0]} onChange={e => setSlots([e.target.value, slots[1]])}><option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{botLabel(b)}</option>)}</select></label>
+            <label className="human-field">你的执子<select aria-label="你的执子" value={humanSlot} onChange={e => setHumanSlot(Number(e.target.value))}><option value={0}>黑棋 · 先手</option><option value={1}>白棋 · 后手</option></select></label>
+          </> : slots.map((id, slot) => <div className="slot-picker" key={slot}>
+            {game === 'gomoku'
+              ? <i className={`slot-marker ${slot === 0 ? 'stone-black' : 'stone-white'}`} aria-hidden="true" />
+              : <i className="slot-marker round" aria-hidden="true" style={{'--marker-bg': slotColor(slot), '--marker-ink': slotInk(slot)} as CSSProperties}>{slot}</i>}
+            <select aria-label={game === 'gomoku' ? (slot === 0 ? '首盘黑棋' : '首盘白棋') : `Bot ${slot}`}
+              value={id} onChange={e => setSlots(current => current.map((value, i) => i === slot ? e.target.value : value))}>
+              <option value="">选择 Bot</option>{ready.map(b => <option key={b.id} value={b.id}>{botLabel(b)}</option>)}
+            </select>
+            {game === 'bomberman' && <button type="button" className="icon-button" aria-label={`移除 Bot ${slot}`} title="移除该槽位" disabled={slots.length <= 2} onClick={() => setSlots(current => current.filter((_, i) => i !== slot))}><X aria-hidden="true" /></button>}
+          </div>)}
+          {game === 'bomberman' && <button type="button" className="add-slot" disabled={slots.length >= 8} onClick={() => setSlots(current => [...current, (ready.find(b => !current.includes(b.id)) || ready[0])?.id || ''])}><Plus aria-hidden="true" />增加 Bot</button>}
+        </div>
+        <button className="primary" disabled={busy || (human ? !slots[0] : slots.some(id => !id))}><Play aria-hidden="true" />开始对战</button>
+      </div>
+      <p className="match-note">
+        {human ? '15 × 15 自由五子棋 · 单盘，点击棋盘落子，自动保存录像，不计入 Bot 榜单。' : game === 'gomoku' ? '15 × 15 自由五子棋 · 自动进行两盘换色对战，支持自我对弈。' : `${slots.length} 个 Bot 各自为战 · 支持 2～8 人。回合结束存活 +1 分，击杀 +100 分，按总积分排名。`}
+        {status.data?.busy && !runningMatch && <span className="busy-hint" role="status"> · {status.data.operation === 'match' ? '对局运行中' : '正在编译 Bot'}…</span>}
+        {bots.data && !ready.length && !human && <> <a href="#bots">请先导入 Bot</a>。</>}
+      </p>
+    </form>
+    <section className="section" id="bots" aria-labelledby="bots-title">
+      <div className="section-head"><h2 id="bots-title">Bot 库<span className="count">{bots.data ? gameBots.length : ''}</span></h2>
+        <span className="muted" style={{fontSize: 11.5}}>{gameNames[game]} · 导入 C++ 源码后自动编译</span></div>
       <details className="import-disclosure"><summary><Upload aria-hidden="true" />导入 Bot<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary><form className="import-form" onSubmit={e => { e.preventDefault(); void act(async () => {
         if (!file) throw new Error('请选择 bot.cpp。');
         if (file.size > 1024 * 1024) throw new Error('源码超过 1 MiB。');
         const form = new FormData(); form.append('file', file); form.append('name', name.trim()); form.append('game_id', game);
         await api<Bot>('/api/v1/bots', {method: 'POST', headers: {'X-Arena-Local': '1', 'Idempotency-Key': importKey.current}, body: form});
         importKey.current = crypto.randomUUID();
-      }); }}><label>Bot 所属游戏<select aria-label="Bot 所属游戏" value={game} onChange={e => changeGame(e.target.value as GameId)}>{Object.entries(gameNames).map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></label><label>Bot 文件<input type="file" accept=".cpp" aria-label="Bot 文件" required onChange={e => {
+      }); }}><label>Bot 所属游戏<select aria-label="Bot 所属游戏" value={game} onChange={e => changeGame(e.target.value as GameId)}>{Object.entries(gameNames).map(([id,label]) => <option key={id} value={id}>{label}</option>)}</select></label><label>Bot 文件<input type="file" accept=".cpp" aria-label="Bot 文件" required onChange={e => {
         const chosen = e.target.files?.[0]; setFile(chosen); setName(chosen?.name.replace(/\.cpp$/i, '') || '');
       }} /></label><label>名称<input value={name} maxLength={100} onChange={e => setName(e.target.value)} placeholder="默认使用文件名" /></label>
         <button disabled={busy || !file}><Upload aria-hidden="true" />导入 Bot</button></form></details>
       <BotManager key={game} game={game} bots={bots.data ? gameBots : undefined} loading={bots.loading}
         refresh={refresh} onChanged={() => setRefresh(r => r + 1)} />
-    </div></section>
-    <History game={game} /></>;
+    </section>
+    <History game={game} />
+  </>;
 }
