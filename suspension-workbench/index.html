@@ -1365,6 +1365,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
   </footer>
 </div>
 <script>
+
 (() => {
   'use strict';
 
@@ -2213,10 +2214,13 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     '#2a363a', '#303d41', '#364448', '#3c4b4f', '#435257', '#4a5a5f',
   ];
 
-  /* ------------------------------------------------------------- primitives */
+  /* ------------------------------------------------------------- primitives
+     Painter sorting is performed per small depth slice rather than per whole
+     link. Long tubes, rings, coil paths and discs are therefore allowed to be
+     interleaved correctly with the objects they pass in front of or behind. */
   const renderList = [];
 
-  function pushTube(a, b, radius, material, opts = {}) {
+  function emitTube(a, b, radius, material, opts = {}) {
     const pair = projectPair(a, b);
     if (!pair) return;
     const { pa, pb } = pair;
@@ -2242,20 +2246,40 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     });
   }
 
-  function pushLine(a, b, width, color, opts = {}) {
-    const pair = projectPair(a, b);
-    if (!pair) return;
-    const { pa, pb } = pair;
-    renderList.push({
-      kind: 'line',
-      x1: pa.x, y1: pa.y, x2: pb.x, y2: pb.y,
-      depth: (pa.z + pb.z) * 0.5 + (opts.bias || 0),
-      width, color, alpha: opts.alpha ?? 1, dash: opts.dash || null,
-      cap: opts.cap || 'butt',
-    });
+  function pushTube(a, b, radius, material, opts = {}) {
+    const length = vdist(a, b);
+    if (opts.noSplit || length < 145) {
+      emitTube(a, b, radius, material, opts);
+      return;
+    }
+    const slices = Math.min(9, Math.ceil(length / 145));
+    for (let i = 0; i < slices; i++) {
+      const t0 = i / slices;
+      const t1 = (i + 1) / slices;
+      emitTube(vlerp(a, b, t0), vlerp(a, b, t1), radius, material, opts);
+    }
   }
 
-  function pushPath(points3D, width, color, opts = {}) {
+  function pushLine(a, b, width, color, opts = {}) {
+    const length = vdist(a, b);
+    const slices = opts.noSplit || length < 240 ? 1 : Math.min(6, Math.ceil(length / 240));
+    for (let i = 0; i < slices; i++) {
+      const aa = slices === 1 ? a : vlerp(a, b, i / slices);
+      const bb = slices === 1 ? b : vlerp(a, b, (i + 1) / slices);
+      const pair = projectPair(aa, bb);
+      if (!pair) continue;
+      const { pa, pb } = pair;
+      renderList.push({
+        kind: 'line',
+        x1: pa.x, y1: pa.y, x2: pb.x, y2: pb.y,
+        depth: (pa.z + pb.z) * 0.5 + (opts.bias || 0),
+        width, color, alpha: opts.alpha ?? 1, dash: opts.dash || null,
+        cap: opts.cap || 'butt',
+      });
+    }
+  }
+
+  function emitPathChunk(points3D, width, color, opts = {}) {
     const pts = [];
     let depthSum = 0;
     for (const point of points3D) {
@@ -2281,6 +2305,59 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     });
   }
 
+  function pushPath(points3D, width, color, opts = {}) {
+    if (opts.noSlice || points3D.length < 5) {
+      emitPathChunk(points3D, width, color, opts);
+      return;
+    }
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    let clipped = false;
+    for (const point of points3D) {
+      const p = project(point);
+      if (!p) {
+        clipped = true;
+        continue;
+      }
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    const screenSpan = Math.max(Number.isFinite(minX) ? maxX - minX : 0, Number.isFinite(minY) ? maxY - minY : 0);
+    if (!clipped && screenSpan < 90) {
+      emitPathChunk(points3D, width, color, opts);
+      return;
+    }
+
+    const closed = !!opts.closed;
+    const segmentsPerChunk = Math.max(2, opts.chunkSegments || (closed ? 4 : 6));
+    const count = points3D.length;
+    const chunkOpts = {
+      ...opts,
+      closed: false,
+      cap: opts.cap || 'butt',
+    };
+    delete chunkOpts.chunkSegments;
+
+    if (closed) {
+      for (let start = 0; start < count; start += segmentsPerChunk) {
+        const segments = Math.min(segmentsPerChunk, count - start);
+        const chunk = [];
+        for (let i = 0; i <= segments; i++) chunk.push(points3D[(start + i) % count]);
+        emitPathChunk(chunk, width, color, chunkOpts);
+      }
+    } else {
+      for (let start = 0; start < count - 1; start += segmentsPerChunk) {
+        const end = Math.min(count - 1, start + segmentsPerChunk);
+        emitPathChunk(points3D.slice(start, end + 1), width, color, chunkOpts);
+      }
+    }
+  }
+
   function pushPoly3D(points3D, fill, stroke, opts = {}) {
     const pts = [];
     let depthSum = 0;
@@ -2301,6 +2378,38 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       alpha: opts.alpha ?? 1,
       dash: opts.dash || null,
     });
+  }
+
+  // Large body panels are split into small fill-only patches so a panel cannot
+  // jump wholesale across the linkage as the camera orbits.
+  function pushTriangleFill(a, b, c, fill, opts = {}, levels = 1) {
+    if (levels <= 0) {
+      pushPoly3D([a, b, c], fill, null, { ...opts, width: 0 });
+      return;
+    }
+    const ab = vlerp(a, b, 0.5);
+    const bc = vlerp(b, c, 0.5);
+    const ca = vlerp(c, a, 0.5);
+    pushTriangleFill(a, ab, ca, fill, opts, levels - 1);
+    pushTriangleFill(ab, b, bc, fill, opts, levels - 1);
+    pushTriangleFill(ca, bc, c, fill, opts, levels - 1);
+    pushTriangleFill(ab, bc, ca, fill, opts, levels - 1);
+  }
+
+  function pushQuadFillGrid(v00, v10, v11, v01, cols, rows, fill, opts = {}) {
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const u0 = col / cols;
+        const u1 = (col + 1) / cols;
+        const v0 = row / rows;
+        const v1 = (row + 1) / rows;
+        const a = vadd(vlerp(v00, v10, u0), vmul(vsub(vlerp(v01, v11, u0), vlerp(v00, v10, u0)), v0));
+        const b = vadd(vlerp(v00, v10, u1), vmul(vsub(vlerp(v01, v11, u1), vlerp(v00, v10, u1)), v0));
+        const c = vadd(vlerp(v00, v10, u1), vmul(vsub(vlerp(v01, v11, u1), vlerp(v00, v10, u1)), v1));
+        const d = vadd(vlerp(v00, v10, u0), vmul(vsub(vlerp(v01, v11, u0), vlerp(v00, v10, u0)), v1));
+        pushPoly3D([a, b, c, d], fill, null, { ...opts, width: 0 });
+      }
+    }
   }
 
   function circlePoints(center, u, w, radius, segments = 40, phase = 0) {
@@ -2328,7 +2437,27 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
   }
 
   function pushDisc(center, normal, radius, fill, stroke, opts = {}) {
-    const points = circleFromNormal(center, normal, radius, opts.segments || 44);
+    const segments = opts.segments || 44;
+    if (radius >= 120 && !opts.noSlice) {
+      // Split large discs into radial sectors so a tilted disc cannot jump as a
+      // whole in front of the upright, caliper or wheel hardware.
+      const basis = basisFromNormal(normal);
+      const sectors = opts.sectors || 24;
+      for (let i = 0; i < sectors; i++) {
+        const a0 = TAU * i / sectors;
+        const a1 = TAU * (i + 1) / sectors;
+        const arcPoints = [];
+        const arcSegments = Math.max(2, Math.ceil(segments / sectors));
+        for (let j = 0; j <= arcSegments; j++) {
+          const a = lerp(a0, a1, j / arcSegments);
+          arcPoints.push(vadd(center, vadd(vmul(basis.u, Math.cos(a) * radius), vmul(basis.w, Math.sin(a) * radius))));
+        }
+        pushPoly3D([center, ...arcPoints], fill, null, { ...opts, width: 0, alpha: opts.alpha ?? 1 });
+      }
+      if (stroke) pushRing(center, normal, radius, stroke, opts.width ?? 0.8, { segments });
+      return;
+    }
+    const points = circleFromNormal(center, normal, radius, segments);
     pushPoly3D(points, fill, stroke, { ...opts, width: opts.width ?? 0.8 });
   }
 
@@ -2815,7 +2944,12 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     const lbj = pose.lowerBall;
     const ubj = pose.upperBall;
 
-    pushPoly3D([lbj, ubj, hubCenter], 'rgba(113, 128, 134, 0.22)', 'rgba(149, 166, 171, 0.4)', { width: 0.8, bias: 18 });
+    pushTriangleFill(
+      lbj, ubj, hubCenter,
+      'rgba(113, 128, 134, 0.22)',
+      { bias: 18 },
+      1,
+    );
     pushTube(lbj, ubj, 15, MAT.knuckle, { edgeWidth: 1.2, bias: 1 });
     pushTube(lbj, hubIn, 22, MAT.knuckle, { edgeWidth: 1.2, bias: 2 });
     pushTube(ubj, hubCenter, 14, MAT.knuckle, { edgeWidth: 1.1, bias: 1 });
@@ -2891,6 +3025,8 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       outline: MAT.spring.edge,
       outlineWidth: 1.8,
       alpha: 0.98,
+      cap: 'round',
+      chunkSegments: 8,
     });
 
     // Mount eyes.
@@ -2960,17 +3096,17 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       pushTube(lowR, rearLegMid, 5.2, MAT.chassis, { edgeWidth: 0.7, alpha: 0.85 });
 
       // Broad, dark inner-fender surface. Kept translucent to preserve linkage legibility.
-      pushPoly3D(
-        [baseF, baseR, springTop],
+      pushTriangleFill(
+        baseF, baseR, springTop,
         'rgba(19, 27, 31, 0.62)',
-        'rgba(61, 80, 89, 0.48)',
-        { width: 0.8, alpha: 0.88, bias: 30 },
+        { alpha: 0.88, bias: 30 },
+        1,
       );
-      pushPoly3D(
-        [frontLegMid, rearLegMid, springTop],
+      pushTriangleFill(
+        frontLegMid, rearLegMid, springTop,
         'rgba(25, 35, 40, 0.34)',
-        'rgba(74, 94, 103, 0.35)',
-        { width: 0.7, alpha: 0.75, bias: 24 },
+        { alpha: 0.75, bias: 24 },
+        1,
       );
 
       // Upper arm mounting bridges. These reach from the tower face to the pivot axis.
@@ -3016,12 +3152,12 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     pushTube(v(-236, 250, 155), v(236, 250, 155), 7, MAT.chassisLight, { edgeWidth: 0.8 });
     pushTube(v(-184, 244, 298), v(-184, 244, -330), 5, MAT.chassis, { edgeWidth: 0.7, alpha: 0.7 });
 
-    // Firewall: a dark recessed plane with a visible structural perimeter.
-    pushPoly3D(
-      [v(-184, 238, -348), v(184, 238, -348), v(184, 600, -348), v(-184, 600, -348)],
+    // Firewall: a dark recessed plane, subdivided so its fill sorts locally.
+    pushQuadFillGrid(
+      v(-184, 238, -348), v(184, 238, -348), v(184, 600, -348), v(-184, 600, -348),
+      5, 4,
       'rgba(13, 19, 22, 0.72)',
-      'rgba(52, 69, 76, 0.42)',
-      { width: 0.8, bias: 36, alpha: 0.9 },
+      { alpha: 0.9 },
     );
     pushTube(v(-184, 238, -350), v(-184, 600, -350), 6.5, MAT.chassis, { edgeWidth: 0.8 });
     pushTube(v(184, 238, -350), v(184, 600, -350), 6.5, MAT.chassis, { edgeWidth: 0.8 });
@@ -4351,6 +4487,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 
   init();
 })();
+
 
 </script>
 </body>
