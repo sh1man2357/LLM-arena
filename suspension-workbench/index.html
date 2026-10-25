@@ -3,8 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0f11'/%3E%3Cpath d='M6 25V7h6l4 11 4-11h6v18h-4V12l-4 10h-4l-4-10v13z' fill='%23e37a30'/%3E%3C/svg%3E">
+<script>
+(() => {
+  try {
+    const saved = localStorage.getItem('dw-front-theme');
+    document.documentElement.dataset.theme = saved === 'light' ? 'light' : 'dark';
+  } catch (error) {
+    document.documentElement.dataset.theme = 'dark';
+  }
+})();
+</script>
 <title>双叉臂悬架运动学工作台 / DW-FRONT</title>
 <style>
 :root {
@@ -198,6 +208,49 @@ svg { display: block; }
 }
 .top-state-copy span.good { color: var(--ok); }
 .top-state-copy span.bad { color: var(--danger); }
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: 7px;
+  height: 28px;
+  margin-left: 10px;
+  padding: 0 9px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  font: 8px/1 var(--mono);
+  letter-spacing: 0.055em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent-hi);
+  background: var(--accent-dim);
+}
+.theme-toggle:active { background: var(--panel-2); }
+.theme-toggle .theme-glyph {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border: 1px solid currentColor;
+  background: linear-gradient(90deg, currentColor 0 50%, transparent 50% 100%);
+}
+.theme-toggle .theme-cn {
+  color: var(--dim);
+  font-family: var(--sans);
+  font-size: 8px;
+  font-style: normal;
+  letter-spacing: 0.02em;
+}
+.theme-toggle .theme-divider { color: var(--dim); font-size: 8px; }
+.theme-toggle:hover .theme-cn { color: var(--muted); }
+.theme-toggle[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-hi); }
+.theme-toggle[aria-pressed="true"] .theme-glyph {
+  background: linear-gradient(90deg, transparent 0 50%, currentColor 50% 100%);
+}
 
 /* ------------------------------------------------------------- workspace */
 .workspace {
@@ -1084,6 +1137,10 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 @media (max-width: 1380px) {
   .brand { width: 260px; flex-basis: 260px; }
   .brand-copy p { font-size: 7.5px; letter-spacing: 0.03em; }
+  .theme-toggle { margin-left: 6px; padding: 0 8px; gap: 5px; }
+  .theme-toggle .theme-en,
+  .theme-toggle .theme-divider { display: none; }
+  .theme-toggle .theme-cn { color: var(--muted); }
   .workspace { grid-template-columns: 260px minmax(0, 1fr) 310px; }
   .meta-cell { min-width: 110px; padding: 0 12px; }
   .meta-cell:last-of-type { display: none; }
@@ -1126,6 +1183,87 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 .mono { font-family: var(--mono); }
 .hot { color: var(--accent-hi); }
 .dim { color: var(--dim); }
+/* -------------------------------------------------------------- light theme */
+:root { color-scheme: dark; }
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #dfe4e3;
+  --panel: #f3f5f4;
+  --panel-2: #eef2f1;
+  --panel-3: #f8faf9;
+  --deep: #e5e9e8;
+  --line: #c4cfd0;
+  --line-soft: #dbe2e1;
+  --line-strong: #a5b2b4;
+  --text: #2c383d;
+  --text-hi: #111a1d;
+  --muted: #5b696e;
+  --dim: #78858a;
+  --accent: #bc5719;
+  --accent-hi: #9e430b;
+  --accent-dim: rgba(188, 87, 25, 0.11);
+  --cyan: #146e76;
+  --cyan-hi: #0c555b;
+  --cyan-dim: rgba(20, 110, 118, 0.1);
+  --amber: #8b6110;
+  --amber-hi: #705007;
+  --ok: #587843;
+  --warn: #946210;
+  --danger: #ad463c;
+}
+html[data-theme="light"] { background: var(--bg); }
+[data-theme="light"] .topbar { background: #e8eceb; }
+[data-theme="light"] .brand-mark::after { border-color: #89979a; }
+[data-theme="light"] .rail-scroll { scrollbar-color: #a8b5b8 #edf1f0; }
+[data-theme="light"] .rail-scroll::-webkit-scrollbar-track { background: #edf1f0; }
+[data-theme="light"] .rail-scroll::-webkit-scrollbar-thumb { background: #a8b5b8; border-color: #edf1f0; }
+[data-theme="light"] .section-head { background: #e9eeec; }
+[data-theme="light"] .section-head .idx { border-color: #d6bfae; }
+[data-theme="light"] .segmented button { background: #eef2f1; }
+[data-theme="light"] .segmented button:hover { background: #e3e9e7; }
+[data-theme="light"] .btn { background: #edf1ef; }
+[data-theme="light"] .btn:hover { border-color: #8b999c; background: #e3e9e7; }
+[data-theme="light"] .btn:active { background: #dbe2e0; }
+[data-theme="light"] .toggle { border-bottom-color: #e2e7e6; }
+[data-theme="light"] .toggle:hover { background: #edf1ef; }
+[data-theme="light"] .toggle .box { border-color: #95a4a7; background: #f9fbfa; }
+[data-theme="light"] .legend-swatch { border-color: #d6dedd; background: #eef2f1; }
+[data-theme="light"] .rigid-swatch::before { background: #617278; border-top-color: #f2f6f5; border-bottom-color: #344247; }
+[data-theme="light"] .node-swatch::before { background: #f4f7f6; }
+[data-theme="light"] .node-swatch::after { background: #cdd7d8; }
+[data-theme="light"] .compliant-swatch svg path { stroke: var(--amber); }
+[data-theme="light"] .model-stats > div { background: #eef2f1; }
+[data-theme="light"] .stage-toolbar { background: #e9eeec; }
+[data-theme="light"] .view-tab:hover { background: #e2e8e6; }
+[data-theme="light"] .view-tab.active { background: #f2f5f4; }
+[data-theme="light"] .tool-btn:hover { border-color: #819094; }
+[data-theme="light"] .tool-btn:active { background: #e1e7e5; }
+[data-theme="light"] .viewport { background: #e7ebea; }
+[data-theme="light"] .live-hud { background: rgba(247, 249, 248, 0.78); }
+[data-theme="light"] .vp-legend { background: rgba(247, 249, 248, 0.82); border-color: rgba(132, 148, 152, 0.5); }
+[data-theme="light"] .plan-card { background: rgba(246, 248, 247, 0.97); border-color: #aab7b9; }
+[data-theme="light"] .metric .m-label em { color: #5f6f74; }
+[data-theme="light"] .metric .m-foot { color: #7b888c; }
+[data-theme="light"] .chart-tab:hover { background: #e6ecea; }
+[data-theme="light"] .chart-tab.active { background: #edf2f0; }
+[data-theme="light"] .spring-track { border-color: #b3c0c2; background: repeating-linear-gradient(90deg, #d7dfde 0 1px, transparent 1px 12px); }
+[data-theme="light"] .spring-fill { background: rgba(180, 130, 18, 0.18); }
+[data-theme="light"] .spring-scale-foot { color: #77858a; }
+[data-theme="light"] .axis-row { border-bottom-color: #e2e7e6; }
+[data-theme="light"] .axis-row span em { color: #68777c; }
+[data-theme="light"] .method-note { background: #edf1ef; border-left-color: #a6b3b7; }
+[data-theme="light"] .statusbar { background: #e8eceb; }
+[data-theme="light"] input[type="range"]::-webkit-slider-runnable-track {
+  background: linear-gradient(90deg, var(--accent) 0 var(--fill), #b7c3c4 var(--fill) 100%);
+}
+[data-theme="light"] input[type="range"]::-moz-range-track {
+  background: linear-gradient(90deg, var(--accent) 0 var(--fill), #b7c3c4 var(--fill) 100%);
+}
+[data-theme="light"] .plan-head .plan-rack { color: var(--cyan); }
+[data-theme="light"] .chart-foot .chart-now { color: var(--accent-hi); }
+[data-theme="light"] .led::before { opacity: 0.3; }
+[data-theme="light"] .lg-rigid::before { background: #56686e; }
+
 </style>
 </head>
 <body>
@@ -1145,6 +1283,10 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       <div class="meta-cell"><span>RIG</span><b>BODY-FIXED</b></div>
       <div class="meta-cell"><span>UNITS</span><b>MM · DEG</b></div>
     </div>
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="切换到浅色主题" aria-pressed="false" title="切换界面明暗 / Toggle theme">
+      <span class="theme-glyph" aria-hidden="true"></span>
+      <span id="theme-toggle-label"><span class="theme-en">LIGHT</span><span class="theme-divider"> / </span><em class="theme-cn">浅色</em></span>
+    </button>
     <div class="top-state">
       <span class="led ok" id="solver-led" aria-hidden="true"></span>
       <div class="top-state-copy">
@@ -1364,7 +1506,8 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     <span id="footer-axis">X LATERAL · Y VERTICAL · Z LONGITUDINAL</span>
   </footer>
 </div>
-<script>
+<script id="app-script">
+
 
 
 (() => {
@@ -1382,6 +1525,9 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
   const RAD = PI / 180;
   const clamp = (value, lo, hi) => Math.min(hi, Math.max(lo, value));
   const lerp = (a, b, t) => a + (b - a) * t;
+
+  const THEME_KEY = 'dw-front-theme';
+  let uiTheme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
 
   const v = (x, y, z) => ({ x, y, z });
   const vadd = (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
@@ -1983,12 +2129,43 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     footerFrame: document.getElementById('footer-frame'),
     scene: document.getElementById('scene'),
     viewport: document.getElementById('viewport'),
+    themeToggle: document.getElementById('theme-toggle'),
+    themeLabel: document.getElementById('theme-toggle-label'),
   };
 
   const ACTIVE_MODEL = () => MODEL_BY_SIDE.get(state.side);
 
   function rackTravel() {
     return state.steerDeg / 360 * GEOM.steeringRatio;
+  }
+
+  function syncThemeUI() {
+    if (!dom.themeToggle) return;
+    const light = uiTheme === 'light';
+    dom.themeToggle.setAttribute('aria-pressed', String(light));
+    dom.themeToggle.setAttribute('aria-label', light ? '切换到深色主题' : '切换到浅色主题');
+    dom.themeToggle.title = light ? '切换为深色 / Switch to dark' : '切换为浅色 / Switch to light';
+    dom.themeLabel.innerHTML = light
+      ? '<span class="theme-en">DARK</span><span class="theme-divider"> / </span><em class="theme-cn">深色</em>'
+      : '<span class="theme-en">LIGHT</span><span class="theme-divider"> / </span><em class="theme-cn">浅色</em>';
+  }
+
+  function applyTheme(mode, persist = false) {
+    uiTheme = mode === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = uiTheme;
+    document.documentElement.style.colorScheme = uiTheme;
+    MAT = uiTheme === 'light' ? MAT_LIGHT : MAT_DARK;
+    SCENE = SCENE_THEMES[uiTheme];
+    chartState.key = '';
+    syncThemeUI();
+    if (persist) {
+      try { localStorage.setItem(THEME_KEY, uiTheme); } catch (error) { /* local file privacy mode */ }
+    }
+    if (state.ready) updateChart(true);
+  }
+
+  function toggleTheme() {
+    applyTheme(uiTheme === 'light' ? 'dark' : 'light', true);
   }
 
   /* ======================================================================
@@ -2175,7 +2352,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
   }
 
   /* ------------------------------------------------------------- materials */
-  const MAT = {
+  const MAT_DARK = {
     arm: { edge: '#050809', fill: '#aebabe', hi: '#f1f6f7', hiAlpha: 0.58 },
     armLower: { edge: '#040708', fill: '#bcc7ca', hi: '#f7fbfc', hiAlpha: 0.62 },
     armWeb: { fill: 'rgba(151, 165, 170, 0.17)', edge: 'rgba(188, 202, 207, 0.34)' },
@@ -2201,6 +2378,34 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     gridAxis: '#3a5057',
   };
 
+  const MAT_LIGHT = {
+    arm: { edge: '#0d1416', fill: '#66777c', hi: '#f0f6f7', hiAlpha: 0.76 },
+    armLower: { edge: '#0b1214', fill: '#738389', hi: '#f5f9fa', hiAlpha: 0.8 },
+    armWeb: { fill: 'rgba(60, 76, 82, 0.2)', edge: 'rgba(44, 59, 64, 0.4)' },
+    knuckle: { edge: '#0b1214', fill: '#4b5b60', hi: '#d3dfe2', hiAlpha: 0.55 },
+    knuckleDark: { edge: '#0b1214', fill: '#354247', hi: '#78898f', hiAlpha: 0.4 },
+    hub: { edge: '#0b1214', fill: '#3b484d', hi: '#9aabb0', hiAlpha: 0.45 },
+    chassis: { edge: '#0b1214', fill: '#4b595e', hi: '#9babb0', hiAlpha: 0.38 },
+    chassisLight: { edge: '#0b1214', fill: '#58676c', hi: '#a5b5ba', hiAlpha: 0.4 },
+    bushing: { edge: '#080d0f', fill: '#222c30', hi: '#566970', hiAlpha: 0.34 },
+    tie: { edge: '#082126', fill: '#0c7982', hi: '#b7f3f6', hiAlpha: 0.7 },
+    tieDark: { edge: '#081c20', fill: '#185159', hi: '#4c8e95', hiAlpha: 0.3 },
+    spring: { edge: '#241a04', fill: '#a87c12', hi: '#f6de90', hiAlpha: 0.72 },
+    damper: { edge: '#0b1214', fill: '#3d4a50', hi: '#85969d', hiAlpha: 0.4 },
+    shaft: { edge: '#0d1416', fill: '#7b8c92', hi: '#f2f7f8', hiAlpha: 0.65 },
+    brake: { edge: '#0d1416', fill: '#4e5b60', hi: '#a5b5ba', hiAlpha: 0.3 },
+    caliper: { edge: '#281309', fill: '#98481b', hi: '#eaa16a', hiAlpha: 0.44 },
+    rim: { edge: '#0a1113', fill: '#344247', hi: '#c6d3d7', hiAlpha: 0.55 },
+    rimDark: { edge: '#0a1113', fill: '#222d31', hi: '#60757c', hiAlpha: 0.36 },
+    rack: { edge: '#0a1113', fill: '#3b484d', hi: '#a8b6ba', hiAlpha: 0.42 },
+    boot: { edge: '#0a1113', fill: '#1b2327', hi: '#4b5e64', hiAlpha: 0.34 },
+    grid: '#8c999d',
+    gridMajor: '#75868b',
+    gridAxis: '#63777e',
+  };
+
+  let MAT = uiTheme === 'light' ? MAT_LIGHT : MAT_DARK;
+
   const NODE = {
     steel: { edge: '#06090a', fill: '#1b2427', ring: '#d7e1e4', core: '#9eacb1' },
     dark: { edge: '#040607', fill: '#182024', ring: '#5a6b73', core: '#829198' },
@@ -2214,6 +2419,208 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     '#12181a', '#151c1e', '#182023', '#1c2528', '#202a2d', '#253034',
     '#2a363a', '#303d41', '#364448', '#3c4b4f', '#435257', '#4a5a5f',
   ];
+
+  /* ------------------------------------------------------------- palettes */
+  const SCENE_THEMES = {
+    dark: {
+      background: '#080b0d',
+      grid: {
+        minor: 'rgba(35, 49, 55, 0.28)',
+        major: 'rgba(62, 84, 92, 0.38)',
+        axis: 'rgba(67, 96, 104, 0.55)',
+        border: 'rgba(74, 99, 107, 0.38)',
+        label: 'rgba(103, 124, 132, 0.8)',
+        datum: 'rgba(89, 109, 116, 0.75)',
+      },
+      textHalo: 'rgba(5, 8, 9, 0.88)',
+      labelLeader: 'rgba(120, 140, 148, 0.46)',
+      labels: {
+        neutral: 'rgba(232, 240, 242, .97)',
+        tie: 'rgba(104, 221, 229, .98)',
+        tieDim: 'rgba(104, 221, 229, .94)',
+        spring: 'rgba(232, 202, 116, .96)',
+        arm: 'rgba(166, 181, 187, .82)',
+        axis: 'rgba(234, 198, 104, .96)',
+      },
+      traces: {
+        envelopeFill: 'rgba(218, 179, 75, 0.035)',
+        envelopeEdge: 'rgba(218, 179, 75, 0.24)',
+        ghost: 'rgba(225, 185, 82, 0.95)',
+        stationMajor: 'rgba(228, 191, 96, 0.7)',
+        stationDim: 'rgba(228, 191, 96, 0.34)',
+        stationGround: 'rgba(231, 193, 96, 0.7)',
+        stationLabel: 'rgba(221, 188, 98, 0.8)',
+        locus: 'rgba(233, 195, 93, 0.82)',
+        locusText: 'rgba(231, 195, 99, 0.9)',
+        jointUpper: 'rgba(108, 204, 213, 0.58)',
+        jointLower: 'rgba(186, 201, 206, 0.45)',
+        jointUpperMark: 'rgba(108, 204, 213, 0.65)',
+        jointLowerMark: 'rgba(186, 201, 206, 0.5)',
+        travel: 'rgba(93, 180, 190, 0.58)',
+        travelBright: 'rgba(93, 180, 190, 0.8)',
+        axisHalo: 'rgba(216, 178, 77, 0.12)',
+        axis: 'rgba(239, 201, 103, 0.96)',
+        tick: 'rgba(239, 201, 103, 0.8)',
+        arc: 'rgba(216, 178, 77, 0.55)',
+      },
+      hud: {
+        border: 'rgba(74, 92, 99, .45)',
+        text: 'rgba(95, 114, 121, .8)',
+        state: 'rgba(123, 142, 149, .74)',
+        axisX: '#5eb9c4',
+        axisY: '#9cbd83',
+        axisZ: '#d4ab55',
+      },
+      tire: {
+        sideAlpha: 0.115,
+        inboardAlpha: 0.1,
+        treadAlpha: 0.82,
+        selectedRing: 'rgba(227, 122, 48, 0.58)',
+        selectedHalo: 'rgba(227, 122, 48, 0.14)',
+      },
+      plan: {
+        guide: 'rgba(55, 72, 79, .55)',
+        guideText: 'rgba(102, 123, 131, .75)',
+        tireFill: 'rgba(128, 147, 154, .045)',
+        tireSelectedFill: 'rgba(227, 122, 48, .075)',
+        tireStroke: 'rgba(133, 153, 160, .54)',
+        tireSelectedStroke: 'rgba(233, 135, 62, .92)',
+        tread: 'rgba(128, 147, 154, .25)',
+        treadSelected: 'rgba(227, 122, 48, .4)',
+        label: 'rgba(131, 149, 156, .75)',
+        labelSelected: '#ef914d',
+        rackOutline: '#1a2326',
+        rackBody: 'rgba(132, 151, 158, .85)',
+        rackDatum: 'rgba(92, 114, 122, .8)',
+        rackTravel: 'rgba(227, 122, 48, .8)',
+        pinionStroke: 'rgba(128, 149, 156, .8)',
+        pinionFill: 'rgba(17, 25, 28, .9)',
+        rackLabel: 'rgba(94, 114, 122, .8)',
+        tieSelected: 'rgba(101, 225, 235, .96)',
+        tie: 'rgba(76, 168, 178, .64)',
+        tieNodeSelected: '#e9873d',
+        tieNode: 'rgba(112, 198, 206, .75)',
+        scale: 'rgba(91, 111, 118, .7)',
+        scaleText: 'rgba(91, 111, 118, .75)',
+      },
+      chart: {
+        plotBg: 'rgba(5, 9, 10, .3)',
+        plotBorder: 'rgba(43, 57, 63, .7)',
+        grid: 'rgba(43, 57, 63, .55)',
+        zero: 'rgba(99, 121, 129, .58)',
+        yText: 'rgba(126, 145, 152, .86)',
+        xText: 'rgba(111, 130, 138, .82)',
+        axisTitle: 'rgba(94, 112, 119, .7)',
+        unit: 'rgba(120, 139, 146, .74)',
+        area: 'rgba(227, 122, 48, .055)',
+        series: '#e37a30',
+        tick: 'rgba(225, 168, 122, .65)',
+        cursor: 'rgba(95, 193, 203, .72)',
+        marker: '#e9873d',
+        markerStroke: '#0a0d0f',
+      },
+    },
+    light: {
+      background: '#e8eceb',
+      grid: {
+        minor: 'rgba(83, 104, 110, 0.14)',
+        major: 'rgba(65, 86, 93, 0.24)',
+        axis: 'rgba(53, 75, 82, 0.36)',
+        border: 'rgba(81, 101, 108, 0.26)',
+        label: 'rgba(58, 78, 85, 0.8)',
+        datum: 'rgba(73, 92, 99, 0.75)',
+      },
+      textHalo: 'rgba(245, 249, 247, 0.92)',
+      labelLeader: 'rgba(83, 101, 108, 0.55)',
+      labels: {
+        neutral: 'rgba(24, 36, 41, .98)',
+        tie: 'rgba(7, 87, 95, .98)',
+        tieDim: 'rgba(8, 93, 101, .94)',
+        spring: 'rgba(99, 69, 7, .98)',
+        arm: 'rgba(57, 74, 80, .9)',
+        axis: 'rgba(108, 75, 8, .98)',
+      },
+      traces: {
+        envelopeFill: 'rgba(143, 102, 16, 0.05)',
+        envelopeEdge: 'rgba(137, 99, 20, 0.32)',
+        ghost: 'rgba(141, 100, 14, 0.9)',
+        stationMajor: 'rgba(122, 87, 12, 0.85)',
+        stationDim: 'rgba(122, 87, 12, 0.45)',
+        stationGround: 'rgba(128, 91, 15, 0.8)',
+        stationLabel: 'rgba(106, 76, 9, 0.9)',
+        locus: 'rgba(135, 95, 12, 0.9)',
+        locusText: 'rgba(99, 71, 7, 0.96)',
+        jointUpper: 'rgba(14, 103, 111, 0.64)',
+        jointLower: 'rgba(70, 88, 94, 0.52)',
+        jointUpperMark: 'rgba(14, 103, 111, 0.75)',
+        jointLowerMark: 'rgba(70, 88, 94, 0.58)',
+        travel: 'rgba(14, 104, 112, 0.62)',
+        travelBright: 'rgba(14, 104, 112, 0.88)',
+        axisHalo: 'rgba(150, 110, 20, 0.18)',
+        axis: 'rgba(123, 87, 9, 0.96)',
+        tick: 'rgba(123, 87, 9, 0.86)',
+        arc: 'rgba(141, 101, 14, 0.62)',
+      },
+      hud: {
+        border: 'rgba(91, 109, 116, .46)',
+        text: 'rgba(67, 84, 91, .84)',
+        state: 'rgba(79, 97, 104, .8)',
+        axisX: '#126c79',
+        axisY: '#587743',
+        axisZ: '#896313',
+      },
+      tire: {
+        sideAlpha: 0.24,
+        inboardAlpha: 0.19,
+        treadAlpha: 0.9,
+        selectedRing: 'rgba(164, 69, 11, 0.96)',
+        selectedHalo: 'rgba(164, 69, 11, 0.26)',
+      },
+      plan: {
+        guide: 'rgba(62, 81, 88, .68)',
+        guideText: 'rgba(57, 74, 81, .95)',
+        tireFill: 'rgba(67, 87, 94, .06)',
+        tireSelectedFill: 'rgba(180, 78, 17, .1)',
+        tireStroke: 'rgba(63, 82, 89, .7)',
+        tireSelectedStroke: 'rgba(154, 67, 12, .96)',
+        tread: 'rgba(65, 84, 91, .36)',
+        treadSelected: 'rgba(180, 78, 17, .5)',
+        label: 'rgba(55, 73, 80, .95)',
+        labelSelected: '#9b400a',
+        rackOutline: '#334247',
+        rackBody: 'rgba(52, 71, 78, .95)',
+        rackDatum: 'rgba(55, 74, 81, .9)',
+        rackTravel: 'rgba(159, 66, 10, .95)',
+        pinionStroke: 'rgba(55, 74, 81, .95)',
+        pinionFill: 'rgba(247, 250, 249, .98)',
+        rackLabel: 'rgba(51, 69, 76, .95)',
+        tieSelected: 'rgba(6, 82, 89, .98)',
+        tie: 'rgba(12, 88, 95, .8)',
+        tieNodeSelected: '#a6450b',
+        tieNode: 'rgba(14, 91, 98, .9)',
+        scale: 'rgba(60, 79, 86, .85)',
+        scaleText: 'rgba(58, 77, 84, .95)',
+      },
+      chart: {
+        plotBg: 'rgba(250, 252, 251, .7)',
+        plotBorder: 'rgba(117, 135, 139, .82)',
+        grid: 'rgba(117, 135, 139, .45)',
+        zero: 'rgba(75, 94, 101, .62)',
+        yText: 'rgba(62, 81, 88, .96)',
+        xText: 'rgba(62, 81, 88, .92)',
+        axisTitle: 'rgba(70, 88, 95, .92)',
+        unit: 'rgba(70, 88, 95, .92)',
+        area: 'rgba(188, 87, 25, .07)',
+        series: '#a9490f',
+        tick: 'rgba(146, 87, 35, .72)',
+        cursor: 'rgba(12, 95, 103, .78)',
+        marker: '#a6450b',
+        markerStroke: '#f4f7f6',
+      },
+    },
+  };
+
+  let SCENE = SCENE_THEMES[uiTheme];
 
   /* ------------------------------------------------------------- primitives
      Painter sorting is performed per small depth slice rather than per whole
@@ -2631,7 +3038,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       const a = project(v(x, y, -zLimit));
       const b = project(v(x, y, zLimit));
       if (!a || !b) continue;
-      ctx.strokeStyle = major ? 'rgba(62, 84, 92, 0.38)' : 'rgba(35, 49, 55, 0.28)';
+      ctx.strokeStyle = major ? SCENE.grid.major : SCENE.grid.minor;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -2643,7 +3050,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       const a = project(v(-xLimit, y, z));
       const b = project(v(xLimit, y, z));
       if (!a || !b) continue;
-      ctx.strokeStyle = major ? 'rgba(62, 84, 92, 0.38)' : 'rgba(35, 49, 55, 0.28)';
+      ctx.strokeStyle = major ? SCENE.grid.major : SCENE.grid.minor;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -2655,7 +3062,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     const xb = project(v(xLimit, y, 0));
     const za = project(v(0, y, -zLimit));
     const zb = project(v(0, y, zLimit));
-    ctx.strokeStyle = 'rgba(67, 96, 104, 0.55)';
+    ctx.strokeStyle = SCENE.grid.axis;
     if (xa && xb) {
       ctx.beginPath(); ctx.moveTo(xa.x, xa.y); ctx.lineTo(xb.x, xb.y); ctx.stroke();
     }
@@ -2671,7 +3078,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       project(v(-xLimit, y, zLimit)),
     ];
     if (corners.every(Boolean)) {
-      ctx.strokeStyle = 'rgba(74, 99, 107, 0.38)';
+      ctx.strokeStyle = SCENE.grid.border;
       ctx.beginPath();
       corners.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
       ctx.closePath();
@@ -2680,7 +3087,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 
     // Floor ticks and labels
     ctx.font = '8px "Cascadia Mono", Consolas, monospace';
-    ctx.fillStyle = 'rgba(103, 124, 132, 0.8)';
+    ctx.fillStyle = SCENE.grid.label;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const labelX = project(v(xLimit + 28, y, 0));
@@ -2692,7 +3099,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     }
     const datum = project(v(-xLimit, y, zLimit));
     if (datum) {
-      ctx.fillStyle = 'rgba(89, 109, 116, 0.75)';
+      ctx.fillStyle = SCENE.grid.datum;
       ctx.textAlign = 'left';
       ctx.fillText('RIG DATUM  Y −100', datum.x + 6, datum.y - 8);
     }
@@ -2754,9 +3161,10 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
         // inboard shell remain solid enough to preserve the tyre silhouette.
         let alpha = 1;
         if (xray) {
-          if (axialMid > 58) alpha = 0.115;
-          else if (axialMid < -58) alpha = 0.1;
-          else alpha = 0.82;
+          const TI = SCENE.tire;
+          if (axialMid > 58) alpha = TI.sideAlpha;
+          else if (axialMid < -58) alpha = TI.inboardAlpha;
+          else alpha = TI.treadAlpha;
         }
         pushPoly3D([v00, v10, v11, v01], TIRE_SHADES[level], TIRE_SHADES[level], {
           width: xray ? 0 : 0.5,
@@ -2834,8 +3242,8 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 
     if (selected) {
       const markerCenter = vadd(pose.wheelCenter, vmul(axis, 118));
-      pushRingBasis(markerCenter, up, side, 326, 'rgba(227, 122, 48, 0.58)', 1.25, { segments: 56 });
-      pushRingBasis(markerCenter, up, side, 333, 'rgba(227, 122, 48, 0.14)', 0.8, { segments: 56 });
+      pushRingBasis(markerCenter, up, side, 326, SCENE.tire.selectedRing, 1.25, { segments: 56 });
+      pushRingBasis(markerCenter, up, side, 333, SCENE.tire.selectedHalo, 0.8, { segments: 56 });
     }
 
     // Barrel lips.
@@ -3277,7 +3685,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     ctx.textBaseline = baseline;
     ctx.lineJoin = 'round';
     if (stroke) {
-      ctx.strokeStyle = 'rgba(5, 8, 9, 0.88)';
+      ctx.strokeStyle = SCENE.textHalo;
       ctx.lineWidth = 3;
       ctx.strokeText(text, x, y);
     }
@@ -3299,6 +3707,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     const model = ACTIVE_MODEL();
     const pose = state.poses ? (state.side === 1 ? state.poses.right : state.poses.left) : null;
     if (!pose || !model) return;
+    const T = SCENE.traces;
 
     const kGround = axisIntersection(pose, GEOM.tracePlaneY);
     const axis = vnorm(vsub(pose.upperBall, pose.lowerBall));
@@ -3328,9 +3737,9 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
         ctx.lineTo(envGroundB.x, envGroundB.y);
         ctx.lineTo(envGroundA.x, envGroundA.y);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(218, 179, 75, 0.035)';
+        ctx.fillStyle = T.envelopeFill;
         ctx.fill();
-        ctx.strokeStyle = 'rgba(218, 179, 75, 0.24)';
+        ctx.strokeStyle = T.envelopeEdge;
         ctx.lineWidth = 0.75;
         ctx.setLineDash([4, 5]);
         ctx.stroke();
@@ -3349,9 +3758,9 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
         if (!p1 || !p2) continue;
         const major = Math.abs(entry.bump) % 40 < 1e-6;
         const emphasis = Math.abs(entry.bump) < 1 ? 0.48 : major ? 0.32 : 0.19;
-        drawScreenLine(p1.x, p1.y, p2.x, p2.y, 'rgba(225,185,82,0.95)', major ? 1.0 : 0.8, [3, 5], emphasis);
+        drawScreenLine(p1.x, p1.y, p2.x, p2.y, T.ghost, major ? 1.0 : 0.8, [3, 5], emphasis);
         ctx.save();
-        ctx.fillStyle = `rgba(228, 191, 96, ${major ? 0.7 : 0.34})`;
+        ctx.fillStyle = major ? T.stationMajor : T.stationDim;
         ctx.fillRect(p1.x - 1.5, p1.y - 1.5, 3, 3);
         ctx.restore();
       }
@@ -3361,12 +3770,12 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
         const gp = project(g);
         if (!gp) continue;
         ctx.save();
-        ctx.strokeStyle = 'rgba(231,193,96,.7)';
+        ctx.strokeStyle = T.stationGround;
         ctx.lineWidth = 1;
         ctx.strokeRect(gp.x - 2.5, gp.y - 2.5, 5, 5);
         ctx.restore();
         if (Math.abs(entry.bump) === 0 || Math.abs(entry.bump) === 80) {
-          drawScreenText(signed(entry.bump, 0), gp.x + 7, gp.y + 9, 'rgba(221, 188, 98, .8)', '6px "Cascadia Mono", Consolas, monospace');
+          drawScreenText(signed(entry.bump, 0), gp.x + 7, gp.y + 9, T.stationLabel, '6px "Cascadia Mono", Consolas, monospace');
         }
       }
 
@@ -3375,7 +3784,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       const projected = locus.map(project).filter(Boolean);
       if (projected.length > 1) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(233, 195, 93, 0.82)';
+        ctx.strokeStyle = T.locus;
         ctx.lineWidth = 1.8;
         ctx.setLineDash([]);
         ctx.beginPath();
@@ -3385,7 +3794,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       }
       const kp = project(kGround);
       if (kp) {
-        drawScreenText('KP GROUND LOCUS / SWEEP ±80', kp.x + 8, kp.y + 12, 'rgba(231, 195, 99, .9)', '7px "Cascadia Mono", Consolas, monospace');
+        drawScreenText('KP GROUND LOCUS / SWEEP ±80', kp.x + 8, kp.y + 12, T.locusText, '7px "Cascadia Mono", Consolas, monospace');
       }
 
       // Upper and lower ball-joint paths.
@@ -3395,13 +3804,13 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       ctx.lineWidth = 0.9;
       ctx.setLineDash([2, 4]);
       if (upperPath.length > 1) {
-        ctx.strokeStyle = 'rgba(108, 204, 213, .58)';
+        ctx.strokeStyle = T.jointUpper;
         ctx.beginPath();
         upperPath.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
         ctx.stroke();
       }
       if (lowerPath.length > 1) {
-        ctx.strokeStyle = 'rgba(186, 201, 206, .45)';
+        ctx.strokeStyle = T.jointLower;
         ctx.beginPath();
         lowerPath.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
         ctx.stroke();
@@ -3410,7 +3819,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 
       // Station squares along the two ball-joint paths.
       for (const entry of markerStations) {
-        for (const [point, color] of [[entry.pose.upperBall, 'rgba(108,204,213,.65)'], [entry.pose.lowerBall, 'rgba(186,201,206,.5)']]) {
+        for (const [point, color] of [[entry.pose.upperBall, T.jointUpperMark], [entry.pose.lowerBall, T.jointLowerMark]]) {
           const p = project(point);
           if (!p) continue;
           ctx.save();
@@ -3425,9 +3834,9 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       const y0 = project(designCenter);
       const y1 = project(pose.wheelCenter);
       if (y0 && y1) {
-        drawScreenLine(y0.x, y0.y, y1.x, y1.y, 'rgba(93, 180, 190, .58)', 1, [2, 3]);
-        drawScreenLine(y0.x - 5, y0.y, y0.x + 5, y0.y, 'rgba(93, 180, 190, .58)', 1);
-        drawScreenLine(y1.x - 5, y1.y, y1.x + 5, y1.y, 'rgba(93, 180, 190, .8)', 1);
+        drawScreenLine(y0.x, y0.y, y1.x, y1.y, T.travel, 1, [2, 3]);
+        drawScreenLine(y0.x - 5, y0.y, y0.x + 5, y0.y, T.travel, 1);
+        drawScreenLine(y1.x - 5, y1.y, y1.x + 5, y1.y, T.travelBright, 1);
       }
     }
 
@@ -3435,12 +3844,12 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       const pTop = project(axisTop);
       const pBottom = project(kGround);
       if (pTop && pBottom) {
-        drawScreenLine(pTop.x, pTop.y, pBottom.x, pBottom.y, 'rgba(216,178,77,0.12)', 6, null, 0.9);
-        drawScreenLine(pTop.x, pTop.y, pBottom.x, pBottom.y, 'rgba(239,201,103,0.96)', 1.5, [9, 5]);
+        drawScreenLine(pTop.x, pTop.y, pBottom.x, pBottom.y, T.axisHalo, 6, null, 0.9);
+        drawScreenLine(pTop.x, pTop.y, pBottom.x, pBottom.y, T.axis, 1.5, [9, 5]);
         const tick = 4;
-        drawScreenLine(pTop.x - tick, pTop.y, pTop.x + tick, pTop.y, 'rgba(239,201,103,.8)', 1);
-        drawScreenLine(pBottom.x - tick, pBottom.y, pBottom.x + tick, pBottom.y, 'rgba(239,201,103,.8)', 1);
-        drawScreenLine(pBottom.x, pBottom.y - tick, pBottom.x, pBottom.y + tick, 'rgba(239,201,103,.8)', 1);
+        drawScreenLine(pTop.x - tick, pTop.y, pTop.x + tick, pTop.y, T.tick, 1);
+        drawScreenLine(pBottom.x - tick, pBottom.y, pBottom.x + tick, pBottom.y, T.tick, 1);
+        drawScreenLine(pBottom.x, pBottom.y - tick, pBottom.x, pBottom.y + tick, T.tick, 1);
       }
     }
 
@@ -3458,7 +3867,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       const projectedArc = points.map(project).filter(Boolean);
       if (projectedArc.length > 1) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(216, 178, 77, 0.55)';
+        ctx.strokeStyle = T.arc;
         ctx.lineWidth = 0.9;
         ctx.beginPath();
         projectedArc.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
@@ -3488,14 +3897,14 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     };
 
     const labels = [
-      { point: axisTop, text: 'KP AXIS', priority: 1, color: 'rgba(234, 198, 104, .96)' },
-      { point: pose.upperBall, text: 'UBJ', priority: 1, color: 'rgba(232, 240, 242, .97)' },
-      { point: pose.lowerBall, text: 'LBJ', priority: 1, color: 'rgba(232, 240, 242, .97)' },
-      { point: pose.tieRodOuter, text: 'TRO', priority: 2, color: 'rgba(104, 221, 229, .98)' },
-      { point: pose.rackEnd, text: 'RACK', priority: 3, color: 'rgba(104, 221, 229, .94)' },
-      { point: vlerp(spring.bottom, spring.top, 0.55), text: 'COIL', priority: 2, color: 'rgba(232, 202, 116, .96)' },
-      { point: upperMid, text: 'UCA', priority: 4, color: 'rgba(166, 181, 187, .82)' },
-      { point: lowerMid, text: 'LCA', priority: 4, color: 'rgba(166, 181, 187, .82)' },
+      { point: axisTop, text: 'KP AXIS', priority: 1, color: SCENE.labels.axis },
+      { point: pose.upperBall, text: 'UBJ', priority: 1, color: SCENE.labels.neutral },
+      { point: pose.lowerBall, text: 'LBJ', priority: 1, color: SCENE.labels.neutral },
+      { point: pose.tieRodOuter, text: 'TRO', priority: 2, color: SCENE.labels.tie },
+      { point: pose.rackEnd, text: 'RACK', priority: 3, color: SCENE.labels.tieDim },
+      { point: vlerp(spring.bottom, spring.top, 0.55), text: 'COIL', priority: 2, color: SCENE.labels.spring },
+      { point: upperMid, text: 'UCA', priority: 4, color: SCENE.labels.arm },
+      { point: lowerMid, text: 'LCA', priority: 4, color: SCENE.labels.arm },
     ];
 
     ctx.save();
@@ -3552,7 +3961,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     }
 
     for (const label of placed) {
-      ctx.strokeStyle = 'rgba(120, 140, 148, 0.46)';
+      ctx.strokeStyle = SCENE.labelLeader;
       ctx.lineWidth = 0.7;
       ctx.beginPath();
       ctx.moveTo(label.p.x + label.dir * 3, label.p.y);
@@ -3573,13 +3982,13 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     // Axis triad, derived from the current camera orientation.
     const origin = v(rs.W - 55, 115);
     const axes = [
-      { axis: v(1, 0, 0), label: 'X', color: '#5eb9c4' },
-      { axis: v(0, 1, 0), label: 'Y', color: '#9cbd83' },
-      { axis: v(0, 0, 1), label: 'Z', color: '#d4ab55' },
+      { axis: v(1, 0, 0), label: 'X', color: SCENE.hud.axisX },
+      { axis: v(0, 1, 0), label: 'Y', color: SCENE.hud.axisY },
+      { axis: v(0, 0, 1), label: 'Z', color: SCENE.hud.axisZ },
     ];
     ctx.save();
     ctx.globalAlpha = 0.9;
-    ctx.strokeStyle = 'rgba(74, 92, 99, 0.45)';
+    ctx.strokeStyle = SCENE.hud.border;
     ctx.lineWidth = 1;
     ctx.strokeRect(origin.x - 30, origin.y - 24, 60, 46);
     ctx.restore();
@@ -3592,16 +4001,16 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       drawScreenLine(origin.x, origin.y, ex, ey, axis.color, 1, null, 0.9);
       drawScreenText(axis.label, ex + (dx >= 0 ? 4 : -4), ey + (dy >= 0 ? 4 : -4), axis.color, '7px "Cascadia Mono", Consolas, monospace', dx >= 0 ? 'left' : 'right');
     }
-    drawScreenText('MODEL AXIS', origin.x, origin.y + 32, 'rgba(95, 114, 121, .8)', '6.5px "Cascadia Mono", Consolas, monospace', 'center');
+    drawScreenText('MODEL AXIS', origin.x, origin.y + 32, SCENE.hud.text, '6.5px "Cascadia Mono", Consolas, monospace', 'center');
 
     // Ground-grid key.
-    drawScreenText('GRID 100 MM', 18, rs.H - 16, 'rgba(104, 123, 130, .7)', '7px "Cascadia Mono", Consolas, monospace', 'left');
+    drawScreenText('GRID 100 MM', 18, rs.H - 16, SCENE.hud.text, '7px "Cascadia Mono", Consolas, monospace', 'left');
 
     // Tiny state annotation under the HUD.
     drawScreenText(
       `${turn === 'C' ? 'STEER CENTRE' : `STEER ${turn}`}  /  ${mode}`,
       20, rs.H - 34,
-      'rgba(123, 142, 149, .74)', '7px "Cascadia Mono", Consolas, monospace',
+      SCENE.hud.state, '7px "Cascadia Mono", Consolas, monospace',
     );
   }
 
@@ -3610,7 +4019,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     advanceCamera(now);
     updateCameraBasis();
     ctx.setTransform(rs.dpr, 0, 0, rs.dpr, 0, 0);
-    ctx.fillStyle = '#080b0d';
+    ctx.fillStyle = SCENE.background;
     ctx.fillRect(0, 0, rs.W, rs.H);
 
     drawDatumGrid();
@@ -3931,6 +4340,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     chartState.unit = config.unit;
     chartState.current = config.value(currentMetric);
     chartState.step = step;
+    const C = SCENE.chart;
 
     const yTicks = [];
     for (let value = lo; value <= hi + step * 0.01; value += step) {
@@ -3942,38 +4352,38 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     const yFor = (value) => chartState.plotB - (value - lo) / (hi - lo || 1) * (chartState.plotB - chartState.plotT);
 
     let svg = '';
-    svg += `<rect x="${chartState.plotL}" y="${chartState.plotT}" width="${chartState.plotR - chartState.plotL}" height="${chartState.plotB - chartState.plotT}" fill="rgba(5,9,10,.3)" stroke="rgba(43,57,63,.7)" stroke-width=".8"/>`;
+    svg += `<rect x="${chartState.plotL}" y="${chartState.plotT}" width="${chartState.plotR - chartState.plotL}" height="${chartState.plotB - chartState.plotT}" fill="${C.plotBg}" stroke="${C.plotBorder}" stroke-width=".8"/>`;
 
     for (const value of yTicks) {
       const y = yFor(value).toFixed(2);
       const isZero = Math.abs(value) < step * 0.01;
-      svg += `<line x1="${chartState.plotL}" y1="${y}" x2="${chartState.plotR}" y2="${y}" stroke="${isZero ? 'rgba(99,121,129,.58)' : 'rgba(43,57,63,.55)'}" stroke-width=".7" ${isZero ? 'stroke-dasharray="3 3"' : ''}/>`;
-      svg += `<text x="${chartState.plotL - 5}" y="${Number(y) + 2.5}" fill="rgba(126,145,152,.86)" font-family="Cascadia Mono, Consolas, monospace" font-size="7" text-anchor="end">${axisNumber(value, step)}</text>`;
+      svg += `<line x1="${chartState.plotL}" y1="${y}" x2="${chartState.plotR}" y2="${y}" stroke="${isZero ? C.zero : C.grid}" stroke-width=".7" ${isZero ? 'stroke-dasharray="3 3"' : ''}/>`;
+      svg += `<text x="${chartState.plotL - 5}" y="${Number(y) + 2.5}" fill="${C.yText}" font-family="Cascadia Mono, Consolas, monospace" font-size="7" text-anchor="end">${axisNumber(value, step)}</text>`;
     }
 
     for (let bump = -GEOM.bumpLimit; bump <= GEOM.bumpLimit + 1e-9; bump += 40) {
       const x = xFor(bump).toFixed(2);
-      svg += `<line x1="${x}" y1="${chartState.plotT}" x2="${x}" y2="${chartState.plotB}" stroke="${bump === 0 ? 'rgba(74,94,101,.55)' : 'rgba(37,50,56,.55)'}" stroke-width=".7" ${bump === 0 ? 'stroke-dasharray="2 3"' : ''}/>`;
-      svg += `<text x="${x}" y="${chartState.plotB + 13}" fill="rgba(111,130,138,.82)" font-family="Cascadia Mono, Consolas, monospace" font-size="7" text-anchor="middle">${bump === 0 ? '0' : signed(bump, 0)}</text>`;
+      svg += `<line x1="${x}" y1="${chartState.plotT}" x2="${x}" y2="${chartState.plotB}" stroke="${bump === 0 ? C.zero : C.grid}" stroke-width=".7" ${bump === 0 ? 'stroke-dasharray="2 3"' : ''}/>`;
+      svg += `<text x="${x}" y="${chartState.plotB + 13}" fill="${C.xText}" font-family="Cascadia Mono, Consolas, monospace" font-size="7" text-anchor="middle">${bump === 0 ? '0' : signed(bump, 0)}</text>`;
     }
-    svg += `<text x="${chartState.plotR}" y="${chartState.plotT - 1}" fill="rgba(120,139,146,.74)" font-family="Cascadia Mono, Consolas, monospace" font-size="6.5" text-anchor="end">${config.unit}</text>`;
-    svg += `<text x="${chartState.plotL}" y="${chartState.plotB + 22}" fill="rgba(94,112,119,.7)" font-family="Cascadia Mono, Consolas, monospace" font-size="6.5">WHEEL TRAVEL / MM</text>`;
+    svg += `<text x="${chartState.plotR}" y="${chartState.plotT - 1}" fill="${C.unit}" font-family="Cascadia Mono, Consolas, monospace" font-size="6.5" text-anchor="end">${config.unit}</text>`;
+    svg += `<text x="${chartState.plotL}" y="${chartState.plotB + 22}" fill="${C.axisTitle}" font-family="Cascadia Mono, Consolas, monospace" font-size="6.5">WHEEL TRAVEL / MM</text>`;
 
     const points = entries.map((entry) => [xFor(entry.bump), yFor(config.previous(entry))]);
     if (points.length > 1) {
       const lineD = points.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
       const areaD = `${lineD} L${points[points.length - 1][0].toFixed(2)},${chartState.plotB} L${points[0][0].toFixed(2)},${chartState.plotB} Z`;
-      svg += `<path d="${areaD}" fill="rgba(227,122,48,.055)" stroke="none"/>`;
-      svg += `<path d="${lineD}" fill="none" stroke="#e37a30" stroke-width="1.45" stroke-linejoin="miter" stroke-linecap="butt"/>`;
+      svg += `<path d="${areaD}" fill="${C.area}" stroke="none"/>`;
+      svg += `<path d="${lineD}" fill="none" stroke="${C.series}" stroke-width="1.45" stroke-linejoin="miter" stroke-linecap="butt"/>`;
       for (const [x, y] of points) {
         if (Math.abs((x - points[0][0]) % 60) < 0.01) {
-          svg += `<rect x="${(x - 1.1).toFixed(2)}" y="${(y - 1.1).toFixed(2)}" width="2.2" height="2.2" fill="rgba(225,168,122,.65)"/>`;
+          svg += `<rect x="${(x - 1.1).toFixed(2)}" y="${(y - 1.1).toFixed(2)}" width="2.2" height="2.2" fill="${C.tick}"/>`;
         }
       }
     }
 
-    svg += `<line id="chart-cursor" x1="0" y1="0" x2="0" y2="0" stroke="rgba(95,193,203,.72)" stroke-width=".9" stroke-dasharray="2 3"/>`;
-    svg += `<rect id="chart-marker" x="-3" y="-3" width="6" height="6" fill="#e9873d" stroke="#0a0d0f" stroke-width="1"/>`;
+    svg += `<line id="chart-cursor" x1="0" y1="0" x2="0" y2="0" stroke="${C.cursor}" stroke-width=".9" stroke-dasharray="2 3"/>`;
+    svg += `<rect id="chart-marker" x="-3" y="-3" width="6" height="6" fill="${C.marker}" stroke="${C.markerStroke}" stroke-width="1"/>`;
 
     dom.chart.innerHTML = svg;
     chartState.key = `${state.side}|${state.chartMetric}|${sweep.rack.toFixed(2)}`;
@@ -4032,10 +4442,11 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     const X = (x) => cx + x * scale;
     const Y = (z) => cy - z * scale;
     const rack = rackTravel();
+    const P = SCENE.plan;
 
     c.save();
     // Technical background: centreline and axle line.
-    c.strokeStyle = 'rgba(55, 72, 79, .55)';
+    c.strokeStyle = P.guide;
     c.lineWidth = 0.7;
     c.setLineDash([3, 4]);
     c.beginPath();
@@ -4048,7 +4459,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     c.stroke();
     c.setLineDash([]);
 
-    c.fillStyle = 'rgba(102, 123, 131, .75)';
+    c.fillStyle = P.guideText;
     c.font = '6.5px "Cascadia Mono", Consolas, monospace';
     c.textBaseline = 'middle';
     c.textAlign = 'center';
@@ -4058,7 +4469,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     c.lineTo(cx - 3, 14);
     c.lineTo(cx + 3, 14);
     c.closePath();
-    c.strokeStyle = 'rgba(102, 123, 131, .75)';
+    c.strokeStyle = P.guideText;
     c.lineWidth = 0.8;
     c.stroke();
 
@@ -4081,14 +4492,14 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       c.beginPath();
       corners.forEach((p, i) => (i ? c.lineTo(X(p.x), Y(p.z)) : c.moveTo(X(p.x), Y(p.z))));
       c.closePath();
-      c.fillStyle = selected ? 'rgba(227, 122, 48, .075)' : 'rgba(128, 147, 154, .045)';
+      c.fillStyle = selected ? P.tireSelectedFill : P.tireFill;
       c.fill();
-      c.strokeStyle = selected ? 'rgba(233, 135, 62, .92)' : 'rgba(133, 153, 160, .54)';
+      c.strokeStyle = selected ? P.tireSelectedStroke : P.tireStroke;
       c.lineWidth = selected ? 1.1 : 0.8;
       c.stroke();
 
       // Tread direction marks.
-      c.strokeStyle = selected ? 'rgba(227, 122, 48, .4)' : 'rgba(128, 147, 154, .25)';
+      c.strokeStyle = selected ? P.treadSelected : P.tread;
       c.lineWidth = 0.7;
       for (const off of [-0.52, 0, 0.52]) {
         const a = v(wc.x + f.x * (halfLength * 0.83) + l.x * halfWidth * off, 0, wc.z + f.z * (halfLength * 0.83) + l.z * halfWidth * off);
@@ -4100,7 +4511,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       }
       const labelX = X(wc.x + l.x * (halfWidth + 55));
       const labelY = Y(wc.z + l.z * (halfWidth + 55));
-      c.fillStyle = selected ? '#ef914d' : 'rgba(131, 149, 156, .75)';
+      c.fillStyle = selected ? P.labelSelected : P.label;
       c.font = '7px "Cascadia Mono", Consolas, monospace';
       c.textAlign = 'center';
       c.fillText(side === 1 ? 'R' : 'L', labelX, labelY);
@@ -4109,13 +4520,13 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     // Rack housing and tie rods are drawn above the tires for legibility.
     const rackZ = 155;
     c.lineCap = 'butt';
-    c.strokeStyle = '#1a2326';
+    c.strokeStyle = P.rackOutline;
     c.lineWidth = 6;
     c.beginPath();
     c.moveTo(X(-GEOM.rackHousingEnd), Y(rackZ));
     c.lineTo(X(GEOM.rackHousingEnd), Y(rackZ));
     c.stroke();
-    c.strokeStyle = 'rgba(132, 151, 158, .85)';
+    c.strokeStyle = P.rackBody;
     c.lineWidth = 2.1;
     c.beginPath();
     c.moveTo(X(-GEOM.rackHousingEnd), Y(rackZ));
@@ -4123,14 +4534,14 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     c.stroke();
 
     // Rack neutral datum and current travel.
-    c.strokeStyle = 'rgba(92, 114, 122, .8)';
+    c.strokeStyle = P.rackDatum;
     c.lineWidth = 0.7;
     c.beginPath();
     c.moveTo(X(0), Y(rackZ) - 5);
     c.lineTo(X(0), Y(rackZ) + 5);
     c.stroke();
     if (Math.abs(rack) > 0.5) {
-      c.strokeStyle = 'rgba(227, 122, 48, .8)';
+      c.strokeStyle = P.rackTravel;
       c.lineWidth = 2.4;
       c.beginPath();
       c.moveTo(X(0), Y(rackZ));
@@ -4140,8 +4551,8 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 
     // Pinion marker.
     c.save();
-    c.strokeStyle = 'rgba(128, 149, 156, .8)';
-    c.fillStyle = 'rgba(17, 25, 28, .9)';
+    c.strokeStyle = P.pinionStroke;
+    c.fillStyle = P.pinionFill;
     c.lineWidth = 0.8;
     c.beginPath();
     c.arc(X(-82), Y(rackZ + 10), 4.5, 0, TAU);
@@ -4152,7 +4563,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     c.lineTo(X(-82), Y(rackZ + 5));
     c.stroke();
     c.restore();
-    c.fillStyle = 'rgba(94, 114, 122, .8)';
+    c.fillStyle = P.rackLabel;
     c.font = '6px "Cascadia Mono", Consolas, monospace';
     c.textAlign = 'left';
     c.fillText('RACK', X(GEOM.rackHousingEnd) + 4, Y(rackZ) - 1);
@@ -4162,13 +4573,13 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       const selected = side === state.side;
       const inner = pose.rackEnd;
       const outer = pose.tieRodOuter;
-      c.strokeStyle = selected ? 'rgba(101, 225, 235, .96)' : 'rgba(76, 168, 178, .64)';
+      c.strokeStyle = selected ? P.tieSelected : P.tie;
       c.lineWidth = selected ? 1.65 : 1.1;
       c.beginPath();
       c.moveTo(X(inner.x), Y(inner.z));
       c.lineTo(X(outer.x), Y(outer.z));
       c.stroke();
-      c.fillStyle = selected ? '#e9873d' : 'rgba(112, 198, 206, .75)';
+      c.fillStyle = selected ? P.tieNodeSelected : P.tieNode;
       c.fillRect(X(inner.x) - 2, Y(inner.z) - 2, 4, 4);
       c.strokeStyle = c.fillStyle;
       c.lineWidth = 0.8;
@@ -4178,7 +4589,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     // 500 mm scale.
     const bar = 500 * scale;
     const yBar = h - 8;
-    c.strokeStyle = 'rgba(91, 111, 118, .7)';
+    c.strokeStyle = P.scale;
     c.lineWidth = 0.8;
     c.beginPath();
     c.moveTo(12, yBar);
@@ -4188,7 +4599,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     c.moveTo(12 + bar, yBar - 3);
     c.lineTo(12 + bar, yBar + 1);
     c.stroke();
-    c.fillStyle = 'rgba(91, 111, 118, .75)';
+    c.fillStyle = P.scaleText;
     c.font = '6px "Cascadia Mono", Consolas, monospace';
     c.textAlign = 'left';
     c.fillText('500 MM', 12, yBar - 6);
@@ -4258,6 +4669,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     dom.cycleBump.addEventListener('click', () => startCycle('jounce'));
     dom.cycleSteer.addEventListener('click', () => startCycle('steer'));
     dom.stop.addEventListener('click', () => stopCycles());
+    dom.themeToggle.addEventListener('click', toggleTheme);
     dom.zero.addEventListener('click', () => {
       stopCycles();
       state.bump = 0;
@@ -4421,6 +4833,10 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     state.jouncePhase = 0;
     state.steerPhase = 0;
     state.hints = new Map();
+    MAT = uiTheme === 'light' ? MAT_LIGHT : MAT_DARK;
+    SCENE = SCENE_THEMES[uiTheme];
+    document.documentElement.style.colorScheme = uiTheme;
+    syncThemeUI();
     bindEvents();
     resizeViewport();
     resizePlan();
@@ -4457,6 +4873,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
         steerDeg: state.steerDeg,
         rack: rackTravel(),
         view: state.view,
+        theme: uiTheme,
         camera: { yaw: camera.yaw, pitch: camera.pitch, dist: camera.dist, fov: camera.fov },
         metrics: m ? { ...m, spring: { ...m.spring } } : null,
         solver: state.solverMeta,
@@ -4481,6 +4898,9 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       updateCameraBasis();
       renderScene(performance.now());
     },
+    setTheme(mode) {
+      applyTheme(mode, true);
+    },
     solveAt({ side = 1, bump = 0, steer = 0 } = {}) {
       const model = MODEL_BY_SIDE.get(side === -1 ? -1 : 1);
       const rack = clamp(steer, -360, 360) / 360 * GEOM.steeringRatio;
@@ -4499,6 +4919,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 
   init();
 })();
+
 
 
 
