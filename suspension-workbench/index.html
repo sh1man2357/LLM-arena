@@ -1366,6 +1366,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 </div>
 <script>
 
+
 (() => {
   'use strict';
 
@@ -2428,12 +2429,12 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 
   function pushRing(center, normal, radius, color, width = 1.1, opts = {}) {
     const points = circleFromNormal(center, normal, radius, opts.segments || 44);
-    pushPath(points, width, color, { ...opts, closed: true });
+    pushPath(points, width, color, { ...opts, closed: true, bias: (opts.bias || 0) - 1.2 });
   }
 
   function pushRingBasis(center, u, w, radius, color, width = 1.1, opts = {}) {
     const points = circlePoints(center, u, w, radius, opts.segments || 44);
-    pushPath(points, width, color, { ...opts, closed: true });
+    pushPath(points, width, color, { ...opts, closed: true, bias: (opts.bias || 0) - 1.2 });
   }
 
   function pushDisc(center, normal, radius, fill, stroke, opts = {}) {
@@ -2465,10 +2466,14 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     const p = project(point);
     if (!p) return;
     const r = clamp(radiusMm * p.s, 2.2, 10.5);
+    // A ball joint is a physical sphere: bias its flat marker toward the camera
+    // by roughly its near-surface depth. This keeps connected rod ends from
+    // flickering through the joint while orbiting.
+    const jointBias = Math.max(15, radiusMm * 1.2);
     renderList.push({
       kind: 'node',
       x: p.x, y: p.y, r,
-      depth: p.z + (opts.bias || 0),
+      depth: p.z - jointBias + (opts.bias || 0),
       edge: style.edge,
       fill: style.fill,
       ring: style.ring,
@@ -2483,7 +2488,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     if (!p) return;
     renderList.push({
       kind: 'screenSquare', x: p.x, y: p.y, size,
-      depth: p.z + (opts.bias || 0),
+      depth: p.z - 1.5 + (opts.bias || 0),
       color, alpha: opts.alpha ?? 1,
     });
   }
@@ -2579,11 +2584,14 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
         ctx.stroke();
       }
     } else if (item.kind === 'node') {
+      // Slightly enlarged dark halo masks the antialiased seams of adjacent
+      // segmented rods at spherical joints.
+      const halo = item.r + 1.15;
       ctx.beginPath();
       if (item.square) {
-        ctx.rect(item.x - item.r, item.y - item.r, item.r * 2, item.r * 2);
+        ctx.rect(item.x - halo, item.y - halo, halo * 2, halo * 2);
       } else {
-        ctx.arc(item.x, item.y, item.r, 0, TAU);
+        ctx.arc(item.x, item.y, halo, 0, TAU);
       }
       ctx.fillStyle = item.edge;
       ctx.fill();
@@ -2832,7 +2840,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 
     // Barrel lips.
     pushRingBasis(vadd(pose.wheelCenter, vmul(axis, 102)), up, side, GEOM.rimRadius, 'rgba(137,153,159,.8)', 1.35, {
-      segments: 52, outline: '#050809', outlineWidth: 1.2,
+      segments: 52, outline: '#050809', outlineWidth: 1.2, bias: -4,
     });
     pushRingBasis(vadd(pose.wheelCenter, vmul(axis, -94)), up, side, GEOM.rimRadius - 5, 'rgba(85,101,108,.62)', 0.9, { segments: 44 });
     pushRingBasis(vadd(pose.wheelCenter, vmul(axis, 52)), up, side, 213, 'rgba(77,92,99,.34)', 0.7, { segments: 36, dash: [2, 3] });
@@ -2857,18 +2865,21 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       pushPoly3D([hubTopIn, rimTopIn, rimBottomIn, hubBottomIn], '#3c4a50', 'rgba(5,8,9,.7)', { width: 0.5, bias: -3 });
       const hubMid = vmul(vadd(hubTop, hubBottom), 0.5);
       const rimMid = vmul(vadd(rimTop, rimBottom), 0.5);
-      pushLine(vadd(vlerp(hubTop, rimTop, 0.2), raised), vadd(vlerp(hubTop, rimTop, 0.92), raised), 1.8, 'rgba(157,173,179,.5)', { alpha: 0.8 });
-      pushLine(vadd(vlerp(hubMid, rimMid, 0.18), raised), vadd(vlerp(hubMid, rimMid, 0.86), raised), 0.7, 'rgba(8,12,14,.68)', { alpha: 0.8 });
-      pushLine(vadd(vlerp(hubBottom, rimBottom, 0.16), raised), vadd(vlerp(hubBottom, rimBottom, 0.9), raised), 0.55, 'rgba(13,18,20,.8)', { alpha: 0.8 });
+      pushLine(vadd(vlerp(hubTop, rimTop, 0.2), raised), vadd(vlerp(hubTop, rimTop, 0.92), raised), 1.8, 'rgba(157,173,179,.5)', { alpha: 0.8, bias: -6 });
+      pushLine(vadd(vlerp(hubMid, rimMid, 0.18), raised), vadd(vlerp(hubMid, rimMid, 0.86), raised), 0.7, 'rgba(8,12,14,.68)', { alpha: 0.8, bias: -6 });
+      pushLine(vadd(vlerp(hubBottom, rimBottom, 0.16), raised), vadd(vlerp(hubBottom, rimBottom, 0.9), raised), 0.55, 'rgba(13,18,20,.8)', { alpha: 0.8, bias: -6 });
     }
 
     // Centre cap and lug bolts.
-    pushDisc(vadd(pose.wheelCenter, vmul(axis, 101)), axis, 51, '#1b2326', '#85969c', { segments: 36 });
-    pushDisc(vadd(pose.wheelCenter, vmul(axis, 104)), axis, 20, '#0d1214', '#8fa1a7', { segments: 24 });
+    const hubFlange = vadd(pose.wheelCenter, vmul(axis, 82));
+    pushDisc(hubFlange, axis, 66, '#202a2e', '#5a6a70', { segments: 38, bias: -4 });
+    pushRingBasis(hubFlange, up, side, 66, 'rgba(116,132,139,.45)', 0.7, { segments: 38, bias: -5 });
+    pushDisc(vadd(pose.wheelCenter, vmul(axis, 101)), axis, 51, '#1b2326', '#85969c', { segments: 36, bias: -5 });
+    pushDisc(vadd(pose.wheelCenter, vmul(axis, 104)), axis, 20, '#0d1214', '#8fa1a7', { segments: 24, bias: -6 });
     for (let i = 0; i < 5; i++) {
       const angle = i * TAU / 5 - 0.35;
       const hub = vadd(vadd(pose.wheelCenter, vmul(axis, 103)), vadd(vmul(up, Math.cos(angle) * 35), vmul(side, Math.sin(angle) * 35)));
-      pushRingBasis(hub, up, side, 4.5, 'rgba(162,178,183,.78)', 0.9, { segments: 12 });
+      pushRingBasis(hub, up, side, 4.5, 'rgba(162,178,183,.78)', 0.9, { segments: 12, bias: -7 });
       pushScreenSquare(vadd(hub, vmul(axis, 1)), 1.1, 'rgba(202,215,219,.55)');
     }
 
@@ -2878,14 +2889,14 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     const rotorCenter = vsub(pose.wheelCenter, vmul(axis, 46));
     pushDisc(rotorCenter, axis, 174, 'rgba(78,88,92,0.3)', 'rgba(178,192,197,0.62)', { segments: 52, width: 0.8 });
     pushDisc(vadd(rotorCenter, vmul(axis, 10)), axis, 170, 'rgba(39,48,51,0.18)', null, { segments: 48 });
-    pushRingBasis(rotorCenter, up, side, 173, 'rgba(166,180,185,0.56)', 0.8, { segments: 52 });
-    pushRingBasis(vadd(rotorCenter, vmul(axis, 9)), up, side, 173, 'rgba(138,153,158,0.36)', 0.7, { segments: 52 });
-    pushRingBasis(rotorCenter, up, side, 91, 'rgba(140,155,160,0.44)', 0.7, { segments: 34 });
+    pushRingBasis(rotorCenter, up, side, 173, 'rgba(166,180,185,0.56)', 0.8, { segments: 52, bias: -2 });
+    pushRingBasis(vadd(rotorCenter, vmul(axis, 9)), up, side, 173, 'rgba(138,153,158,0.36)', 0.7, { segments: 52, bias: -2 });
+    pushRingBasis(rotorCenter, up, side, 91, 'rgba(140,155,160,0.44)', 0.7, { segments: 34, bias: -2 });
     for (let i = 0; i < 12; i++) {
       const angle = i * TAU / 12 + 0.1;
       const a = vadd(rotorCenter, vadd(vmul(up, Math.cos(angle) * 96), vmul(side, Math.sin(angle) * 96)));
       const b = vadd(rotorCenter, vadd(vmul(up, Math.cos(angle) * 165), vmul(side, Math.sin(angle) * 165)));
-      pushLine(a, b, 0.6, 'rgba(28,35,38,.62)', { alpha: 0.6 });
+      pushLine(a, b, 0.6, 'rgba(28,35,38,.62)', { alpha: 0.6, bias: -2 });
     }
 
     const forward = vnorm(perpToAxis(v(0, 0, 1), axis));
@@ -2899,7 +2910,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       caliperCenter,
       8.5,
       MAT.knuckleDark,
-      { edgeWidth: 0.7, bias: 1 },
+      { edgeWidth: 0.7, bias: -2 },
     );
   }
 
@@ -2926,7 +2937,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     // Bushing sleeves on the chassis-side pivots.
     for (const inner of [innerF, innerR]) {
       const dir = v(0, 0, 1);
-      pushTube(vsub(inner, vmul(dir, 19)), vadd(inner, vmul(dir, 19)), upper ? 19 : 21, MAT.bushing, { edgeWidth: 0.9, bias: -2 });
+      pushTube(vsub(inner, vmul(dir, 19)), vadd(inner, vmul(dir, 19)), upper ? 19 : 21, MAT.bushing, { edgeWidth: 0.9, bias: -8 });
       pushNode(inner, upper ? 17 : 18, selected ? NODE.select : NODE.steel, { bias: -2 });
     }
 
@@ -2962,7 +2973,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
     pushNode(tie, 12, selected ? NODE.tie : NODE.dark, { bias: 4 });
 
     // A small machined steering arm clevis.
-    pushTube(vsub(tie, vmul(axis, 24)), vadd(tie, vmul(axis, 24)), 9, MAT.knuckleDark, { edgeWidth: 0.8, bias: 2 });
+    pushTube(vsub(tie, vmul(axis, 24)), vadd(tie, vmul(axis, 24)), 9, MAT.knuckleDark, { edgeWidth: 0.8, bias: -6 });
 
     // Flexible brake line from the fixed body to the moving caliper.
     if (state.display.brakes && state.display.chassis) {
@@ -3027,6 +3038,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
       alpha: 0.98,
       cap: 'round',
       chunkSegments: 8,
+      bias: -1,
     });
 
     // Mount eyes.
@@ -3052,13 +3064,13 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 
     const mid = vlerp(inner, outer, 0.52);
     const dir = vnorm(vsub(outer, inner));
-    pushTube(vadd(mid, vmul(dir, -32)), vadd(mid, vmul(dir, 32)), 12.5, MAT.tieDark, { edgeWidth: 0.9, bias: 1 });
+    pushTube(vadd(mid, vmul(dir, -32)), vadd(mid, vmul(dir, 32)), 12.5, MAT.tieDark, { edgeWidth: 0.9, bias: -6 });
     pushNode(inner, 13, NODE.tie, { bias: 2 });
     pushNode(outer, 12, selected ? NODE.tie : NODE.dark, { bias: 3 });
     // Tiny adjustment marks.
     for (const t of [0.46, 0.58]) {
       const p = vlerp(inner, outer, t);
-      pushRing(p, dir, 13, 'rgba(127, 225, 232, .54)', 0.7, { segments: 18 });
+      pushRing(p, dir, 13, 'rgba(127, 225, 232, .54)', 0.7, { segments: 18, bias: -4 });
     }
   }
 
@@ -4487,6 +4499,7 @@ input[type="range"]:focus-visible { outline: 1px dashed var(--cyan); outline-off
 
   init();
 })();
+
 
 
 </script>
