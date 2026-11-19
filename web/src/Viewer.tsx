@@ -192,7 +192,7 @@ export function Viewer() {
   return <div className="viewer">
     <div className="viewer-heading">
       <Link className="back-link" to="/"><ArrowLeft aria-hidden="true" />返回首页</Link>
-      <div>
+      <div className="viewer-summary">
         <div className="viewer-title"><h1>{run?.title || '加载对局…'}</h1>{run && <Badge status={run.status} />}</div>
         {run && <div className="viewer-sub">
           <span>{gameNames[run.game_id || 'bomberman']}</span>

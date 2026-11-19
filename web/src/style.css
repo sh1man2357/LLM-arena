@@ -300,14 +300,16 @@ pre {
 
 /* ---------- viewer ---------- */
 .viewer { display: flex; flex-direction: column; gap: 12px; height: calc(100dvh - var(--topbar-height) - 46px); min-height: 0; }
-.viewer-heading { display: flex; align-items: center; gap: 12px; min-height: 42px; }
+.viewer-heading { display: grid; grid-template: "back summary actions" auto / auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 42px; }
+.viewer-heading .back-link { grid-area: back; justify-self: start; }
+.viewer-summary { grid-area: summary; min-width: 0; }
 .back-link { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 8px; margin-left: -8px; border-radius: 3px; color: var(--muted); font-size: 12px; }
 .back-link:hover { background: var(--surface-3); color: var(--text); }
 .viewer-title { display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0; flex-wrap: wrap; }
-.viewer-title h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+.viewer-title h1 { margin: 0; overflow-wrap: anywhere; font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
 .viewer-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; min-width: 0; font-size: 11.5px; color: var(--faint); }
 .viewer-sub .badge { font-size: 11.5px; }
-.viewer-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.viewer-actions { grid-area: actions; justify-self: end; display: flex; align-items: center; gap: 4px; }
 .viewer-actions button { min-height: 32px; font-size: 12px; }
 .viewer-notices { display: grid; gap: 6px; }
 .viewer-notices .notice, .viewer-notices .error { margin: 0; }
@@ -439,8 +441,7 @@ tbody th { font-weight: 550; white-space: normal; overflow-wrap: anywhere; min-w
   .viewer-grid { container-type: size; display: block; }
   .spectator-stage:not(:fullscreen) { display: block; }
   .spectator-stage:not(:fullscreen) .player-layout {
-    display: grid; grid-template-areas: "human" "board" "playback";
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    display: grid; grid-template: inherit; column-gap: inherit;
     height: calc(100cqh - 2 * var(--stage-padding) - 2px);
     min-height: min-content;
   }
@@ -478,10 +479,8 @@ tbody th { font-weight: 550; white-space: normal; overflow-wrap: anywhere; min-w
   .history-row { grid-template-columns: 18px minmax(0, 1fr); }
   .history-row-actions { grid-column: 2; }
   .viewer { height: calc(100dvh - var(--topbar-height) - 30px); }
-  .viewer-heading { flex-wrap: wrap; gap: 6px 10px; }
+  .viewer-heading { grid-template: "back actions" auto "summary summary" auto / 1fr auto; gap: 4px 10px; }
   .viewer-title h1 { font-size: 17px; }
-  .viewer-actions { width: 100%; margin-left: 0; }
-  .viewer-actions button { flex: 1; }
   .viewer-grid { gap: 10px; }
   .spectator-stage { --stage-padding: 8px; }
   .controls { flex-wrap: wrap; gap: 6px; }
@@ -504,10 +503,6 @@ tbody th { font-weight: 550; white-space: normal; overflow-wrap: anywhere; min-w
 .feed li.empty-feed { display: block; grid-column: 1 / -1; padding: 10px 8px; color: var(--faint); font-size: 11.5px; }
 .result-standings { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 .player-state .score { font-size: 11.5px; font-weight: 600; }
-@media (max-width: 760px) {
-  .viewer-actions { width: auto; margin-left: auto; }
-  .viewer-actions button { flex: none; }
-}
 
 /* ---------- gomoku board ---------- */
 .gomoku-surface { position: relative; width: 100%; height: 100%; }
@@ -528,18 +523,26 @@ tbody th { font-weight: 550; white-space: normal; overflow-wrap: anywhere; min-w
 }
 
 /* Give the board the available height and keep transport alongside it on short screens. */
-@media (min-width: 580px) and (max-height: 540px) {
+@media (min-width: 540px) and (max-height: 540px) {
   html:has(.viewer) { --topbar-height: 40px; }
   main:has(.viewer) { padding: 6px 16px 16px; }
   .viewer { height: calc(100dvh - var(--topbar-height) - 12px); gap: 5px; }
+  .viewer-heading { grid-template: "back summary actions" auto / auto minmax(0, 1fr) auto; gap: 8px; }
+  .viewer-summary { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 2px 8px; }
+  .viewer-title { display: contents; }
+  .viewer-title h1 { grid-column: 1 / -1; font-size: clamp(14px, 2.3vw, 16px); }
   .viewer-notices .form-hint { margin: 0; }
   .viewer .back-link { white-space: nowrap; }
-  .spectator-stage, .spectator-stage:not(:fullscreen) .player-layout {
+  .spectator-stage {
+    --stage-padding: 6px;
     grid-template-areas: "human human" "board playback";
     grid-template-columns: minmax(0, 1fr) minmax(240px, .8fr);
-    grid-template-rows: auto minmax(0, 1fr); column-gap: 12px;
+    grid-template-rows: auto minmax(min-content, 1fr); column-gap: 12px;
   }
-  .playback { align-self: center; width: 100%; margin: 0; padding: 0; gap: 3px; }
+  .playback { align-self: safe center; display: grid; grid-template-columns: 1fr auto; width: 100%; margin: 0; padding: 0; gap: 3px; }
+  .playback > * { grid-column: 1 / -1; }
+  .playback .row-heading { grid-column: 1; }
+  .playback .move-numbers { grid-area: 1 / 2; }
   .playback .timeline { min-height: 24px; }
   .controls { flex-wrap: wrap; }
   .controls .gap { display: none; }

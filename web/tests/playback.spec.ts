@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import type { Frame, Match, Replay } from '../src/types';
 
 // Model independent compute and playback clocks: each read can append a whole batch.
-async function recording(page: Page, count: number, completed = false) {
+async function recording(page: Page, count: number, completed = false, title = '缓冲播放测试') {
   const time = new Date('2026-10-11T00:00:00Z');
   await page.clock.install({time});
   await page.clock.pauseAt(time);
@@ -15,7 +15,7 @@ async function recording(page: Page, count: number, completed = false) {
     calls: [], actions: [], events: [], visual: {coverage: [], exploded_bombs: [], blocked_moves: []}});
   const result = () => stream.completed ? {valid: true, ticks: stream.count - 1, reason: 'tick_limit',
     groups: [[0, 1]], players: entrants.map(e => ({id: e.slot, placement_score: .5}))} : null;
-  const match = (): Match => ({id: 'playback-test', title: '缓冲播放测试', status: stream.completed ? 'completed' : 'running',
+  const match = (): Match => ({id: 'playback-test', title, status: stream.completed ? 'completed' : 'running',
     entrants, ticks: stream.count - 1, verified: stream.completed, result: result(), created: time.toISOString(), map_seed: 1});
   await page.route('**/api/v1/status', route => route.fulfill({json: {busy: false}}));
   await page.route('**/api/v1/matches/playback-test', route => route.fulfill({json: match()}));
@@ -116,4 +116,37 @@ test('新建的快速终局也从头自动播放，刷新历史录像则暂停',
   await page.reload();
   await expect(stage).toHaveAttribute('data-seq', '0');
   await expect(page.getByRole('button', {name: '播放', exact: true})).toBeVisible();
+});
+
+test('长对局名在窄屏完整换行，返回和重赛入口保持可见', async ({page}) => {
+  const title = 'A'.repeat(100);
+  await recording(page, 3, true, title);
+  await page.goto('/matches/playback-test');
+  const heading = page.getByRole('heading', {name: title, exact: true});
+  for (const [width, height] of [[320, 568], [390, 844], [568, 320], [768, 1024]]) {
+    await page.setViewportSize({width, height});
+    await expect(heading).toBeInViewport({ratio: 1});
+    await expect(page.locator('.controls')).toBeInViewport({ratio: 1});
+    if (width > height) {
+      const board = (await page.locator('canvas').boundingBox())!;
+      const playback = (await page.locator('.playback').boundingBox())!;
+      expect(board.x + board.width).toBeLessThanOrEqual(playback.x + 1);
+    }
+    await expect(page.getByRole('link', {name: '返回首页'})).toBeInViewport({ratio: 1});
+    await expect(page.getByRole('button', {name: '重赛'})).toBeInViewport({ratio: 1});
+    const layout = await heading.evaluate(element => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const lines = Array.from(range.getClientRects());
+      const bounds = element.getBoundingClientRect();
+      return {
+        lineCount: lines.length,
+        textFits: lines.every(line => line.left >= bounds.left - 1 && line.right <= bounds.right + 1),
+        pageFits: document.documentElement.scrollWidth <= innerWidth,
+      };
+    });
+    expect(layout.lineCount).toBeGreaterThan(1);
+    expect(layout.textFits).toBe(true);
+    expect(layout.pageFits).toBe(true);
+  }
 });
