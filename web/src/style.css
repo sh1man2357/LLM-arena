@@ -299,7 +299,7 @@ pre {
 .history .pagination { padding: 0 2px 2px; }
 
 /* ---------- viewer ---------- */
-.viewer { display: flex; flex-direction: column; gap: 12px; height: calc(100dvh - var(--topbar-height) - 46px); min-height: 480px; }
+.viewer { display: flex; flex-direction: column; gap: 12px; height: calc(100dvh - var(--topbar-height) - 46px); min-height: 0; }
 .viewer-heading { display: flex; align-items: center; gap: 12px; min-height: 42px; }
 .back-link { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 8px; margin-left: -8px; border-radius: 3px; color: var(--muted); font-size: 12px; }
 .back-link:hover { background: var(--surface-3); color: var(--text); }
@@ -317,16 +317,20 @@ pre {
 
 .viewer-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 336px; gap: 12px; }
 .spectator-stage {
-  position: relative; display: flex; flex-direction: column; min-height: 0;
-  padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card);
+  --stage-padding: 12px;
+  position: relative; display: grid; grid-template-areas: "human" "board" "playback";
+  grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; min-width: 0;
+  padding: var(--stage-padding); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card);
 }
 .spectator-stage:fullscreen { padding: 20px; background: var(--surface); border: 0; }
-.board-shell { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; }
-.board-wrap { position: relative; height: 100%; max-width: 100%; aspect-ratio: 13 / 11; }
-.board-wrap.square { aspect-ratio: 1; }
+.player-layout { display: contents; }
+.human-controls { grid-area: human; }
+.board-shell { grid-area: board; container-type: size; display: grid; place-items: center; min-width: 0; min-height: 0; }
+.board-wrap { position: relative; width: min(100cqw, calc(100cqh * 13 / 11)); aspect-ratio: 13 / 11; }
+.board-wrap.square { width: min(100cqw, 100cqh); aspect-ratio: 1; }
 .board-wrap .board { width: 100%; height: 100%; display: block; }
 .board { width: 100%; aspect-ratio: 13 / 11; display: block; }
-.playback { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; margin: 10px auto 0; width: min(100%, var(--board-w, 100%)); }
+.playback { grid-area: playback; display: flex; flex-direction: column; gap: 6px; padding-top: 10px; margin: 10px auto 0; width: min(100%, max(390px, var(--board-w, 100%))); }
 .playback .row-heading { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .row-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
 .row-heading h1, .row-heading h2 { margin: 0; }
@@ -339,6 +343,7 @@ pre {
 }
 .timeline:focus-visible::-webkit-slider-thumb { border-color: var(--accent); }
 .timeline-ticks { position: relative; height: 12px; margin: 0 6px; }
+.timeline-ticks:empty { display: none; }
 .timeline-tick {
   position: absolute; bottom: 0; width: 10px; height: 12px; margin-left: -5px; padding: 0; min-height: 0;
   border: 0; background: transparent; color: var(--faint);
@@ -361,7 +366,7 @@ pre {
 
 /* result overlay */
 .result {
-  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  grid-area: board; place-self: end center; max-height: 100%; overflow: auto;
   width: min(100%, var(--board-w, 100%));
   padding: 14px 16px 12px;
   background: var(--surface); border: 1px solid var(--line-2); border-radius: 3px;
@@ -430,13 +435,20 @@ tbody th { font-weight: 550; white-space: normal; overflow-wrap: anywhere; min-w
 
 /* ---------- responsive ---------- */
 @media (max-width: 1100px) {
-  .viewer { height: auto; min-height: 0; }
-  .viewer-grid { grid-template-columns: minmax(0, 1fr); }
-  .board-wrap { height: auto; width: 100%; }
-  .board-wrap .board { height: auto; }
+  /* The flex remainder below the actual match header is the player's height budget. */
+  .viewer-grid { container-type: size; display: block; }
+  .spectator-stage:not(:fullscreen) { display: block; }
+  .spectator-stage:not(:fullscreen) .player-layout {
+    display: grid; grid-template-areas: "human" "board" "playback";
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: calc(100cqh - 2 * var(--stage-padding) - 2px);
+    min-height: min-content;
+  }
+  .player-layout .board-shell { min-height: min(128px, 35dvh); }
+  .side { margin-top: 12px; }
   .side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
   .events { max-height: 280px; }
-  .result { position: static; transform: none; width: auto; margin: 10px 0 0; }
+  .spectator-stage:not(:fullscreen) .result { width: 100%; margin: 10px 0 0; }
   .playback { width: 100%; }
 }
 @media (max-width: 760px) {
@@ -465,17 +477,17 @@ tbody th { font-weight: 550; white-space: normal; overflow-wrap: anywhere; min-w
   .managed-runs li { padding: 0 12px; }
   .history-row { grid-template-columns: 18px minmax(0, 1fr); }
   .history-row-actions { grid-column: 2; }
-  .viewer { height: auto; }
+  .viewer { height: calc(100dvh - var(--topbar-height) - 30px); }
   .viewer-heading { flex-wrap: wrap; gap: 6px 10px; }
   .viewer-title h1 { font-size: 17px; }
   .viewer-actions { width: 100%; margin-left: 0; }
   .viewer-actions button { flex: 1; }
   .viewer-grid { gap: 10px; }
-  .spectator-stage { padding: 8px; }
+  .spectator-stage { --stage-padding: 8px; }
   .controls { flex-wrap: wrap; gap: 6px; }
-  .controls .gap { flex-basis: 100%; height: 0; }
+  .controls .gap { display: none; }
   .transport { justify-content: space-between; width: 100%; }
-  .playback-tools { width: 100%; justify-content: flex-end; }
+  .playback-tools { margin-left: auto; }
   .side { grid-template-columns: minmax(0, 1fr); }
   .result { padding: 12px; }
   .result h2 { font-size: 19px; }
@@ -515,10 +527,24 @@ tbody th { font-weight: 550; white-space: normal; overflow-wrap: anywhere; min-w
   .viewer-actions button { min-height: 44px; }
 }
 
-/* ---------- keep square boards square on narrow screens ---------- */
-@media (max-width: 1100px) {
-  .board-wrap:not(.square) .board { height: auto; }
-  .board-wrap.square .board { height: 100%; }
+/* Give the board the available height and keep transport alongside it on short screens. */
+@media (min-width: 580px) and (max-height: 540px) {
+  html:has(.viewer) { --topbar-height: 40px; }
+  main:has(.viewer) { padding: 6px 16px 16px; }
+  .viewer { height: calc(100dvh - var(--topbar-height) - 12px); gap: 5px; }
+  .viewer-notices .form-hint { margin: 0; }
+  .viewer .back-link { white-space: nowrap; }
+  .spectator-stage, .spectator-stage:not(:fullscreen) .player-layout {
+    grid-template-areas: "human human" "board playback";
+    grid-template-columns: minmax(0, 1fr) minmax(240px, .8fr);
+    grid-template-rows: auto minmax(0, 1fr); column-gap: 12px;
+  }
+  .playback { align-self: center; width: 100%; margin: 0; padding: 0; gap: 3px; }
+  .playback .timeline { min-height: 24px; }
+  .controls { flex-wrap: wrap; }
+  .controls .gap { display: none; }
+  .playback-tools { margin-left: auto; }
+  .player-layout .board-shell { min-height: 120px; }
 }
 
 @media (max-width: 500px) {

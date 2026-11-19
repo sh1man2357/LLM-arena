@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { checkPlayerLayout } from './viewer-layout';
 
 const source = Buffer.from('#include "gomoku.hpp"\nnamespace bot { void init(uint64_t){} Action tick(const GameState& s){return {int(s.move_count/2),s.self_color==1?0:14};} }');
 
@@ -58,6 +59,7 @@ test('五子棋导入、换色、开局、回放、榜单与窄屏', async ({pag
   await expect(page.locator('.stone-label.white')).toHaveText('白');
   await expect.poll(async () => (await request.get(`/api/v1/matches/${run.id}`)).json().then(r => r.pair.complete),{timeout:20000}).toBe(true);
   await page.reload(); await expect(page.locator('.spectator-stage')).toHaveAttribute('data-seq','0');
+  await checkPlayerLayout(page, 1);
   await expect(page.getByRole('button',{name:'播放',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'下一帧',exact:true}).click();
   await expect(page.locator('.spectator-stage')).toHaveAttribute('data-seq','1');

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { checkPlayerLayout } from './viewer-layout';
 
 const source = Buffer.from('#include "arena.hpp"\nnamespace bot { void init(uint64_t){} Action tick(const GameState&){return Action::WAIT;} }');
 
@@ -78,6 +79,7 @@ test('仅一个可运行 Bot 时可默认自对战并查看录像', async ({ pag
   await expect.poll(async () => (await request.get(`/api/v1/matches/${run.id}`)).json().then(r => r.status), {timeout: 40000}).toBe('completed');
   await page.reload();
   await expect(page.locator('.player-card')).toHaveCount(2);
+  await checkPlayerLayout(page, 13 / 11);
   const recording = await (await request.get(`/api/v1/matches/${run.id}/frames`)).json();
   expect(recording.verified).toBe(true);
   expect(recording.frames.length).toBeGreaterThan(1);

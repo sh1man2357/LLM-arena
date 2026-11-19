@@ -216,49 +216,51 @@ export function Viewer() {
     {!hasFrames && <State title={failed ? '无录像' : '加载画面…'} />}
     {run && frame && <div className="viewer-grid">
       <section className="spectator-stage" ref={stage} data-frame-count={data!.frames.length} data-seq={frame.seq} style={stageStyle}>
-        {liveHuman && <div className="human-controls"><p role="status">{submitting ? '正在提交…' : canMove ? '轮到你了，点击空位落子。' : (frame.state as GomokuWorld).reason ? '对局正在结算…' : '等待 Bot 应手或棋盘更新…'}</p><button disabled={!canMove} onClick={() => void humanMove(225)}>认输</button></div>}
-        <div className="board-shell" ref={boardShell}>
-          <div className={`board-wrap${gomoku ? ' square' : ''}`}>
-            {gomoku ? <GomokuBoard frame={frame} numbers={numbers} interactive={canMove} onMove={liveHuman ? action => void humanMove(action) : undefined} /> : <Board frame={frame} previous={visibleSeq > 0 ? data!.frames[visibleSeq - 1] : undefined} entrants={run.entrants} animate={playing} />}
-          </div>
-          {showResult && <div className="result" role="status">
-            <h2>{outcome(run)}</h2>
-            <p>{run.result!.ticks} {gomoku ? '步' : '回合'} · {labels[run.result!.reason] || run.result!.reason}</p>
-            {run.pair?.complete && <p className="pair-score">两盘比分 {run.pair_index === 1 ? [...run.pair.score!].reverse().join(' : ') : run.pair.score!.join(' : ')}{!run.pair.counted ? ' · 整组不计入榜单' : ''}</p>}
-            <ol className="result-standings" aria-label="本局排名">{run.result!.groups.map((group: number[], index: number) => {
-              const placement = 1 + run.result!.groups.slice(0, index).reduce((total: number, previous: number[]) => total + previous.length, 0);
-              return group.map(slot => <li key={slot} style={{borderColor: gomoku ? (slot === 0 ? '#202226' : '#A79E8D') : slotColor(slot)}}><span className="placement">第 {placement} 名{group.length > 1 ? '（并列）' : ''}</span>
-                <strong>{gomoku ? (slot === 0 ? '黑棋' : '白棋') : `Bot ${slot}`} · {run.entrants.find(e => e.slot === slot)?.name}</strong><span className="stat">{(() => {
-                  const player = run.result!.players.find((item: any) => item.id === slot);
-                  return player.score !== undefined ? `${player.score} 分 · 生存 ${player.survival_score} + 击杀 ${player.kill_score}（${player.kills} 人）` : `${player.placement_score.toFixed(3)} 名次分`;
-                })()}</span></li>);
-            })}</ol>
-          </div>}
-        </div>
-        <div className="playback">
-          <div className="row-heading"><strong>{gomoku ? `已落 ${gomokuMoves.length} 子${frame.tick === null ? ' · 初始状态' : ''}` : frame.tick === null ? '初始状态' : `回合 ${frame.tick}`}</strong></div>
-          {gomoku && <label className="move-numbers"><input type="checkbox" checked={numbers} onChange={e => setNumbers(e.target.checked)} />显示落子顺序</label>}
-          {!liveHuman && <>
-            {waiting && <p className="waiting" role="status">等待下一帧…</p>}
-            {max > 0 && <div className="timeline-ticks" aria-hidden={kills.length === 0}>
-              {kills.map(entry => <button key={`${entry.seq}-${entry.player}-${entry.victim}`} type="button" className="timeline-tick kill"
-                style={{left: `${(entry.seq / max) * 100}%`}} tabIndex={-1}
-                title={`第 ${entry.tick} 回合：${nameOf(entry.player)} 击杀 ${nameOf(entry.victim!)}`}
-                onClick={() => seek(entry.seq)} />)}
-            </div>}
-            <input className="timeline" type="range" aria-label="时间轴" min="0" max={max} value={Math.min(seq, max)} onChange={e => seek(Number(e.target.value))} />
-            <div className="controls"><div className="transport"><button className="icon-button" onClick={() => seek(0)} aria-label="回到初始帧" title="回到初始帧"><SkipBack aria-hidden="true" /></button><button className="icon-button" disabled={!seq} onClick={() => seek(seq - 1)} aria-label="上一帧" title="上一帧"><StepBack aria-hidden="true" /></button>
-              <button className="icon-button primary" onClick={play} aria-label={playing ? '暂停' : '播放'} title={playing ? '暂停' : '播放'}>{playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}</button><button className="icon-button" disabled={seq >= max} onClick={() => seek(seq + 1)} aria-label="下一帧" title="下一帧"><StepForward aria-hidden="true" /></button><button className="icon-button" onClick={() => seek(max)} aria-label="最后一帧" title="最后一帧"><SkipForward aria-hidden="true" /></button></div>
-              <span className="frame-count num"><b>{seq} / {max}</b></span>
-              <span className="gap" />
-              <div className="playback-tools">
-                <select className="speed" aria-label="倍速" title="播放速度" value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[.25, .5, 1, 2, 4].map(value => <option key={value} value={value}>{value}×</option>)}</select>
-                {running && <button className="icon-button" aria-label="回到最新" title="跳到已收到的最新帧，然后按顺序播放" onClick={() => { setSeq(max); setPlaying(true); }}><Radio aria-hidden="true" /></button>}
-                <button className="icon-button" aria-label="全屏" title="全屏" onClick={() => void fullscreen()}><Maximize aria-hidden="true" /></button>
-              </div>
+        <div className="player-layout">
+          {liveHuman && <div className="human-controls"><p role="status">{submitting ? '正在提交…' : canMove ? '轮到你了，点击空位落子。' : (frame.state as GomokuWorld).reason ? '对局正在结算…' : '等待 Bot 应手或棋盘更新…'}</p><button disabled={!canMove} onClick={() => void humanMove(225)}>认输</button></div>}
+          <div className="board-shell" ref={boardShell}>
+            <div className={`board-wrap${gomoku ? ' square' : ''}`}>
+              {gomoku ? <GomokuBoard frame={frame} numbers={numbers} interactive={canMove} onMove={liveHuman ? action => void humanMove(action) : undefined} /> : <Board frame={frame} previous={visibleSeq > 0 ? data!.frames[visibleSeq - 1] : undefined} entrants={run.entrants} animate={playing} />}
             </div>
-          </>}
+          </div>
+          <div className="playback">
+            <div className="row-heading"><strong>{gomoku ? `已落 ${gomokuMoves.length} 子${frame.tick === null ? ' · 初始状态' : ''}` : frame.tick === null ? '初始状态' : `回合 ${frame.tick}`}</strong></div>
+            {gomoku && <label className="move-numbers"><input type="checkbox" checked={numbers} onChange={e => setNumbers(e.target.checked)} />显示落子顺序</label>}
+            {!liveHuman && <>
+              {waiting && <p className="waiting" role="status">等待下一帧…</p>}
+              {max > 0 && <div className="timeline-ticks" aria-hidden={kills.length === 0}>
+                {kills.map(entry => <button key={`${entry.seq}-${entry.player}-${entry.victim}`} type="button" className="timeline-tick kill"
+                  style={{left: `${(entry.seq / max) * 100}%`}} tabIndex={-1}
+                  title={`第 ${entry.tick} 回合：${nameOf(entry.player)} 击杀 ${nameOf(entry.victim!)}`}
+                  onClick={() => seek(entry.seq)} />)}
+              </div>}
+              <input className="timeline" type="range" aria-label="时间轴" min="0" max={max} value={Math.min(seq, max)} onChange={e => seek(Number(e.target.value))} />
+              <div className="controls"><div className="transport"><button className="icon-button" onClick={() => seek(0)} aria-label="回到初始帧" title="回到初始帧"><SkipBack aria-hidden="true" /></button><button className="icon-button" disabled={!seq} onClick={() => seek(seq - 1)} aria-label="上一帧" title="上一帧"><StepBack aria-hidden="true" /></button>
+                <button className="icon-button primary" onClick={play} aria-label={playing ? '暂停' : '播放'} title={playing ? '暂停' : '播放'}>{playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}</button><button className="icon-button" disabled={seq >= max} onClick={() => seek(seq + 1)} aria-label="下一帧" title="下一帧"><StepForward aria-hidden="true" /></button><button className="icon-button" onClick={() => seek(max)} aria-label="最后一帧" title="最后一帧"><SkipForward aria-hidden="true" /></button></div>
+                <span className="frame-count num"><b>{seq} / {max}</b></span>
+                <span className="gap" />
+                <div className="playback-tools">
+                  <select className="speed" aria-label="倍速" title="播放速度" value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[.25, .5, 1, 2, 4].map(value => <option key={value} value={value}>{value}×</option>)}</select>
+                  {running && <button className="icon-button" aria-label="回到最新" title="跳到已收到的最新帧，然后按顺序播放" onClick={() => { setSeq(max); setPlaying(true); }}><Radio aria-hidden="true" /></button>}
+                  <button className="icon-button" aria-label="全屏" title="全屏" onClick={() => void fullscreen()}><Maximize aria-hidden="true" /></button>
+                </div>
+              </div>
+            </>}
+          </div>
         </div>
+        {showResult && <div className="result" role="status">
+          <h2>{outcome(run)}</h2>
+          <p>{run.result!.ticks} {gomoku ? '步' : '回合'} · {labels[run.result!.reason] || run.result!.reason}</p>
+          {run.pair?.complete && <p className="pair-score">两盘比分 {run.pair_index === 1 ? [...run.pair.score!].reverse().join(' : ') : run.pair.score!.join(' : ')}{!run.pair.counted ? ' · 整组不计入榜单' : ''}</p>}
+          <ol className="result-standings" aria-label="本局排名">{run.result!.groups.map((group: number[], index: number) => {
+            const placement = 1 + run.result!.groups.slice(0, index).reduce((total: number, previous: number[]) => total + previous.length, 0);
+            return group.map(slot => <li key={slot} style={{borderColor: gomoku ? (slot === 0 ? '#202226' : '#A79E8D') : slotColor(slot)}}><span className="placement">第 {placement} 名{group.length > 1 ? '（并列）' : ''}</span>
+              <strong>{gomoku ? (slot === 0 ? '黑棋' : '白棋') : `Bot ${slot}`} · {run.entrants.find(e => e.slot === slot)?.name}</strong><span className="stat">{(() => {
+                const player = run.result!.players.find((item: any) => item.id === slot);
+                return player.score !== undefined ? `${player.score} 分 · 生存 ${player.survival_score} + 击杀 ${player.kill_score}（${player.kills} 人）` : `${player.placement_score.toFixed(3)} 名次分`;
+              })()}</span></li>);
+          })}</ol>
+        </div>}
       </section>
       <aside className="side">
         <div className="side-card">
