@@ -5,9 +5,9 @@ from runner.rating import strengths
 from service.bots import listed_bots
 
 
-def leaderboard(bots, runs, game_id="bomberman"):
+def leaderboard(bots, runs, game_id="bomberman", *, references=None):
     bots = [b for b in bots if b.get("game_id", "bomberman") == game_id]
-    visible = listed_bots(bots)
+    visible = listed_bots(bots, references=references)
     reference = next((b['id'] for b in visible if b.get('baseline')), None)
     runs = [r for r in runs if r.get("game_id", "bomberman") == game_id and r.get("mode") != "human"]
     if game_id == "gomoku":

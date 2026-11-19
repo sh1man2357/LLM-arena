@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from runner.io import ROOT, sha_file
 from runner.match import components
 from service import APP_VERSION
-from service.bots import (MAX_SOURCE_BYTES, active_bot_ids, edit_bot, import_bot, listed_bots,
+from service.bots import (MAX_SOURCE_BYTES, active_bot_ids, baseline_references, edit_bot, import_bot, listed_bots,
                           manage_bots, prepare_baselines, public_bot, require_available_bots)
 from service.jobs import BusyError, Executor
 from service.history import filter_runs, manage_runs
@@ -162,7 +162,8 @@ def create_app(data_root=None, *, demo=False, workers=False):
     @app.get("/api/v1/bots")
     def bots(game_id: Literal["bomberman", "gomoku"] | None = None, trashed: bool = False):
         active = active_bot_ids(store.list("task"))
-        return dict(items=[dict(public_bot(row), in_use=row["id"] in active) for row in listed_bots(store.list("bot"), trashed=trashed)
+        visible = listed_bots(store.list("bot"), trashed=trashed, references=baseline_references(store))
+        return dict(items=[dict(public_bot(row), in_use=row["id"] in active) for row in visible
                            if not game_id or row.get("game_id", "bomberman") == game_id])
 
     @app.patch("/api/v1/bots/{identity}")
@@ -383,7 +384,7 @@ def create_app(data_root=None, *, demo=False, workers=False):
 
     @app.get("/api/v1/leaderboard")
     def rankings(game_id: Literal["bomberman", "gomoku"] = "bomberman"):
-        return leaderboard(store.list("bot"), filter_runs(store.list("run")), game_id)
+        return leaderboard(store.list("bot"), filter_runs(store.list("run")), game_id, references=baseline_references(store))
 
     @app.get("/api/v1/events")
     async def events(request: Request, after: int | None = None):

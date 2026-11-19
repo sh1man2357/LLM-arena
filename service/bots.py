@@ -10,7 +10,7 @@ from runner.io import ROOT, read_json, sha_file
 from service.store import utc_now
 
 MAX_SOURCE_BYTES = 1024 * 1024
-BASELINES = ("baseline",)
+BASELINE = "baseline"
 
 
 def baseline_key(row):
@@ -118,68 +118,81 @@ def import_bot(store, executor, source, name, key=None, game_id="bomberman"):
     return imported
 
 
-def baseline_records(store, game_id="bomberman"):
+def baseline_snapshot(store, game_id):
+    """Return the selected snapshot and whether it needs compiling."""
     folder = "gomoku" if game_id == "gomoku" else "baselines"
     sdk = ROOT / "sdk/gomoku" if game_id == "gomoku" else ROOT / "sdk"
     header = "gomoku.hpp" if game_id == "gomoku" else "arena.hpp"
-    rows = []
     version = dict(flags=FLAGS, compiler_sha256=sha_file(compiler_path()),
                    sdk_sha256={name: sha_file(sdk / name) for name in (header, 'wrapper.cpp')},
                    toolchain=read_json(ROOT / 'configs/toolchain.json'))
     headers = ('champion.hpp', 'patterns.hpp') if game_id == 'gomoku' else ('champion.hpp',)
     header_sha = {name: sha_file(ROOT / f'bots/{folder}/{name}') for name in headers}
     existing = store.list('bot')
-    for name in BASELINES:
-        source = ROOT / f"bots/{folder}/{name}.cpp"
-        sha = sha_file(source)
-        identity = f"baseline-{'gomoku-' if game_id == 'gomoku' else ''}{name}-" + digest(dict(source=sha, headers=header_sha, **version))[:16]
-        # Reuse intact legacy snapshots whose build inputs match, regardless of their old ID.
-        reusable = False
-        for candidate in existing:
-            if not (candidate.get('baseline') and candidate.get('game_id', 'bomberman') == game_id and baseline_key(candidate) == name
-                    and candidate['status'] == 'ready' and candidate.get('source_sha256') == sha):
-                continue
-            try:
-                wasm = Path(candidate['wasm'])
-                metadata = read_json(wasm.with_suffix('.metadata.json'))
-                if (all(metadata.get(k) == v for k, v in version.items())
-                        and sha_file(candidate['source']) == sha
-                        and all(sha_file(Path(candidate['source']).with_name(name)) == expected for name, expected in header_sha.items())
-                        and sha_file(wasm) == candidate['wasm_sha256']):
-                    reusable = True
-                    break
-            except (OSError, ValueError, KeyError):
-                continue
-        if reusable:
+    source = ROOT / f"bots/{folder}/{BASELINE}.cpp"
+    sha = sha_file(source)
+    identity = f"baseline-{'gomoku-' if game_id == 'gomoku' else ''}{BASELINE}-" + digest(dict(source=sha, headers=header_sha, **version))[:16]
+    # Reuse intact legacy snapshots whose build inputs match, regardless of their old ID.
+    for candidate in existing:
+        if not (candidate.get('baseline') and candidate.get('game_id', 'bomberman') == game_id and baseline_key(candidate) == BASELINE
+                and candidate['status'] == 'ready' and candidate.get('source_sha256') == sha):
             continue
         try:
-            row = store.get("bot", identity)
-        except KeyError:
-            row = dict(id=identity, name=name.title(), game_id=game_id, status="processing", baseline=True,
-                       source=str(source), source_sha256=sha, created=utc_now(), diagnostic=None, compile_log=None)
-        row["baseline_key"] = name
-        rows.append(row)
-    return rows
+            wasm = Path(candidate['wasm'])
+            metadata = read_json(wasm.with_suffix('.metadata.json'))
+            if (all(metadata.get(k) == v for k, v in version.items())
+                    and sha_file(candidate['source']) == sha
+                    and all(sha_file(Path(candidate['source']).with_name(name)) == expected for name, expected in header_sha.items())
+                    and sha_file(wasm) == candidate['wasm_sha256']):
+                return candidate, False
+        except (OSError, ValueError, KeyError):
+            continue
+    try:
+        row = store.get("bot", identity)
+    except KeyError:
+        row = dict(id=identity, name=BASELINE.title(), game_id=game_id, status="processing", baseline=True,
+                   source=str(source), source_sha256=sha, created=utc_now(), diagnostic=None, compile_log=None)
+    row["baseline_key"] = BASELINE
+    return row, True
 
 
-def listed_bots(rows, *, trashed=False):
-    """One current reference per game; retired snapshots remain available to replays."""
-    latest = {}
+def baseline_references(store):
+    return {row["id"]: row["bot_id"] for row in store.list("baseline_reference")}
+
+
+def listed_bots(rows, *, trashed=False, references=None):
+    """Use the prepared snapshot, with a fallback for workspaces predating selection."""
+    selected = dict(references or {})
+    legacy = {}
     for row in rows:
-        if row.get('baseline') and baseline_key(row) in BASELINES:
-            key = row.get('game_id', 'bomberman')
-            previous = latest.get(key)
-            if previous is None or (row['created'], row['id']) > (previous['created'], previous['id']):
-                latest[key] = row
-    return [row for row in rows if bool(row.get("deleted_at")) == trashed and (not row.get('baseline') or
-            (baseline_key(row) in BASELINES and row['id'] == latest[row.get('game_id', 'bomberman')]['id']))]
+        game = row.get("game_id", "bomberman")
+        if game not in selected and row.get("baseline") and baseline_key(row) == BASELINE:
+            legacy[game] = max(legacy.get(game, ("", "")), (row["created"], row["id"]))
+    selected.update({game: identity for game, (_, identity) in legacy.items()})
+    return [row for row in rows if bool(row.get("deleted_at")) == trashed and
+            (not row.get("baseline") or row["id"] == selected.get(row.get("game_id", "bomberman")))]
 
 
 def prepare_baselines(store, executor, game_id="bomberman"):
-    rows = [r for game in (("bomberman", "gomoku") if game_id == "all" else (game_id,)) for r in baseline_records(store, game)]
+    games = ("bomberman", "gomoku") if game_id == "all" else (game_id,)
+    references, rows = {}, []
+    for game in games:
+        bot, needs_build = baseline_snapshot(store, game)
+        references[game] = bot["id"]
+        if needs_build:
+            rows.append(bot)
+
+    def save_selection(db):
+        for game, identity in references.items():
+            store.put("baseline_reference", dict(id=game, bot_id=identity), db=db)
+
     if not rows:
+        with store.connection() as db:
+            save_selection(db)
         return
+
     def resource(task, db):
+        save_selection(db)
         for row in rows:
             folder_name = "gomoku" if row.get("game_id") == "gomoku" else "baselines"
             source = ROOT / f"bots/{folder_name}/{baseline_key(row)}.cpp"

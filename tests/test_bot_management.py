@@ -1,11 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
 import copy
 from pathlib import Path
+from shutil import copytree
 import threading
 import unittest
 from unittest.mock import patch
 
-from runner.io import sha_file
+from runner.io import ROOT, sha_file
 from runner.match import components
 from service.app import create_app
 from service.bots import manage_bots
@@ -129,6 +130,35 @@ class BotManagementTests(unittest.TestCase):
         self.assertEqual(repaired['description'], '计分基准')
         self.assertEqual(repaired['wasm_sha256'], reference['wasm_sha256'])
         self.assertIsNone(prepare_baselines(self.store, self.executor, 'all'))
+
+    def test_restoring_source_selects_the_original_reference_for_listing_and_rating(self):
+        source_root = self.root / 'checkout'
+        for directory in ('configs', 'sdk', 'bots/baselines', 'bots/gomoku'):
+            copytree(ROOT / directory, source_root / directory)
+
+        def reference(game):
+            listed = self.client.get('/api/v1/bots', params={'game_id': game}).json()['items']
+            identity, = [bot['id'] for bot in listed if bot['baseline']]
+            board = self.client.get('/api/v1/leaderboard', params={'game_id': game}).json()
+            self.assertEqual(board['reference_id'], identity)
+            self.assertEqual(next(r['rating'] for r in board['items'] if r['id'] == identity), 0)
+            return identity
+
+        with patch('service.bots.ROOT', source_root):
+            execute(self.root, prepare_baselines(self.store, self.executor, 'all')['id'])
+            original, chess = reference('bomberman'), reference('gomoku')
+            source = source_root / 'bots/baselines/baseline.cpp'
+            first = source.read_bytes()
+            source.write_bytes(first + b'\n// second revision\n')
+            execute(self.root, prepare_baselines(self.store, self.executor)['id'])
+            newer = reference('bomberman')
+            self.assertNotEqual(original, newer)
+            source.write_bytes(first)
+            self.assertIsNone(prepare_baselines(self.store, self.executor))
+
+        self.assertEqual(reference('bomberman'), original)
+        self.assertEqual(reference('gomoku'), chess)
+        self.assertEqual(self.store.get('bot', newer)['status'], 'ready')
 
     def test_active_match_and_human_match_cannot_lose_bot(self):
         run = self.start_run().json()
