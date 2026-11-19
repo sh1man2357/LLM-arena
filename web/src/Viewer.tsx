@@ -160,7 +160,6 @@ export function Viewer() {
     } catch (err) { setActionError((err as Error).message); match.retry(); setRetry(r => r + 1); }
     finally { moveGuard.current = false; setSubmitting(false); }
   }
-  if (match.errorStatus === 404) return <><Link className="back-link" to="/"><ArrowLeft aria-hidden="true" />返回首页</Link><ErrorPanel message={match.error} onRetry={retryReads} /></>;
   const run = match.data;
   const gomoku = run?.game_id === 'gomoku' || data?.game_id === 'gomoku';
   const hasFrames = !!data?.frames.length;
@@ -184,6 +183,7 @@ export function Viewer() {
     }
     return { bombs, walls };
   }, [data, gomoku]);
+  if (match.errorStatus === 404) return <><Link className="back-link" to="/"><ArrowLeft aria-hidden="true" />返回首页</Link><ErrorPanel message={match.error} onRetry={retryReads} /></>;
   const nameOf = (slot: number) => run?.entrants.find(e => e.slot === slot)?.name || `Bot ${slot}`;
   const stageStyle = boardWidth ? ({['--board-w' as string]: `${boardWidth}px`} as CSSProperties) : undefined;
   const bombermanFrame = frame && !gomoku && Array.isArray((frame.state as World).players) ? frame.state as World : undefined;

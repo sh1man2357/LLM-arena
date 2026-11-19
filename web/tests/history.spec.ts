@@ -103,5 +103,28 @@ test('记录管理：运行保护、重命名、筛选、删除确认、批量�
   expect((await (await request.get('/api/v1/leaderboard')).json()).valid_matches).toBe(before);
   await page.getByLabel('搜索对局', {exact: true}).fill('不存在的记录名称');
   await expect(history).toContainText('没有符合筛选条件的对局');
+  await page.goto(`/matches/${ids[0]}`);
+  await expect(page.getByRole('alert')).toContainText('没有找到该记录');
+  const restored = await request.post('/api/v1/matches/manage', {
+    headers: {'X-Arena-Local': '1'}, data: {action: 'restore', ids: [ids[0]]},
+  });
+  expect(restored.ok()).toBe(true);
+  await expect(page.locator('.spectator-stage')).toBeVisible({timeout: 10000});
+  expect(errors).toEqual([]);
+});
+
+test('无效录像链接显示错误，支持重试和返回首页', async ({page}) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const path = `/matches/missing-${crypto.randomUUID()}`;
+  await page.goto(path);
+  const alert = page.getByRole('alert');
+  await expect(alert).toContainText('没有找到该记录');
+  const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/v1' + path);
+  await alert.getByRole('button', {name: '重试'}).click();
+  expect((await response).status()).toBe(404);
+  await expect(alert).toContainText('没有找到该记录');
+  await page.getByRole('link', {name: '返回首页'}).click();
+  await expect(page.getByRole('heading', {name: '对战', exact: true})).toBeVisible();
   expect(errors).toEqual([]);
 });
