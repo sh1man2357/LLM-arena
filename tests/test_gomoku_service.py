@@ -100,6 +100,46 @@ class GomokuServiceTests(unittest.TestCase):
         self.app.state.executor.recover_interrupted()
         self.assertEqual([self.store.get("run", i)["status"] for i in retry["pair_runs"]], ["interrupted"]*2)
 
+    def test_failure_while_settling_second_leg_rolls_back_task_legs_and_events(self):
+        run = self.start().json()
+        first, second = run["pair_runs"]
+        task_id = self.store.get("run", first)["task_id"]
+        put = self.store.put
+        def fail_second(kind, row, **kwargs):
+            if kind == "run" and row["id"] == second:
+                raise OSError("second leg write failed")
+            return put(kind, row, **kwargs)
+        watermark = self.store.event_watermark()
+        with patch.object(self.store, "put", side_effect=fail_second), self.assertRaises(OSError):
+            self.app.state.executor.finish_unsuccessful(task_id, "failed", "worker exited")
+        self.assertEqual(self.store.get("task", task_id)["status"], "pending")
+        self.assertEqual([self.store.get("run", i)["status"] for i in (first, second)], ["pending"] * 2)
+        self.assertEqual(self.store.event_watermark(), watermark)
+        self.app.state.executor.finish_unsuccessful(task_id, "failed", "worker exited")
+        self.assertEqual([self.store.get("run", i)["status"] for i in (first, second)], ["failed"] * 2)
+
+    def test_restart_repairs_unfinished_leg_of_already_failed_task(self):
+        run = self.start().json()
+        first, second = run["pair_runs"]
+        task = self.store.get("task", self.store.get("run", first)["task_id"])
+        with patch("service.worker.time.sleep"):
+            run_single(self.store, task, task["inputs"]["legs"][0])
+        completed = self.store.get("run", first)
+        self.store.update("run", second, lambda r: r.update(status="running"))
+        self.store.update("task", task["id"], lambda r: r.update(status="failed", diagnostic="disk full"))
+
+        restarted = create_app(self.root).state.executor
+        restarted.recover_interrupted()
+        repaired = self.store.get("run", second)
+        self.assertEqual((repaired["status"], repaired["diagnostic"]), ("failed", "disk full"))
+        self.assertEqual(self.store.get("run", first), completed)
+        watermark = self.store.event_watermark()
+        restarted.recover_interrupted()
+        self.assertEqual(self.store.event_watermark(), watermark)
+        self.assertEqual(self.client.get("/api/v1/leaderboard?game_id=gomoku").json()["valid_matches"], 0)
+        trash = self.client.post("/api/v1/matches/manage", headers=HEADERS, json=dict(action="trash", ids=[second]))
+        self.assertEqual(trash.json()["changed"], 1)
+
     def test_game_validation_filtering_and_self_play(self):
         self.assertEqual(self.client.post("/api/v1/matches", headers=HEADERS, json=dict(bot_ids=["a", "b"])).status_code, 422)
         self.assertEqual(self.client.post("/api/v1/matches", headers=HEADERS, json=dict(bot_ids=["a"]*3, game_id="gomoku")).status_code, 422)

@@ -147,10 +147,8 @@ def main(data_root, task_id):
             raise ValueError("Unknown core task")
         store.update("task", task_id, lambda r: r.update(status="succeeded", finished=utc_now()))
     except Exception as exc:
-        failed = store.update("task", task_id, lambda r: r.update(
-            status="failed", finished=utc_now(), diagnostic=f"{type(exc).__name__}: {exc}"))
         from service.jobs import Executor
-        Executor(store).settle(failed)
+        Executor(store).finish_unsuccessful(task_id, "failed", f"{type(exc).__name__}: {exc}")
         raise
 
 

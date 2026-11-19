@@ -74,11 +74,13 @@ class Store:
         db.execute(sql, (kind, value["id"], json.dumps(value, ensure_ascii=False, allow_nan=False), utc_now()))
         return value
 
-    def emit(self, resource, event_type, payload):
-        with self.connection() as db:
-            cursor = db.execute("INSERT INTO events(resource,type,body,created) VALUES (?,?,?,?)",
-                                (resource, event_type, json.dumps(payload, ensure_ascii=False), utc_now()))
-            return cursor.lastrowid
+    def emit(self, resource, event_type, payload, *, db=None):
+        if db is None:
+            with self.connection() as connection:
+                return self.emit(resource, event_type, payload, db=connection)
+        cursor = db.execute("INSERT INTO events(resource,type,body,created) VALUES (?,?,?,?)",
+                            (resource, event_type, json.dumps(payload, ensure_ascii=False), utc_now()))
+        return cursor.lastrowid
 
     def events(self, after=0, limit=100):
         with self.connection() as db:
