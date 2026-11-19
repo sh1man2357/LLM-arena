@@ -2,6 +2,30 @@ import { test, expect } from '@playwright/test';
 
 const source = Buffer.from('#include "gomoku.hpp"\nnamespace bot { void init(uint64_t){} Action tick(const GameState& s){return {int(s.move_count/2),s.self_color==1?0:14};} }');
 
+test('开赛响应丢失后刷新重试只创建一组换色对局', async ({page, request}) => {
+  const idle = async () => !(await (await request.get('/api/v1/status')).json()).busy;
+  await expect.poll(idle, {timeout: 40000}).toBe(true);
+  const historyCount = async () => (await (await request.get('/api/v1/matches?game_id=gomoku')).json()).total;
+  const before = await historyCount();
+  await page.goto('/');
+  await page.getByLabel('游戏', {exact: true}).selectOption('gomoku');
+  const start = page.getByRole('button', {name: '开始对战', exact: true});
+  let originalId = '';
+  await page.route('**/api/v1/matches', async route => {
+    const accepted = await route.fetch();
+    expect(accepted.status()).toBe(202);
+    originalId = (await accepted.json()).id;
+    await route.abort('connectionreset');
+  }, {times: 1});
+  await start.click();
+  await expect(page.getByRole('alert')).toContainText('无法连接本地服务');
+  await expect.poll(idle, {timeout: 40000}).toBe(true);
+  await page.reload();
+  await start.click();
+  await expect(page).toHaveURL(new RegExp(originalId + '$'));
+  expect(await historyCount()).toBe(before + 2);
+});
+
 test('五子棋导入、换色、开局、回放、榜单与窄屏', async ({page, request}, testInfo) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 40000}).toBe(false);

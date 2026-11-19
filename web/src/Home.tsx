@@ -22,7 +22,7 @@ export function Home() {
   const human = game === 'gomoku' && mode === 'human';
   const [working, setWorking] = useState(false), [message, setMessage] = useState('');
   const guard = useRef(false);
-  const importKey = useRef(crypto.randomUUID()), runKey = useRef(crypto.randomUUID());
+  const importKey = useRef(crypto.randomUUID());
   const gameBots = bots.data?.items.filter(b => (b.game_id || 'bomberman') === game) || [];
   const ready = gameBots.filter(b => b.status === 'ready');
   const runningMatch = running.data?.items[0];
@@ -31,7 +31,6 @@ export function Home() {
     setSlots(current => current.map((id, i) => ready.some(b => b.id === id) ? id : ready[i % Math.max(1,ready.length)]?.id || ''));
   }, [bots.data, game]);
   useEffect(() => { importKey.current = crypto.randomUUID(); }, [file, name, game]);
-  useEffect(() => { runKey.current = crypto.randomUUID(); }, [slots, seed, game, opening, mode, humanSlot]);
   const busy = working || status.data?.busy || !status.data;
   async function act(work: () => Promise<void>) {
     if (guard.current) return;
@@ -53,8 +52,16 @@ export function Home() {
       <Link className="watch" to={`/matches/${runningMatch.id}`}>观看<ArrowRight aria-hidden="true" /></Link>
     </div>}
     <form className="match-card" onSubmit={e => { e.preventDefault(); void act(async () => {
-      const match = await api<Match>(human ? '/api/v1/human-matches' : '/api/v1/matches', {method: 'POST', headers: {'X-Arena-Local': '1', 'Idempotency-Key': runKey.current},
-        body: JSON.stringify(human ? {bot_id: slots[0], human_slot: humanSlot} : {bot_ids: slots, game_id: game, ...(game === 'gomoku' ? {opening_mode: opening} : {}), ...(seed === '' ? {} : {map_seed: Number(seed)})})});
+      const body = JSON.stringify(human ? {bot_id: slots[0], human_slot: humanSlot} : {bot_ids: slots, game_id: game, ...(game === 'gomoku' ? {opening_mode: opening} : {}), ...(seed === '' ? {} : {map_seed: Number(seed)})});
+      // Keep an unacknowledged submission across data refreshes and page reloads.
+      const storageKey = 'arena.pendingMatch';
+      const pending = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
+      const key = pending?.body === body ? pending.key : crypto.randomUUID();
+      sessionStorage.setItem(storageKey, JSON.stringify({body, key}));
+      const match = await api<Match>(human ? '/api/v1/human-matches' : '/api/v1/matches', {
+        method: 'POST', headers: {'X-Arena-Local': '1', 'Idempotency-Key': key}, body,
+      });
+      sessionStorage.removeItem(storageKey);
       navigate(`/matches/${match.id}`, {state: {autoplay: true}});
     }); }}>
       <div className="match-top">
