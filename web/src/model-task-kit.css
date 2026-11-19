@@ -1,0 +1,13 @@
+.model-task-kit {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 12px 20px; margin-bottom: 14px; padding: 14px 16px;
+  border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface);
+}
+.model-task-kit h2 { margin: 0 0 3px; }
+.model-task-kit p { margin: 0; color: var(--muted); font-size: 13px; }
+.kit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.kit-actions a:hover { background: var(--surface-3); }
+.kit-manual { width: 100%; }
+@media (max-width: 700px) {
+  .kit-actions > * { min-height: 44px; }
+}

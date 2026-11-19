@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { ChevronDown, Upload } from 'lucide-react';
 import { BotManager } from './BotManager';
+import { ModelTaskKit } from './ModelTaskKit';
 import { useRevision } from './App';
 import { api, useResource } from './api';
 import { GamePicker, useGame } from './GamePicker';
@@ -38,6 +39,7 @@ export function BotLibrary() {
       chooseGame(next); importKey.current = crypto.randomUUID(); setError('');
     }} /></header>
     {readError && <ErrorPanel message={readError} onRetry={() => {bots.retry(); status.retry();}} />}
+    <ModelTaskKit key={`kit-${game}`} game={game} />
     <details className="import-disclosure"><summary><Upload aria-hidden="true" />导入 Bot<ChevronDown className="disclosure-chevron" aria-hidden="true" /></summary>
       <form className="import-form" onSubmit={upload}>
         <label>Bot 文件<input type="file" required accept=".cpp" disabled={working} onChange={e => {

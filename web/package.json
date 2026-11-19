@@ -4,7 +4,10 @@
   "version": "0.3.0",
   "type": "module",
   "scripts": {
+    "devkits": "..\\.venv\\Scripts\\python.exe tools/build_devkits.py",
+    "predev": "npm run devkits",
     "dev": "vite --host 127.0.0.1",
+    "prebuild": "npm run devkits",
     "build": "tsc -b && vite build",
     "test": "playwright test",
     "test:protocol": "node --test protocol-tests/live.test.mjs"

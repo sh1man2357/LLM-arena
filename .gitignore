@@ -10,6 +10,7 @@ artifacts/
 configs/private/
 web/node_modules/
 web/dist/
+web/public/devkits/
 web/test-results/
 web/playwright-report/
 web/*.tsbuildinfo
