@@ -8,7 +8,7 @@ test('开赛响应丢失后刷新重试只创建一组换色对局', async ({pag
   const historyCount = async () => (await (await request.get('/api/v1/matches?game_id=gomoku')).json()).total;
   const before = await historyCount();
   await page.goto('/');
-  await page.getByLabel('游戏', {exact: true}).selectOption('gomoku');
+  await page.getByRole('radio', {name: '五子棋'}).check();
   const start = page.getByRole('button', {name: '开始对战', exact: true});
   let originalId = '';
   await page.route('**/api/v1/matches', async route => {
@@ -29,13 +29,14 @@ test('开赛响应丢失后刷新重试只创建一组换色对局', async ({pag
 test('五子棋导入、换色、开局、回放、榜单与窄屏', async ({page, request}, testInfo) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 40000}).toBe(false);
-  await page.goto('/'); await page.getByLabel('游戏', {exact: true}).selectOption('gomoku');
+  await page.goto('/'); await page.getByRole('radio', {name: '五子棋'}).check();
   await expect(page.getByRole('combobox', {name: '首盘黑棋', exact: true})).toBeVisible();
   await expect(page.getByRole('button', {name: '增加 Bot', exact: true})).toHaveCount(0);
   const options = await page.getByRole('combobox', {name: '首盘黑棋', exact: true}).locator('option').allTextContents();
   expect(options.some(name => name.includes('基准 BOT · 0 分'))).toBe(true); expect(options).not.toContain('Search');
+  await page.getByRole('link', {name: 'Bot 库', exact: true}).click();
   await page.locator('.import-disclosure > summary').click();
-  await expect(page.getByLabel('Bot 所属游戏')).toHaveValue('gomoku');
+  await expect(page.getByLabel('游戏', {exact: true})).toHaveValue('gomoku');
   await page.getByLabel('Bot 文件').setInputFiles({name:'gomoku-probe.cpp',mimeType:'text/plain',buffer:source});
   await page.getByLabel('名称', {exact:true}).fill('五子棋验收 Bot');
   const upload = page.waitForResponse(r => r.url().endsWith('/api/v1/bots') && r.request().method()==='POST');
@@ -43,6 +44,7 @@ test('五子棋导入、换色、开局、回放、榜单与窄屏', async ({pag
   const bot = await (await upload).json(); expect(bot.game_id).toBe('gomoku');
   await expect(page.locator(`[data-bot-id="${bot.id}"]`)).toContainText('可运行',{timeout:20000});
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy)).toBe(false);
+  await page.getByRole('link', {name: '对战', exact: true}).click();
   await page.getByRole('combobox',{name:'首盘黑棋',exact:true}).selectOption(bot.id);
   await page.getByRole('combobox',{name:'首盘白棋',exact:true}).selectOption(bot.id);
   await page.setViewportSize({width:390,height:844});
@@ -74,7 +76,7 @@ test('五子棋导入、换色、开局、回放、榜单与窄屏', async ({pag
   await expect(page).toHaveURL(new RegExp(run.pair_runs[1]+'$'));
   await expect(page.locator('.spectator-stage')).toHaveAttribute('data-seq','0');
   await page.getByRole('link',{name:'返回首页',exact:false}).click();
-  await expect(page.getByLabel('游戏',{exact:true})).toHaveValue('gomoku');
+  await expect(page.getByRole('radio', {name:'五子棋'})).toBeChecked();
   await page.getByText('开局设置',{exact:true}).click();
   await page.getByLabel('开局',{exact:true}).selectOption('library');
   await page.getByLabel('开局 Seed',{exact:true}).fill('5');

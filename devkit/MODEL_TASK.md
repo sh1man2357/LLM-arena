@@ -241,7 +241,7 @@ Action tick(const GameState&) { return Action::WAIT; }
 
 ## 分发与导入说明
 
-向模型发送同一份标准开发 ZIP 即可，包根目录 README 与 START_HERE 提供执行步骤。模型自行选择独立目录，运行 start-devkit.ps1 准备环境，完成后交付 bot.cpp，并在最终回复中用中文梳理开发全过程；使用者在应用首页导入源码。
+向模型发送同一份标准开发 ZIP 即可，包根目录 README 与 START_HERE 提供执行步骤。模型自行选择独立目录，运行 start-devkit.ps1 准备环境，完成后交付 bot.cpp，并在最终回复中用中文梳理开发全过程；使用者在应用的“Bot 库”导入源码。
 
 完整规则、SDK、地图和资源限制与应用保持一致。练习工具只使用公开开发地图，不需要历史比赛归档。开发包不包含本机 Bot 或录像数据。
 

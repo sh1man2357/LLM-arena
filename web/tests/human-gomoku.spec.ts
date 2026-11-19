@@ -18,7 +18,7 @@ test('五子棋人机入口、落子、刷新续玩、认输和录像', async ({
   const before = await (await request.get('/api/v1/leaderboard?game_id=gomoku')).json();
   async function start(slot: number) {
     await page.goto('/');
-    await page.getByLabel('游戏', {exact: true}).selectOption('gomoku');
+    await page.getByRole('radio', {name: '五子棋'}).check();
     await page.getByLabel('对战模式').selectOption('human');
     await page.getByLabel('对手 Bot').selectOption(bot.id);
     await page.getByLabel('你的执子').selectOption(String(slot));

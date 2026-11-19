@@ -52,7 +52,7 @@ powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
 
 每轮使用新输出目录，基准 WASM 核对包清单哈希。练习遵守与应用相同的规则和资源限制，但独立于应用榜单。复用基准辅助代码时合并进单个 bot.cpp，不让最终文件依赖额外辅助头文件。
 
-模型完成后将 bot.cpp 交给使用者，在应用首页导入即可。
+模型完成后将 bot.cpp 交给使用者，在应用的“Bot 库”中导入即可。
 
 ## 五子棋开发包
 

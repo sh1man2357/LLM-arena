@@ -1,16 +1,15 @@
 import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
 import { useResource } from './api';
 import { useRevision } from './App';
 import { BaselineMark, ErrorPanel } from './ui';
-import type { Ranking, GameId } from './types';
-import { gameNames, savedGame } from './games';
+import type { Ranking } from './types';
+import { GamePicker, useGame } from './GamePicker';
 
 export function Leaderboard() {
-  const [game, setGame] = useState<GameId>(savedGame);
+  const {game, chooseGame} = useGame();
   const data = useResource<{items: Ranking[]; valid_matches: number}>(`/api/v1/leaderboard?game_id=${game}`, useRevision());
   return <><div className="page-heading"><h1>本地榜单</h1></div>
-    <label className="game-picker">榜单游戏<select aria-label="榜单游戏" value={game} onChange={e => {setGame(e.target.value as GameId);sessionStorage.setItem('arena.game',e.target.value);}}>{Object.entries(gameNames).map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+    <GamePicker label="榜单游戏" game={game} chooseGame={chooseGame} />
     {data.error && <ErrorPanel message={data.error} onRetry={data.retry} />}
     <section className="section" aria-label="Bot 排名">
       <div className="section-head"><h2>排名</h2><span className="muted" style={{fontSize: 11.5}}>{data.data ? `${data.data.valid_matches} 场有效对局` : ''}</span></div>

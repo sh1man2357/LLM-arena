@@ -21,7 +21,7 @@ test('Bot 信息编辑、筛选、参赛保护、批量删除与恢复', async (
   try {
     const active = await request.post('/api/v1/human-matches', {headers, data: {bot_id: ids[0], human_slot: 0}});
     expect(active.status()).toBe(202); humanId = (await active.json()).id;
-    await page.goto('/');
+    await page.goto('/bots');
     await page.getByLabel('游戏', {exact: true}).selectOption('gomoku');
     const manager = page.locator('.bot-manager');
     const first = page.locator(`[data-bot-id="${ids[0]}"]`);
@@ -40,7 +40,9 @@ test('Bot 信息编辑、筛选、参赛保护、批量删除与恢复', async (
     await expect(first).toContainText('第 2 版策略');
     const match = await (await request.get(`/api/v1/matches/${humanId}`)).json();
     expect(match.entrants[1].name).toBe(`${prefix}-0`);
+    await page.getByRole('link', {name: '对战', exact: true}).click();
     await expect(page.getByRole('combobox', {name: '首盘黑棋', exact: true}).locator(`option[value="${ids[0]}"]`)).toHaveText(`${prefix}-新版`);
+    await page.getByRole('link', {name: 'Bot 库', exact: true}).click();
     await expect.poll(async () => (await request.get(`/api/v1/matches/${humanId}`)).json().then(s => s.waiting_tick)).toBe(0);
     expect((await request.post(`/api/v1/matches/${humanId}/actions`, {headers, data: {tick: 0, action: 225}})).ok()).toBe(true);
     await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy)).toBe(false);
@@ -59,7 +61,10 @@ test('Bot 信息编辑、筛选、参赛保护、批量删除与恢复', async (
     page.once('dialog', dialog => dialog.accept());
     await first.getByRole('button', {name: /^删除 Bot/}).click();
     await expect(first).toHaveCount(0);
+    await page.getByRole('link', {name: '对战', exact: true}).click();
     await expect(page.getByRole('combobox', {name: '首盘黑棋', exact: true}).locator(`option[value="${ids[0]}"]`)).toHaveCount(0);
+    await page.getByRole('link', {name: 'Bot 库', exact: true}).click();
+    await page.getByLabel('搜索 Bot', {exact: true}).fill(prefix);
     await page.getByRole('button', {name: 'Bot 回收站', exact: true}).click();
     await expect(first).toContainText('第 2 版策略');
     await first.getByRole('button', {name: /^恢复 Bot/}).click();
@@ -105,7 +110,7 @@ test('Bot 分页切换清除选择，筛选和删除后保持有效页', async (
     for (const id of ids) { const index = bots.findIndex(b => b.id === id); if (index >= 0) bots.splice(index, 1); }
     await route.fulfill({json: {changed: ids.length}});
   });
-  await page.goto('/');
+  await page.goto('/bots');
   const manager = page.locator('.bot-manager');
   await expect(manager.locator('[data-bot-id]')).toHaveCount(20);
   await page.getByRole('checkbox', {name: '选择本页 Bot', exact: true}).check();

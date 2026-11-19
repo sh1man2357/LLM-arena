@@ -4,12 +4,14 @@ import { ArrowRight, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { api, useResource } from './api';
 import { useRevision } from './App';
 import { Badge, ErrorPanel, labels, outcome } from './ui';
-import type { Match, GameId } from './types';
+import type { Match } from './types';
+import { GamePicker, useGame } from './GamePicker';
 import { gameNames } from './games';
 
 const active = (run: Match) => ['pending', 'running'].includes(run.status);
 
-export function History({game = 'bomberman'}: {game?: GameId}) {
+export function History() {
+  const {game, chooseGame} = useGame();
   const [refresh, setRefresh] = useState(0), [offset, setOffset] = useState(0);
   const [q, setQuery] = useState(''), [status, setStatus] = useState(''), [trashed, setTrashed] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -17,7 +19,6 @@ export function History({game = 'bomberman'}: {game?: GameId}) {
   const [working, setWorking] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('');
   const guard = useRef(false);
   const params = new URLSearchParams({offset: String(offset), limit: '20', q, trashed: String(trashed), game_id: game});
-  useEffect(() => {setOffset(0);setSelected([]);setEditing(undefined);}, [game]);
   if (status) params.set('status', status);
   const runs = useResource<{items: Match[]; total: number}>(`/api/v1/matches?${params}`, useRevision() + refresh);
   const items = runs.data?.items || [];
@@ -49,9 +50,8 @@ export function History({game = 'bomberman'}: {game?: GameId}) {
     });
   }
   function changePage(next: number) { setOffset(next); setSelected([]); setEditing(undefined); }
-  return <section className="section history" id="history" aria-labelledby="history-title">
-    <div className="section-head"><h2 id="history-title">对局记录<span className="count">{runs.data?.total ?? ''}</span></h2>
-      <span className="muted" style={{fontSize: 11.5}}>{trashed ? '恢复后重新计入榜单' : '删除移入回收站，可随时恢复'}</span></div>
+  return <section className="history" id="history" aria-labelledby="history-title">
+    <header className="library-heading"><h1 id="history-title">对局记录</h1><GamePicker game={game} disabled={working} chooseGame={next => {chooseGame(next); resetView();}} /></header>
     <div className="section-body">
       <div className="history-tabs" aria-label="记录范围">
         <button aria-pressed={!trashed} disabled={working} onClick={() => {setTrashed(false); resetView();}}>全部记录</button>

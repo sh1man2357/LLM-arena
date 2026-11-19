@@ -15,7 +15,7 @@ test('记录分页：切页清除选择，删除末页最后一条后返回有�
     rows = rows.filter(row => !body.ids.includes(row.id));
     await route.fulfill({json: {changed: 1}});
   });
-  await page.goto('/');
+  await page.goto('/history');
   const history = page.locator('#history');
   await expect(history.locator('[data-run-id]')).toHaveCount(20);
   await page.getByRole('checkbox', {name: '选择本页', exact: true}).check();
@@ -49,7 +49,7 @@ test('记录管理：运行保护、重命名、筛选、删除确认、批量�
     expect(response.status()).toBe(202);
     const run = await response.json(); ids.push(run.id);
     if (i === 0) {
-      await page.goto('/');
+      await page.goto('/history');
       await page.getByLabel('搜索对局', {exact: true}).fill(run.id);
       const row = page.locator(`[data-run-id="${run.id}"]`);
       await expect(row.getByRole('button', {name: /^删除对局/})).toBeDisabled();

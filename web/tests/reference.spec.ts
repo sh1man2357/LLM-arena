@@ -10,7 +10,7 @@ test('基准可改名且不可删除，保留标记及 0 分地位', async ({pag
     expect(reference.status).toBe('ready');
     const board=await (await request.get(`/api/v1/leaderboard?game_id=${game}`)).json();
     expect(board.items.find((r:any)=>r.id===reference.id).rating).toBe(0);
-    await page.goto('/');await page.getByLabel('游戏',{exact:true}).selectOption(game);
+    await page.goto('/bots');await page.getByLabel('游戏',{exact:true}).selectOption(game);
     const baseline = page.locator(`[data-bot-id="${reference.id}"]`);
     const name = `${game} 自定义基准`;
     await expect(baseline.locator('.baseline-mark')).toHaveText('基准 BOT · 0 分');
@@ -22,12 +22,14 @@ test('基准可改名且不可删除，保留标记及 0 分地位', async ({pag
     await page.getByRole('button', {name:'保存 Bot 信息',exact:true}).click();
     await expect(baseline.locator('strong')).toHaveText(name);
     await expect(baseline.locator('.baseline-mark')).toBeVisible();
+    await page.getByRole('link', {name: '对战', exact: true}).click();
     const picker = page.getByRole('combobox', {name:game==='gomoku'?'首盘黑棋':'Bot 0',exact:true});
     await expect(picker.locator(`option[value="${reference.id}"]`)).toHaveText(`${name} · 基准 BOT · 0 分`);
     if(game==='gomoku') {
       await page.getByLabel('对战模式').selectOption('human');
       await expect(page.getByLabel('对手 Bot').locator(`option[value="${reference.id}"]`)).toHaveText(`${name} · 基准 BOT · 0 分`);
     }
+    await page.getByRole('link', {name: 'Bot 库', exact: true}).click();
     await page.reload();
     await expect(baseline.locator('strong')).toHaveText(name);
     const deleted=await request.post('/api/v1/bots/manage',{headers:{'X-Arena-Local':'1'},data:{action:'trash',ids:[reference.id]}});

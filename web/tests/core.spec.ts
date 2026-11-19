@@ -12,7 +12,7 @@ test('八人各自为战：增减槽位、直播、排名与录像', async ({pag
   const safe = await uploaded.json();
   await expect.poll(async () => (await (await request.get('/api/v1/bots?game_id=bomberman')).json()).items.find((b:any)=>b.id===safe.id)?.status,{timeout:40000}).toBe('ready');
   await page.goto('/');
-  await expect(page.getByRole('button', {name: '移除 Bot 0'})).toBeDisabled();
+  await expect(page.getByRole('button', {name: '移除 Bot 0'})).toHaveCount(0);
   await page.getByRole('button', {name: '增加 Bot', exact: true}).click();
   await expect(page.getByRole('combobox', {name: 'Bot 2', exact: true})).toBeVisible();
   await page.getByRole('button', {name: '移除 Bot 1', exact: true}).click();
@@ -90,20 +90,22 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   await page.goto('/');
   await expect(page.getByRole('heading', {name: '对战', exact: true})).toBeVisible();
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 20000}).toBe(false);
-  await expect(page.getByLabel('Bot 文件')).toBeHidden();
+  await expect(page.getByRole('heading', {name:'最近录像'})).toBeVisible();
+  await expect(page.getByLabel('搜索 Bot', {exact: true})).toHaveCount(0);
   await expect(page.getByLabel('地图 Seed', {exact: true})).toBeHidden();
   await page.screenshot({path: testInfo.outputPath('home-desktop.png'), fullPage: true});
   await page.setViewportSize({width: 390, height: 844});
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({path: testInfo.outputPath('home-mobile.png'), fullPage: true});
-  await page.locator('.import-disclosure > summary').focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByLabel('Bot 文件')).toBeVisible();
   await page.getByText('地图设置', {exact: true}).click();
   await expect(page.getByLabel('地图 Seed', {exact: true})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({path: testInfo.outputPath('home-import-mobile.png'), fullPage: true});
   await page.getByText('地图设置', {exact: true}).click();
+  await page.getByRole('link', {name: 'Bot 库', exact: true}).click();
+  await page.locator('.import-disclosure > summary').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Bot 文件')).toBeVisible();
+  await page.screenshot({path: testInfo.outputPath('bot-import-mobile.png'), fullPage: true});
   await page.setViewportSize({width: 1280, height: 900});
   const ids: string[] = [];
   for (let slot = 0; slot < 2; slot++) {
@@ -116,6 +118,7 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
     await expect(page.locator(`[data-bot-id="${bot.id}"]`)).toContainText('可运行', {timeout: 20000});
     await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy)).toBe(false);
   }
+  await page.getByRole('link', {name: '对战', exact: true}).click();
   await page.getByRole('combobox', {name: 'Bot 0', exact: true}).selectOption(ids[0]);
   await page.getByRole('combobox', {name: 'Bot 1', exact: true}).selectOption(ids[0]);
   await expect(page.getByRole('button', {name: '开始对战', exact: true})).toBeEnabled();
@@ -173,7 +176,13 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({path: testInfo.outputPath('recording-mobile.png'), fullPage: true});
   await page.getByRole('link', {name: '返回首页', exact: false}).click();
-  await expect(page.locator(`.run-list a[href="/matches/${run.id}"]`)).toBeVisible();
+  const latest = page.locator(`.recent-list a[href="/matches/${run.id}"]`);
+  await expect(latest).toBeInViewport();
+  await latest.click();
+  await expect(stage).toHaveAttribute('data-seq', '0');
+  await page.goBack();
+  await page.getByRole('link', {name: '全部记录', exact: true}).click();
+  await expect(page.getByRole('heading', {name: '对局记录'})).toBeVisible();
   await page.getByRole('link', {name: '榜单', exact: true}).click();
   await expect(page.getByRole('heading', {name: '本地榜单'})).toBeVisible();
   const rankings = await (await request.get('/api/v1/leaderboard')).json();
@@ -185,7 +194,7 @@ test('导入、真实运行、暂停回看、保存录像和榜单', async ({ pa
 });
 
 test('导入失败与已删除页面、API', async ({page, request}) => {
-  await page.goto('/');
+  await page.goto('/bots');
   await expect.poll(async () => (await request.get('/api/v1/status')).json().then(s => s.busy), {timeout: 40000}).toBe(false);
   await page.locator('.import-disclosure > summary').click();
   await page.getByLabel('Bot 文件').setInputFiles({name: 'broken.cpp', mimeType: 'text/plain', buffer: Buffer.from('not C++')});
@@ -195,6 +204,7 @@ test('导入失败与已删除页面、API', async ({page, request}) => {
   const row = page.locator(`[data-bot-id="${bot.id}"]`);
   await expect(row).toContainText('失败', {timeout: 20000});
   await expect(row.getByText('编译日志', {exact: true})).toBeVisible();
+  await page.getByRole('link', {name: '对战', exact: true}).click();
   expect(await page.getByRole('combobox', {name: 'Bot 0', exact: true}).locator(`option[value="${bot.id}"]`).count()).toBe(0);
   for (const path of ['/manage', '/tournaments', '/entrants']) {
     await page.goto(path);
