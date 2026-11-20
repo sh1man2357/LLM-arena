@@ -3,17 +3,18 @@
 [![CI](https://github.com/sh1man2357/LLM-arena/actions/workflows/ci.yml/badge.svg)](https://github.com/sh1man2357/LLM-arena/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-本机运行的模型 Bot 竞技场，支持 2～8 人炸弹人混战和双人自由五子棋。导入 C++20 Bot，自动编译为 WASM，选择参赛 Bot 后运行并观看；运行过程自动保存为录像。五子棋 Bot 对战自动打两盘换色，也支持选择黑白执子、点击落子的人机单盘。各游戏独立筛选和计分，人机对局不计入 Bot 榜单。直播与录像使用同一个播放器，播放速度不影响结算。
+LLM Arena 是在 Windows 本机运行的 Bot 竞技场。外部模型开发 C++20 程序，竞技场将源码编译为 WebAssembly（WASM），执行对战并保存录像。对战期间只运行参赛程序。
 
-![新对局与最近录像](docs/images/home.png)
+| 游戏 | 对战方式 | 胜负与排名 |
+| --- | --- | --- |
+| 炸弹人 | 2～8 个 Bot 各自为战 | 每回合结算后存活得 1 分，每击杀一名对手得 100 分。终局按总积分排名，同分并列 |
+| 自由五子棋 | 两个 Bot 在相同开局交换黑白，各执一盘。人机模式为单盘 | 至少五子连线获胜。Bot 榜单只计入两盘均有效的换色对战 |
 
-![五子棋人机对战](docs/images/gomoku-human.png)
+![对战首页](docs/images/home.png)
 
-## 快速启动
+## 安装与启动
 
-目前支持 **Windows x64**。先安装 [Python 3.12](https://www.python.org/downloads/windows/)、[Node.js 24.19.0 / npm 11.17.0](https://nodejs.org/dist/v24.19.0/) 和 Git。macOS / Linux 尚未验收，不要求安装 Codex。
-
-首次获取并启动：
+环境为 Windows x64、Python 3.12、Node.js 24.19.0 和 npm 11.17.0。首次安装需要访问 PyPI、npm 和 GitHub。已有仓库时，从项目根目录执行两条 PowerShell 命令。
 
 ```powershell
 git clone https://github.com/sh1man2357/LLM-arena.git
@@ -22,51 +23,19 @@ powershell -ExecutionPolicy Bypass -File tools\setup-ui.ps1
 powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 ```
 
-默认打开 `http://127.0.0.1:8787`，在控制台按 Enter 停止。启动按当前源码准备炸弹人和五子棋各一个 Baseline 参考 BOT（实力分固定为 0），不自动开赛。
+默认地址为 `http://127.0.0.1:8787`。后续启动只需运行 `start-arena.ps1`，在启动控制台按 Enter 停止服务。安装参数、缓存与更新步骤见[安装指南](docs/guides/getting-started.md)。
 
-首次安装需要访问 PyPI、npm 和 GitHub；WASI SDK 压缩包约 625 MiB，解压需要额外空间。安装仅写入项目目录，不修改系统 PATH。版本检测失败或使用离线缓存时，参见[安装与启动](docs/guides/getting-started.md)。
+## 从模型开发到对战
 
-服务仅供本机使用；C++ 编译阶段没有文件系统沙箱，只导入可信源码。安全范围见 [SECURITY.md](SECURITY.md)。
+1. 在「Bot 库」选择游戏。在「给模型发任务」中下载任务包并复制提示词，两者一并提供给能执行命令的编程代理。
+2. 收到单文件 `bot.cpp` 后，在同一游戏的「导入 Bot」中上传。状态变为「可运行」后即可参赛。编译在本机执行，仅导入可信源码。
+3. 在「对战」选择参赛 Bot，点击「开始对战」。也可直接使用各游戏的内置基准 Bot。五子棋支持选择「人机对战」及执子颜色。
+4. 在「录像」回看或重赛，在「榜单」查看相对当前基准（0 分）的实力分。两个游戏分别统计。
 
-## 核心操作
+[操作指南](docs/guides/organizing-matches.md) · [任务包与模型交付](docs/guides/model-development.md) · [命令行示例](docs/guides/cli.md) · [文档目录](docs/README.md)
 
-1. 在首页选择游戏，点击“开始对战”即可用默认阵容开赛。炸弹人可选 2～8 个 Bot，五子棋 Bot 对战打两盘并交换黑白。地图或开局 Seed 留空时自动生成。五子棋默认空棋盘，可在“开局设置”中选择固定三手开局库。
-2. 想让自己的 Bot 参赛时，在“Bot 库”选择游戏，展开“导入 Bot”并选择单文件 `.cpp`。等状态变成“可运行”，即可在“对战”中选用。
-3. 在观赛页按顺序播放缓冲帧，暂停、逐帧、拖动、倍速或回到最新；后台运行不改变观看进度。
-4. 播到末尾显示结果。首页的“最近录像”可直接回看当前游戏最近完成的五场对局，顶部“录像”可查找更早的记录。
-5. 榜单按游戏展示以基准 BOT 为 0 的实力分，按实力分排名、同分并列，并保留胜 / 平 / 负和平均得分。五子棋只统计两盘都有效的完整换色对战，并显示执黑、执白成绩。
-6. 对局记录可搜索、筛选、重命名和批量删除。删除移入回收站并从榜单移除，可随时恢复；清空只处理筛选范围内已结束的对局。
-7. 五子棋选择“人机对战”，选择对手 Bot 和你的执子。轮到你时点击空位落子或认输；刷新后可从原记录继续，结束后可回看或“再来一局”。
-8. “Bot 库”可编辑名称与备注，按名称 / 备注 / ID 搜索、筛选状态、分页选择并批量删除或恢复。删除移入 Bot 回收站，源码与历史对局保留；基准 Bot 可改名、不可删除，始终显示“基准 BOT · 0 分”标记。编译中或参赛中的 Bot 不能删除。
+## 开发与许可
 
-同一时刻只执行一个编译或对局，忙时提示稍后再试。没有收卷倒计时、批次赛程、发布或备份工作台。现有主办方数据保留，旧业务记录不自动迁移到新版列表和榜单。
+开发、验证和提交约定见[开发指南](docs/guides/development.md)及[贡献指南](CONTRIBUTING.md)。版本变更见[更新记录](CHANGELOG.md)，本机服务与源码导入的信任边界见[安全说明](SECURITY.md)。
 
-## 文档与开发
-
-| 内容 | 入口 |
-| --- | --- |
-| 安装与离线缓存 | [安装与启动](docs/guides/getting-started.md) |
-| Bot 导入、运行、观赛与榜单 | [操作指南](docs/guides/organizing-matches.md) |
-| 编译、单局和复现检查 | [CLI 指南](docs/guides/cli.md) |
-| 给模型分发 Bot 开发材料 | [开发包](docs/guides/model-development.md) |
-| 开发与验证 | [开发指南](docs/guides/development.md) |
-| 参与贡献与报告问题 | [贡献指南](CONTRIBUTING.md) |
-| 更新记录 | [Changelog](CHANGELOG.md) |
-| 规则、架构和简化方案 | [文档目录](docs/README.md) |
-
-任务材料维护在 `devkit/`。生成对外开发包：
-
-```powershell
-.\.venv\Scripts\python.exe tools\build_devkit.py
-.\.venv\Scripts\python.exe tools\build_devkit.py --game gomoku
-```
-
-输出到忽略目录 `artifacts/distribution/`，ZIP 根目录有 README、START_HERE 和执行入口。包不包含本机 Bot、录像、旧比赛数据或依赖安装目录。
-
-五子棋开发包输出为 `artifacts/distribution/llm-arena-gomoku-devkit.zip`，使用独立任务书与 SDK，根目录仍有执行入口。规则与协议见[五子棋规格](docs/specs/gomoku.md)。
-
-`engine/` 和 `gomoku/` 是规则引擎，`sdk/` 与 `runtime/` 提供 Bot 接口和沙箱，`runner/` 与 `replay/` 提供运行与校验，`service/` 与 `web/` 提供本地应用。数据、日志、任务 ZIP、缓存和构建产物均在 Git 忽略目录生成。
-
-## 许可证
-
-本项目采用 [MIT License](LICENSE)。第三方依赖及开发包运行库的授权见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，开发包包含相应许可文本。
+项目采用 [MIT 许可证](LICENSE)。开发包包含所需的[第三方授权说明](THIRD_PARTY_NOTICES.md)及许可文本。

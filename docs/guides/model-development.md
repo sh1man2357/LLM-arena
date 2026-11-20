@@ -1,68 +1,49 @@
-# 模型 Bot 开发包
+# 模型任务包
 
-开发材料统一维护在 devkit。对外 ZIP 的根目录含 README、START_HERE、MODEL_TASK 和 start-devkit.ps1，模型可直接执行。应用只负责导入生成的 .cpp 与运行，不管理开发倒计时或收卷。
+同一游戏的参赛模型应收到相同的 ZIP 和提示词。模型在独立工作目录使用包内规则引擎、SDK、基准 Bot 和练习工具，交付一个完整的 C++20 源文件 `bot.cpp`。
 
-在应用的「Bot 库」选择游戏，点击「下载炸弹人任务包」或「下载五子棋任务包」，再点击「复制提示词」。把 ZIP 作为附件，连同提示词发给能运行命令的编程代理。收到单文件 `bot.cpp` 后，在同一游戏的「导入 Bot」中上传。网页提供的两份 ZIP 在前端启动开发服务器或构建时从当前源码生成。
+## 主办方分发与导入
 
-## 命令行生成
+1. 在「Bot 库」选择游戏，点击「下载炸弹人任务包」或「下载五子棋任务包」。
+2. 点击「复制提示词」，将提示词和 ZIP 一并发送给具备文件与命令执行能力的编程代理。浏览器限制剪贴板时，可从页面文本框手动复制。
+3. 接收 `bot.cpp` 和单独的中文开发总结。总结应列出策略、实际编译与练习结果及未验证事项。在同一游戏的「导入 Bot」中上传源码。
 
-在项目根目录执行：
+## 代理工作环境
+
+平台为 Windows x64，需要 Python 3.12。解压到独立可写目录，在 ZIP 根目录阅读 `START_HERE.md`，执行以下命令。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
+```
+
+脚本读取 `devkit-manifest.json` 的游戏 ID，准备锁定的依赖和编译器，使用模板完成一次公开案例的练习。炸弹人默认使用三个槽位，可指定 `-Players`；五子棋固定两人。首次安装需要联网，也可用 `-CompilerArchive` 和 `-WheelDirectory` 指定缓存。随后按根目录 `MODEL_TASK.md` 实现程序。正式提交须为单文件，复用基准实现时应将必要辅助代码合并到源码中。
+
+## 公开练习
+
+在包根目录使用对应游戏的命令，每次选择尚不存在的输出目录。
+
+```powershell
+# 炸弹人：一张地图，候选 Bot 轮换三个出生位
+.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 3 --maps 1 --output artifacts/work/practice-3p
+
+# 五子棋：一个公开开局，双方各执黑一次
+.\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --maps 1 --output artifacts/work/practice-pair
+```
+
+| 游戏 | 默认完整练习 | 可调参数 |
+| --- | --- | --- |
+| 炸弹人 | 10 张地图，双人换位，共 20 局 | `--players` 取 2～8，`--maps` 取 1～10。N 人时，每张地图轮换 N 个出生位，其余槽位使用基准的独立实例 |
+| 五子棋 | 12 个三手开局，分别交换黑白，共 24 盘 | `--maps` 取 1～12，或以 `--opening-mode empty` 指定空棋盘 |
+
+输出目录含 `summary.md`、`summary.json` 和 `replays/`。练习结果独立于应用榜单。基准实力分为 0，练习分数仅描述所用案例和对手。
+
+## 从源码生成 ZIP
+
+仓库根目录的 `devkit/` 保存按游戏区分的原始材料。网页在 `npm.cmd run dev` 或 `npm.cmd run build` 前生成两份任务包到 `web/public/devkits/`；生产构建将其复制到 `web/dist/devkits/`。命令行分发包由同一打包器生成，在仓库根目录执行：
 
 ```powershell
 .\.venv\Scripts\python.exe tools\build_devkit.py
 .\.venv\Scripts\python.exe tools\build_devkit.py --game gomoku
 ```
 
-输出到 artifacts/distribution/llm-arena-devkit.zip，旁边有 SHA-256。已有包不覆盖；需要新包时用 --output 指定新文件。打包按白名单，不包含本机数据、旧归档、.venv 或 .tools。
-
-| 材料 | 用途 |
-| --- | --- |
-| [执行入口](../../devkit/START_HERE.md) | 准备独立工作区、安装和运行检查 |
-| [任务书](../../devkit/MODEL_TASK.md) | 规则、完整 SDK、单文件 Bot 要求 |
-| [SDK](../../sdk/arena.hpp) / [模板](../../sdk/template.cpp) | C++20 接口 |
-| [公开地图](../../configs/public-dev.json) | 十张可复现练习地图 |
-| [练习工具](../../tools/practice.py) | 逐局基准对战、简要统计与轨迹 |
-
-包还包含当前引擎、沙箱、CLI、Replay 校验器和对应游戏一个已检查的基准 WASM（基准实力分 0）。清单版本为 5，记录游戏 ID、文件哈希、工具链和公开案例。炸弹人基准通过双人资格检查和八人世界校验；五子棋基准通过资格检查和完整棋局世界校验。炸弹人 SDK / 二进制协议为版本 2，公开积分与计分参数；五子棋保持版本 1，以不同协议 magic 区分。
-
-## 模型执行
-
-模型在独立可写目录解压，在包根目录运行：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
-```
-
-脚本检测 Python 3.12、准备锁定依赖 / 编译器，并用模板完成三人公开练习；可用 `-Players 2` 或 `-Players 8` 指定环境检查人数。安装需要网络；可使用 -CompilerArchive、-WheelDirectory 复用已校验缓存。不修改系统 PATH。
-
-模型阅读任务书，生成根目录 bot.cpp，并在最终回复中另附中文开发流程总结，简要梳理规则理解、策略设计、实现与修改、实际验证、最终方案与已知局限。总结只描述实际完成的工作，未执行的环节如实说明，与源码分开；没有本地工具时按内嵌 SDK 写出完整源码，不声称已运行检查。开发时间由使用者自行安排，应用和默认任务书不提供限时评测协议。
-
-任务书说明参赛 Bot 将与其他顶级前沿模型独立开发的 Bot 同台竞技，同一竞技项目的参赛模型收到完全相同的任务提示词。Baseline 定位为普通参考 Bot，供练习和计分使用，基准成绩仅供参考；算法、策略与开发过程由模型自主决定。
-
-## 练习
-
-```powershell
-.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --output artifacts/work/practice-01
-.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --opponent baseline --maps 1 --output artifacts/work/practice-02
-.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 3 --maps 1 --output artifacts/work/practice-3p
-.\.venv\Scripts\python.exe tools\practice.py --source bot.cpp --players 8 --opponent baseline --maps 1 --output artifacts/work/practice-8p
-```
-
-`--players N` 支持 2～8，默认 2。每局一个候选 Bot 与所选基准的 N−1 个独立实例各自为战，每张地图依次轮换全部 N 个出生位，种子随实例移动。十个公开地图 Seed 各提供八个独立 Bot Seed，双人的前两个种子保持原值；地图地形随人数生成。默认一个基准、十张公开地图、每图双人换边，共 20 局；三人一张地图共 3 局，八人一张地图对一个基准共 8 局。
-
-练习直接调用单局执行器，不创建批次。summary.md / summary.json 提供相对 0 分基准的实力分、人数、胜 / 平 / 负和平均名次分，replays/ 保存每局记录。独占第一记胜，并列第一记平，其余记负；多人平均分直接累计名次分，不用 `(胜 + 0.5 × 平) / 局数` 推算。
-
-每轮使用新输出目录，基准 WASM 核对包清单哈希。练习遵守与应用相同的规则和资源限制，但独立于应用榜单。复用基准辅助代码时合并进单个 bot.cpp，不让最终文件依赖额外辅助头文件。
-
-模型完成后将 bot.cpp 交给使用者，在应用的“Bot 库”中导入即可。
-
-## 五子棋开发包
-
-使用 `--game gomoku` 打包为 `artifacts/distribution/llm-arena-gomoku-devkit.zip`，根目录仍为 README、START_HERE、MODEL_TASK 和 start-devkit.ps1。源码中的材料为[五子棋入口](../../devkit/GOMOKU_START_HERE.md)、[任务书](../../devkit/GOMOKU_MODEL_TASK.md)、[SDK](../../sdk/gomoku/gomoku.hpp)、[模板](../../sdk/gomoku/template.cpp)、[公开开局](../../configs/gomoku-public-dev.json)。执行入口从清单自动识别游戏；源码仓库中可传 `-Game gomoku`。
-
-```powershell
-.\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --output artifacts/work/gomoku-practice-01
-.\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --opponent baseline --maps 1 --output artifacts/work/gomoku-practice-02
-```
-
-五子棋固定两人，默认一个参考 Bot、12 个公开三手开局，每种换色两盘，共 24 盘。支持 `--opening-mode empty`。统计按每盘胜 1、平 0.5、负 0 分，并分别显示执黑 / 执白成绩。编译和 qualify 必须使用 `--game gomoku`；提交的 bot.cpp 包含 gomoku.hpp。详见[五子棋规则](../specs/gomoku.md)。
+默认输出至 `artifacts/distribution/`，文件分别为 `llm-arena-devkit.zip` 和 `llm-arena-gomoku-devkit.zip`，各附一个 `.sha256` 文件。已有 ZIP 或同名校验文件时，使用 `--output` 指定新的 ZIP 路径。打包器按文件清单收集源码、任务书、许可和对应游戏的基准 WASM，并记录文件哈希。

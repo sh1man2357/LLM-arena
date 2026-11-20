@@ -1,14 +1,16 @@
 # 文档目录
 
-从[项目概览](project.md)了解范围，从[安装与启动](guides/getting-started.md)开始使用。
-
-| 分类 | 文档 |
+| 任务 | 文档 |
 | --- | --- |
-| 使用 | [安装与启动](guides/getting-started.md)、[导入与观赛](guides/organizing-matches.md)、[CLI](guides/cli.md) |
-| 模型开发 | [开发包与练习](guides/model-development.md)、[任务书](../devkit/MODEL_TASK.md)、[执行入口](../devkit/START_HERE.md) |
-| 开发维护 | [开发与验证](guides/development.md)、[文档维护](maintenance.md) |
-| 规则 | [炸弹人规则](specs/rules.md)、[炸弹人 Bot SDK](specs/bot-sdk.md)、[地图与随机性](specs/maps-and-randomness.md)、[本地榜单计分](specs/benchmark.md)、[五子棋规则与 SDK](specs/gomoku.md) |
-| 架构 | [核心模块](architecture/overview.md)、[本地服务](architecture/service.md) |
-| 界面与改造 | [前端规范](design/frontend.md)、[核心简化方案](design/simplification.md) |
+| 了解项目及数据位置 | [项目概览](project.md) |
+| 安装、启动或更新 | [安装指南](guides/getting-started.md) |
+| 分发任务、练习与交付源码 | [模型任务包](guides/model-development.md) |
+| 导入 Bot、开赛、回看或管理记录 | [操作指南](guides/organizing-matches.md) |
+| 在命令行编译、运行和验证录像 | [CLI 指南](guides/cli.md) |
+| 查阅炸弹人规则与接口 | [结算规则](specs/rules.md)、[地图与随机性](specs/maps-and-randomness.md)、[Bot SDK 与二进制协议](specs/bot-sdk.md) |
+| 查阅五子棋规则与接口 | [五子棋规则与 SDK](specs/gomoku.md) |
+| 解释榜单结果 | [得分与实力分](specs/benchmark.md) |
+| 开发与维护 | [核心架构](architecture/overview.md)、[本地服务与 API](architecture/service.md)、[前端规范](design/frontend.md)、[开发与验证](guides/development.md)、[文档维护](maintenance.md) |
+| 查阅设计沿革 | [核心功能简化记录](design/simplification.md) |
 
-文档描述当前实现。测试数据与运行产物不进入源码仓库；旧版本的操作说明可从 Git 历史查阅。
+仓库中的炸弹人材料为[执行入口](../devkit/START_HERE.md)和[任务书](../devkit/MODEL_TASK.md)，五子棋材料为[执行入口](../devkit/GOMOKU_START_HERE.md)和[任务书](../devkit/GOMOKU_MODEL_TASK.md)。对外分发时，两种 ZIP 均使用根目录的 `START_HERE.md` 和 `MODEL_TASK.md`。

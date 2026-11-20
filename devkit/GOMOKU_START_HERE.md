@@ -1,27 +1,18 @@
-# 五子棋 Bot 开发入口
+# 五子棋任务包使用说明
 
-本包用于模型编写自由五子棋 C++20 Bot。运行时执行 WASM，不调用模型 API。
+在独立可写目录解压本包。运行环境为 Windows x64 和 Python 3.12。首次安装需要下载锁定的 Python 依赖及 WASI SDK。可通过 `-Python` 指定解释器，或通过 `-CompilerArchive`、`-WheelDirectory` 提供缓存。
 
-你的 Bot 将代表你，与其他顶级前沿模型独立开发的 Bot 同台竞技。同一竞技项目中，其他参赛模型收到的任务提示词与你完全相同。请交付你能实现的最强参赛程序；算法、策略与开发过程由你自主决定。Baseline 是一个普通的参考 Bot，供本地练习和计分使用，基准成绩仅供参考。
-
-在独立可写目录解压，运行包根目录入口：
+1. 在包根目录运行环境准备脚本。脚本读取包清单并使用五子棋模板完成双人换色练习。
+2. 阅读根目录 `MODEL_TASK.md`，实现单文件 C++20 源码 `bot.cpp`。
+3. 使用包内工具编译并练习。每个公开开局交换黑白各运行一盘。每次练习使用新的输出目录。
+4. 交付完整 `bot.cpp`，另附中文开发总结，记录实际执行的检查、结果及未验证事项。交付格式以任务书为准。
 
 ```powershell
+# 环境准备与模板验证
 powershell -ExecutionPolicy Bypass -File .\start-devkit.ps1
-```
 
-入口从清单自动识别五子棋，准备 Python 3.12、Wasmtime 49.0.0、WASI SDK 33.0，并用五子棋模板进行双人换色练习。安装支持 `-Python`、`-CompilerArchive` 和 `-WheelDirectory`；只写工作区，不修改系统 PATH。
-
-环境就绪后阅读根目录 `MODEL_TASK.md`，编写单文件 `bot.cpp`，并在最终回复中用中文梳理编写 Bot 的全过程。总结与源码分开，只描述实际完成的工作，具体格式见任务书的交付要求。只收到任务书文字时，使用其中完整 SDK 编写源码，不声称完成了编译或测试。
-
-```powershell
-.\.venv\Scripts\python.exe arena.py build bot.cpp --game gomoku --output artifacts/work/bot.wasm
-.\.venv\Scripts\python.exe arena.py qualify artifacts/work/bot.wasm --game gomoku
+# 完成 bot.cpp 后执行
 .\.venv\Scripts\python.exe tools\practice.py --game gomoku --source bot.cpp --maps 1 --output artifacts/work/practice-01
 ```
 
-默认完整练习使用一个 Baseline 参考 Bot 及 12 种公开开局，每种开局交换黑白，共 24 盘；基准实力分固定为 0。可用 `--opponent baseline`、`--maps 1` 缩小范围，`--opening-mode empty` 使用空棋盘。每次使用新输出目录。
-
-输出 `summary.md`、`summary.json` 和每盘录像。将完成的 `bot.cpp` 交给使用者，在竞技场选择“五子棋”并导入。参考 Bot 的入口为 `bots/gomoku/baseline.cpp`，辅助实现为同目录下的 `champion.hpp` 和 `patterns.hpp`；复用时必须把所需实现合并到单个源码中。
-
-源码仓库中运行入口可显式使用 `-Game gomoku`；对外 ZIP 从清单自动识别。包不含本机 Bot、比赛数据、录像、旧验收归档或依赖安装目录。
+统计保存在练习目录的 `summary.md` 和 `summary.json`，逐局录像保存在 `replays/`。

@@ -1,44 +1,37 @@
 # 安装与启动
 
-所有命令在项目根目录执行。
+以下命令均在项目根目录执行。支持 Windows x64。浏览器应用需要 Python 3.12、Node.js 24.19.0 和 npm 11.17.0。仅使用命令行或任务包时，需要 Python 和 WASI SDK，无需安装 Node.js。
 
 ## 浏览器应用
 
-支持 Windows x64、Python 3.12、Node 24.19.0 与 npm 11.17.0，运行版本见 `tools/runtime-lock.json`。首次准备执行：
+先检查 Node.js 与 npm 的版本。两者必须分别匹配锁定值；使用其他 npm 版本时，先在所选 Node.js 环境中安装 npm 11.17.0。
 
 ```powershell
+node --version
+npm.cmd --version
 powershell -ExecutionPolicy Bypass -File tools\setup-ui.ps1
 powershell -ExecutionPolicy Bypass -File .\start-arena.ps1
 ```
 
-安装脚本使用哈希锁定的 Python 依赖、已校验 SDK 和 `npm ci`，随后构建前端。可用 `-Python`、`-NodeDirectory` 明确指定运行环境；`-CompilerArchive`、`-WheelDirectory` 可复用本地缓存。前端首次安装仍需 npm 网络访问。只修改项目目录和安装进程的 PATH，不修改系统设置。
+安装脚本创建 `.venv/`、按哈希安装 Python 依赖、校验并解压 WASI SDK，随后运行 `npm ci`、生成两个游戏的任务包并构建网页。首次安装需访问 PyPI、GitHub 和 npm。WASI SDK 压缩包约 625 MiB，另需解压空间。
 
-不需要安装 Codex。Python 检测优先使用 PATH 中的 Python 3.12 和 `py -3.12`，再尝试常见安装目录；已有 Codex Python 时仅作为最后的可选兼容来源。使用明确的安装路径：
+| 参数 | 用途 |
+| --- | --- |
+| 安装时 `-Python` | 指定 Python 3.12 可执行文件。省略时脚本查找本机已安装的解释器 |
+| 安装时 `-NodeDirectory` | 指定同时包含 `node.exe` 和 `npm.cmd` 的目录 |
+| 安装时 `-CompilerArchive`、`-WheelDirectory` | 使用本地 SDK 压缩包和 Python wheel 缓存，仍按锁定哈希校验 |
+| 启动时 `-Port`、`-Data`、`-NoBrowser` | 指定本机端口、数据目录，或仅启动服务 |
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\setup-ui.ps1 -Python 'C:\Python312\python.exe' -NodeDirectory 'C:\tools\node-v24.19.0-win-x64'
-```
+启动后默认打开 `http://127.0.0.1:8787`。服务为每个游戏准备一个基准 Bot。默认数据目录为 `artifacts/local/`，同一目录只能由一个执行器使用。在启动控制台按 Enter 停止服务；未完成的运行在服务恢复时标记为中断。
 
-Node 目录应同时包含 `node.exe` 和 `npm.cmd`。可先执行 `node --version` 与 `npm.cmd --version` 核对版本；脚本会拒绝不匹配的运行环境。网络受限时使用官方 SDK 缓存和已下载的 Python wheel；SDK 哈希不匹配时应重新获取官方文件，不修改配置绕过校验。
+## 更新已有安装
 
-启动后打开本机浏览器，默认 `http://127.0.0.1:8787`；在启动控制台按 Enter 停止该实例及自有 worker。若停止时正在计算，下一次启动将作业标为中断，可从记录建立新对局；不提供断点恢复。可用 `-Port 8791` 避开端口冲突，`-NoBrowser` 仅启动服务。同一数据目录只允许一个 worker 实例。
+停止正在运行的服务，更新源码（使用 Git 时可执行 `git pull --ff-only`），重新运行 `tools\setup-ui.ps1`，再运行 `start-arena.ps1`。沿用原数据目录即可读取已有 Bot 和录像。
 
-更新代码后，先停止服务，再执行 `git pull --ff-only` 和 `tools\setup-ui.ps1`，最后重新启动，以更新依赖和前端构建。本机数据位于 `artifacts/local/`，更新源码不会自动删除数据。不要把新源码直接覆盖正在使用的依赖或数据目录。
-
-## 仅使用命令行
-
-首个支持和验收平台是 Windows x64、PowerShell、Python 3.12。需要 Git 才能使用源码版本记录；运行程序本身不需要 Git。依赖锁定 Wasmtime 49.0.0 和 WASI SDK 33.0 / Clang 22.1.0，安装包校验 SHA-256。
-
-在项目根目录执行：
+## 命令行环境
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\setup.ps1
 ```
 
-脚本使用与浏览器应用相同的 Python 检测；也可明确指定已安装的 Python 3.12：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\setup.ps1 -Python 'C:\Python312\python.exe'
-```
-
-下载需要访问 PyPI 和 GitHub；编译器官方压缩包约 625 MiB，解压还需额外磁盘空间。只写入项目内 .venv 和 .tools，不修改系统 PATH。如果已经缓存同一官方包，可加 `-CompilerArchive 'C:\cache\wasi-sdk-33.0-x86_64-windows.tar.gz'`，仍会校验哈希。
+该入口准备 Python 运行时依赖及 WASI SDK，不构建网页。支持 `-Python`、`-CompilerArchive` 和 `-WheelDirectory`。后续操作见 [CLI 指南](cli.md)。模型收到 ZIP 时，使用包根目录的 `start-devkit.ps1`，详见[任务包指南](model-development.md)。
